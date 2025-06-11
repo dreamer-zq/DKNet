@@ -26,7 +26,6 @@ generates their own node configuration independently.`,
 	// Add specific flags for init-node command
 	cmd.Flags().StringP("node-id", "", "node1", "Node ID (e.g., node1, org-alpha, etc.)")
 	cmd.Flags().StringP("moniker", "", "", "Human-readable node name (defaults to node-id)")
-	cmd.Flags().IntP("parties", "p", 3, "Total number of parties in TSS")
 	cmd.Flags().StringSliceP("bootstrap-peers", "b", []string{}, "Bootstrap peer multiaddrs")
 	cmd.Flags().IntP("http-port", "", 8080, "HTTP API port")
 	cmd.Flags().IntP("grpc-port", "", 9090, "gRPC API port")
@@ -44,7 +43,6 @@ func runInitNode(cmd *cobra.Command, args []string) error {
 	// Get node-specific flags
 	nodeID, _ := cmd.Flags().GetString("node-id")
 	moniker, _ := cmd.Flags().GetString("moniker")
-	parties, _ := cmd.Flags().GetInt("parties")
 	bootstrapPeers, _ := cmd.Flags().GetStringSlice("bootstrap-peers")
 	httpPort, _ := cmd.Flags().GetInt("http-port")
 	grpcPort, _ := cmd.Flags().GetInt("grpc-port")
@@ -58,7 +56,6 @@ func runInitNode(cmd *cobra.Command, args []string) error {
 	logger.Info("Initializing TSS node",
 		zap.String("nodeID", nodeID),
 		zap.String("moniker", moniker),
-		zap.Int("parties", parties),
 		zap.String("output", outputDir),
 		zap.Bool("docker", dockerMode))
 
