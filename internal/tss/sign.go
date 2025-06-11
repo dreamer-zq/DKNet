@@ -19,10 +19,16 @@ import (
 
 // StartSigning starts a new signing operation
 func (s *Service) StartSigning(ctx context.Context, req *SigningRequest) (*Operation, error) {
-	// Load key data
+	// Load key data and metadata
 	keyData, err := s.loadKeyData(ctx, req.KeyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load key data: %w", err)
+	}
+	
+	// Load key metadata to get original threshold
+	keyMetadata, err := s.loadKeyDataStruct(ctx, req.KeyID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load key metadata: %w", err)
 	}
 
 	// Create operation
@@ -49,7 +55,7 @@ func (s *Service) StartSigning(ctx context.Context, req *SigningRequest) (*Opera
 
 	// Create TSS parameters - use the original threshold from keygen
 	ctx2 := tss.NewPeerContext(participants)
-	threshold := len(keyData.Ks) - 1 // Get original threshold from stored key data
+	threshold := keyMetadata.Threshold // Use the original threshold from stored metadata
 	params := tss.NewParameters(tss.S256(), ctx2, ourPartyID, len(participants), threshold)
 
 	// Create channels
@@ -149,10 +155,16 @@ func (s *Service) createSyncedSigningOperation(ctx context.Context, msg *p2p.Mes
 		return fmt.Errorf("message is required for signing operation sync")
 	}
 
-	// Load key data
+	// Load key data and metadata
 	keyData, err := s.loadKeyData(ctx, syncData.KeyID)
 	if err != nil {
 		return fmt.Errorf("failed to load key data for synced signing: %w", err)
+	}
+	
+	// Load key metadata to get original threshold
+	keyMetadata, err := s.loadKeyDataStruct(ctx, syncData.KeyID)
+	if err != nil {
+		return fmt.Errorf("failed to load key metadata for synced signing: %w", err)
 	}
 
 	// Create participant list
@@ -175,7 +187,7 @@ func (s *Service) createSyncedSigningOperation(ctx context.Context, msg *p2p.Mes
 
 	// Create TSS parameters - use the original threshold from keygen
 	ctx2 := tss.NewPeerContext(participants)
-	threshold := len(keyData.Ks) - 1 // Get original threshold from stored key data
+	threshold := keyMetadata.Threshold // Use the original threshold from stored metadata
 	params := tss.NewParameters(tss.S256(), ctx2, ourPartyID, len(participants), threshold)
 
 	// Create channels

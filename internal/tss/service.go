@@ -450,6 +450,21 @@ func (s *Service) loadKeyData(ctx context.Context, keyID string) (*keygen.LocalP
 	return &saveData, nil
 }
 
+// loadKeyDataStruct loads the full KeyData structure from storage
+func (s *Service) loadKeyDataStruct(ctx context.Context, keyID string) (*KeyData, error) {
+	data, err := s.storage.Load(ctx, keyID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load key data: %w", err)
+	}
+
+	var keyDataStruct KeyData
+	if err := json.Unmarshal(data, &keyDataStruct); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal key data struct: %w", err)
+	}
+
+	return &keyDataStruct, nil
+}
+
 // createParticipantList creates a list of party IDs from peer IDs
 func (s *Service) createParticipantList(peerIDs []string) ([]*tss.PartyID, error) {
 	var participants []*tss.PartyID

@@ -20,7 +20,7 @@ storage:
 tss:
     node_id: node1
     moniker: TSS Node 1
-    threshold: 2
+    threshold: 1
     parties: 3
 security:
     tls_enabled: false

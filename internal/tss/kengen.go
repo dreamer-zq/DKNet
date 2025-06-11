@@ -202,12 +202,15 @@ func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, re
 		return fmt.Errorf("failed to marshal key data: %w", err)
 	}
 
+	// Get original threshold from operation request
+	originalReq := operation.Request.(*KeygenRequest)
+	
 	// Store key data
 	keyDataStruct := &KeyData{
 		NodeID:    s.nodeID,
 		Moniker:   s.moniker,
 		KeyData:   keyDataBytes,
-		Threshold: len(result.Ks) - 1,
+		Threshold: originalReq.Threshold, // Store the original threshold from request
 		Parties:   len(result.Ks),
 		CreatedAt: time.Now().Unix(),
 		UpdatedAt: time.Now().Unix(),
