@@ -27,7 +27,6 @@ each organization should generate their own keys independently.`,
 	addCommonFlags(cmd)
 	// Add specific flags for init-cluster command
 	cmd.Flags().IntP("nodes", "n", 3, "Number of nodes in the cluster")
-	cmd.Flags().StringP("network", "", "172.20.0.0/16", "Docker network subnet")
 	return cmd
 }
 
