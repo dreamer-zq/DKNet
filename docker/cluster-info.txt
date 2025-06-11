@@ -1,0 +1,33 @@
+TSS Cluster Configuration Summary
+=====================================
+
+Cluster Parameters:
+- Nodes: 3
+- Threshold: 2
+- Mode: Docker
+
+Generated Files Structure:
+Each node has its own directory with:
+- ./docker/node1/config.yaml & node_key & node-info.txt
+- ./docker/node2/config.yaml & node_key & node-info.txt
+- ./docker/node3/config.yaml & node_key & node-info.txt
+
+Node Information:
+- node1: QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF
+- node2: QmQjz2j7wFScU4Rj1cP3iwisbGwdhkNXmfmUYUHmvtEXY3
+- node3: QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi
+
+Bootstrap Multiaddrs:
+- node1: /ip4/172.20.0.2/tcp/4001/p2p/QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF
+- node2: /ip4/172.20.0.3/tcp/4001/p2p/QmQjz2j7wFScU4Rj1cP3iwisbGwdhkNXmfmUYUHmvtEXY3
+- node3: /ip4/172.20.0.4/tcp/4001/p2p/QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi
+
+Docker Usage:
+1. Update your docker-compose.yml to mount each node directory:
+   volumes:
+     - ././docker/node1:/app/node:ro
+   
+2. Start the cluster:
+   docker-compose up -d
+
+3. Each container should reference ./node/config.yaml and ./node/node_key

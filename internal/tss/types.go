@@ -1,0 +1,201 @@
+package tss
+
+import (
+	"context"
+	"sync"
+	"time"
+
+	"github.com/bnb-chain/tss-lib/v2/tss"
+)
+
+// OperationType defines the type of TSS operation
+type OperationType string
+
+const (
+	// OperationKeygen is the type for key generation operations
+	OperationKeygen    OperationType = "keygen"
+	// OperationSigning is the type for signing operations
+	OperationSigning   OperationType = "signing"
+	// OperationResharing is the type for resharing operations
+	OperationResharing OperationType = "resharing"
+)
+
+// Config holds TSS service configuration
+type Config struct {
+	NodeID    string
+	Moniker   string
+	Threshold int
+	Parties   int
+}
+
+// Operation represents an active TSS operation
+type Operation struct {
+	ID          string
+	Type        OperationType
+	SessionID   string
+	Participants []*tss.PartyID
+	Party       tss.Party
+	OutCh       chan tss.Message
+	EndCh       chan interface{}
+	ErrCh       chan *tss.Error
+	Status      OperationStatus
+	CreatedAt   time.Time
+	CompletedAt *time.Time
+	Result      interface{}
+	Error       error
+	Request     interface{} // Store the original request (KeygenRequest, SigningRequest, etc.)
+	
+	// Synchronization
+	mutex   sync.RWMutex
+	cancel  context.CancelFunc
+}
+
+// Lock locks the operation
+func (o *Operation) Lock() {
+	o.mutex.Lock()
+}
+
+// Unlock unlocks the operation
+func (o *Operation) Unlock() {
+	o.mutex.Unlock()
+}
+
+// RLock locks the operation for reading
+func (o *Operation) RLock() {
+	o.mutex.RLock()
+}
+
+// RUnlock unlocks the operation for reading
+func (o *Operation) RUnlock() {
+	o.mutex.RUnlock()
+}
+
+// OperationStatus defines operation status
+type OperationStatus string
+
+const (
+	// StatusPending is the status for pending operations
+	StatusPending     OperationStatus = "pending"
+	// StatusInProgress is the status for in progress operations
+	StatusInProgress  OperationStatus = "in_progress"
+	// StatusCompleted is the status for completed operations
+	StatusCompleted   OperationStatus = "completed"
+	// StatusFailed is the status for failed operations
+	StatusFailed      OperationStatus = "failed"
+	// StatusCancelled is the status for cancelled operations
+	StatusCancelled   OperationStatus = "cancelled"
+)
+
+// KeygenRequest represents a keygen request
+type KeygenRequest struct {
+	Threshold    int      `json:"threshold"`
+	Parties      int      `json:"parties"`
+	Participants []string `json:"participants"` // peer IDs
+}
+
+// KeygenResult represents keygen result
+type KeygenResult struct {
+	PublicKey string `json:"public_key"`
+	KeyID     string `json:"key_id"`
+}
+
+// SigningRequest represents a signing request
+type SigningRequest struct {
+	Message      []byte   `json:"message"`
+	KeyID        string   `json:"key_id"`
+	Participants []string `json:"participants"` // peer IDs
+}
+
+// SigningResult represents signing result
+type SigningResult struct {
+	Signature string `json:"signature"`
+	R         string `json:"r"`
+	S         string `json:"s"`
+}
+
+// ResharingRequest represents a resharing request
+type ResharingRequest struct {
+	KeyID           string   `json:"key_id"`
+	NewThreshold    int      `json:"new_threshold"`
+	NewParties      int      `json:"new_parties"`
+	OldParticipants []string `json:"old_participants"`
+	NewParticipants []string `json:"new_participants"`
+}
+
+// Message is the interface for all operation sync data
+type Message interface {
+	ID() string
+}
+
+// OperationSyncData defines the base structure for operation sync data
+type OperationSyncData struct {
+	OperationID   string   `json:"operation_id"`
+	OperationType string   `json:"operation_type"`
+	SessionID     string   `json:"session_id"`
+	Threshold     int      `json:"threshold"`
+	Parties       int      `json:"parties"`
+	Participants  []string `json:"participants"`
+}
+
+// ID implement Message.ID
+func(o OperationSyncData) ID() string{
+	return o.SessionID
+}
+
+// KeygenSyncData contains keygen-specific sync data
+type KeygenSyncData struct {
+	OperationSyncData
+	// Add keygen-specific fields if needed in the future
+}
+
+// SigningSyncData contains signing-specific sync data
+type SigningSyncData struct {
+	OperationSyncData
+	KeyID   string `json:"key_id"`
+	Message []byte `json:"message"`
+}
+
+// ResharingSyncData contains resharing-specific sync data
+type ResharingSyncData struct {
+	OperationSyncData
+	OldThreshold    int      `json:"old_threshold"`
+	NewThreshold    int      `json:"new_threshold"`
+	OldParticipants []string `json:"old_participants"`
+	NewParticipants []string `json:"new_participants"`
+	KeyID           string   `json:"key_id"`
+}
+
+// OperationData represents operation data for persistence
+type OperationData struct {
+	ID           string          `json:"id"`
+	Type         OperationType   `json:"type"`
+	SessionID    string          `json:"session_id"`
+	Status       OperationStatus `json:"status"`
+	Participants []string        `json:"participants"` // peer IDs
+	Request      interface{}     `json:"request"`      // KeygenRequest, SigningRequest, or ResharingRequest
+	Result       interface{}     `json:"result"`       // KeygenResult, SigningResult, etc.
+	Error        string          `json:"error,omitempty"`
+	CreatedAt    time.Time       `json:"created_at"`
+	CompletedAt  *time.Time      `json:"completed_at,omitempty"`
+}
+
+// IsCompleted returns true if the operation has completed (success, failure, or cancellation)
+func (o *OperationData) IsCompleted() bool {
+	return o.Status == StatusCompleted || o.Status == StatusFailed || o.Status == StatusCancelled
+}
+
+// IsActive returns true if the operation is still active (pending or in progress)
+func (o *OperationData) IsActive() bool {
+	return o.Status == StatusPending || o.Status == StatusInProgress
+}
+
+// KeyData represents the TSS key data that needs to be stored
+type KeyData struct {
+	NodeID    string `json:"node_id"`
+	Moniker   string `json:"moniker"`
+	KeyData   []byte `json:"key_data"`
+	Threshold int    `json:"threshold"`
+	Parties   int    `json:"parties"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
+}

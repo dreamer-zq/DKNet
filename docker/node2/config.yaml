@@ -1,0 +1,28 @@
+server:
+    http:
+        port: 8080
+        host: 0.0.0.0
+    grpc:
+        port: 9090
+        host: 0.0.0.0
+p2p:
+    listen_addrs:
+        - /ip4/0.0.0.0/tcp/4001
+    bootstrap_peers:
+        - /ip4/172.20.0.2/tcp/4001/p2p/QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF
+        - /ip4/172.20.0.4/tcp/4001/p2p/QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi
+    private_key_file: ./node/node_key
+    max_peers: 50
+storage:
+    type: leveldb
+    path: ./data
+    options: {}
+tss:
+    node_id: node2
+    moniker: TSS Node 2
+    threshold: 2
+    parties: 3
+security:
+    tls_enabled: false
+    cert_file: ""
+    key_file: ""

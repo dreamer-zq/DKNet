@@ -1,0 +1,30 @@
+server:
+  http:
+    host: "0.0.0.0"
+    port: 8080
+  grpc:
+    host: "0.0.0.0"
+    port: 9090
+
+p2p:
+  listen_addrs:
+    - "/ip4/0.0.0.0/tcp/4001"
+  bootstrap_peers: []
+  private_key_file: "./data/p2p_key"
+  max_peers: 50
+
+storage:
+  type: "leveldb"  # "file" or "leveldb"
+  path: "./data/storage"
+  options: {}
+
+tss:
+  node_id: "node1"
+  moniker: "TSS Node 1"
+  threshold: 2
+  parties: 3
+
+security:
+  tls_enabled: false
+  cert_file: ""
+  key_file: "" 

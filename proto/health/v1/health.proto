@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package health.v1;
+
+option go_package = "github.com/dreamer-zq/DKNet/proto/health/v1;healthv1";
+
+import "google/protobuf/timestamp.proto";
+
+// Health service provides health checking functionality
+service HealthService {
+    // Check returns the current health status
+    rpc Check(CheckRequest) returns (CheckResponse);
+    
+    // Watch performs a streaming health check, returning status changes
+    rpc Watch(WatchRequest) returns (stream WatchResponse);
+}
+
+// CheckRequest represents a health check request
+message CheckRequest {
+    // Service name to check (empty for overall health)
+    string service = 1;
+}
+
+// Health status enumeration
+enum HealthStatus {
+    HEALTH_STATUS_UNSPECIFIED = 0;
+    HEALTH_STATUS_SERVING = 1;
+    HEALTH_STATUS_NOT_SERVING = 2;
+    HEALTH_STATUS_SERVICE_UNKNOWN = 3;
+}
+
+// CheckResponse represents a health check response
+message CheckResponse {
+    // Current health status
+    HealthStatus status = 1;
+    
+    // Timestamp of the health check
+    google.protobuf.Timestamp timestamp = 2;
+    
+    // Optional additional details about the health status
+    string details = 3;
+    
+    // Service-specific health information
+    map<string, string> metadata = 4;
+}
+
+// WatchRequest represents a watch health request
+message WatchRequest {
+    // Service name to watch (empty for overall health)
+    string service = 1;
+}
+
+// WatchResponse represents a streaming health check response
+message WatchResponse {
+    // Current health status
+    HealthStatus status = 1;
+    
+    // Timestamp of the health check
+    google.protobuf.Timestamp timestamp = 2;
+    
+    // Optional additional details about the health status
+    string details = 3;
+    
+    // Service-specific health information
+    map<string, string> metadata = 4;
+} 

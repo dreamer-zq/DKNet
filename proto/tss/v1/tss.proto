@@ -1,0 +1,231 @@
+syntax = "proto3";
+
+package tss.v1;
+
+option go_package = "github.com/dreamer-zq/DKNet/proto/tss/v1;tssv1";
+
+import "google/protobuf/timestamp.proto";
+
+// TSS service provides threshold signature scheme operations
+service TSSService {
+    // StartKeygen starts a new key generation operation
+    rpc StartKeygen(StartKeygenRequest) returns (StartKeygenResponse);
+    
+    // StartSigning starts a new signing operation
+    rpc StartSigning(StartSigningRequest) returns (StartSigningResponse);
+    
+    // StartResharing starts a new resharing operation
+    rpc StartResharing(StartResharingRequest) returns (StartResharingResponse);
+    
+    // GetOperation gets the status and result of an operation
+    rpc GetOperation(GetOperationRequest) returns (GetOperationResponse);
+    
+    // CancelOperation cancels a running operation
+    rpc CancelOperation(CancelOperationRequest) returns (CancelOperationResponse);
+    
+    // ListOperations lists all operations with optional filtering
+    rpc ListOperations(ListOperationsRequest) returns (ListOperationsResponse);
+}
+
+// Operation status enumeration
+enum OperationStatus {
+    OPERATION_STATUS_UNSPECIFIED = 0;
+    OPERATION_STATUS_PENDING = 1;
+    OPERATION_STATUS_IN_PROGRESS = 2;
+    OPERATION_STATUS_COMPLETED = 3;  
+    OPERATION_STATUS_FAILED = 4;
+    OPERATION_STATUS_CANCELLED = 5;
+}
+
+// Operation type enumeration
+enum OperationType {
+    OPERATION_TYPE_UNSPECIFIED = 0;
+    OPERATION_TYPE_KEYGEN = 1;
+    OPERATION_TYPE_SIGNING = 2;
+    OPERATION_TYPE_RESHARING = 3;
+}
+
+// StartKeygenRequest represents a key generation request
+message StartKeygenRequest {
+    // Number of parties required to sign (threshold)
+    int32 threshold = 1;
+    
+    // Total number of parties involved
+    int32 parties = 2;
+    
+    // List of participant peer IDs
+    repeated string participants = 3;
+}
+
+// StartKeygenResponse represents the response when starting keygen operation
+message StartKeygenResponse {
+    // Unique operation identifier
+    string operation_id = 1;
+    
+    // Current status of the operation
+    OperationStatus status = 2;
+    
+    // Timestamp when operation was created
+    google.protobuf.Timestamp created_at = 3;
+}
+
+// KeygenResult represents the result of key generation
+message KeygenResult {
+    // Generated public key in hex format
+    string public_key = 1;
+    
+    // Unique identifier for the generated key
+    string key_id = 2;
+}
+
+// StartSigningRequest represents a signing request
+message StartSigningRequest {
+    // Message to be signed (bytes)
+    bytes message = 1;
+    
+    // Key ID to use for signing
+    string key_id = 2;
+    
+    // List of participant peer IDs
+    repeated string participants = 3;
+}
+
+// StartSigningResponse represents the response when starting signing operation
+message StartSigningResponse {
+    // Unique operation identifier
+    string operation_id = 1;
+    
+    // Current status of the operation
+    OperationStatus status = 2;
+    
+    // Timestamp when operation was created
+    google.protobuf.Timestamp created_at = 3;
+}
+
+// SigningResult represents the result of signing operation
+message SigningResult {
+    // Complete signature in hex format
+    string signature = 1;
+    
+    // R component of the signature
+    string r = 2;
+    
+    // S component of the signature  
+    string s = 3;
+}
+
+// StartResharingRequest represents a resharing request
+message StartResharingRequest {
+    // Key ID to reshare
+    string key_id = 1;
+    
+    // New threshold value
+    int32 new_threshold = 2;
+    
+    // New total number of parties
+    int32 new_parties = 3;
+    
+    // List of old participant peer IDs
+    repeated string old_participants = 4;
+    
+    // List of new participant peer IDs
+    repeated string new_participants = 5;
+}
+
+// StartResharingResponse represents the response when starting resharing operation
+message StartResharingResponse {
+    // Unique operation identifier
+    string operation_id = 1;
+    
+    // Current status of the operation
+    OperationStatus status = 2;
+    
+    // Timestamp when operation was created
+    google.protobuf.Timestamp created_at = 3;
+}
+
+// GetOperationRequest represents a request to get operation status
+message GetOperationRequest {
+    // Operation ID to query
+    string operation_id = 1;
+}
+
+// GetOperationResponse represents the detailed status of an operation
+message GetOperationResponse {
+    // Operation identifier
+    string operation_id = 1;
+    
+    // Type of operation
+    OperationType type = 2;
+    
+    // Session ID for the operation
+    string session_id = 3;
+    
+    // Current status
+    OperationStatus status = 4;
+    
+    // List of participants
+    repeated string participants = 5;
+    
+    // Timestamp when operation was created
+    google.protobuf.Timestamp created_at = 6;
+    
+    // Timestamp when operation completed (if applicable)
+    optional google.protobuf.Timestamp completed_at = 7;
+    
+    // Error message if operation failed
+    optional string error = 8;
+    
+    // Operation result (one of the result types)
+    oneof result {
+        KeygenResult keygen_result = 9;
+        SigningResult signing_result = 10;
+        KeygenResult resharing_result = 11;  // Resharing produces a new key
+    }
+    
+    // Original request (one of the request types)
+    oneof request {
+        StartKeygenRequest keygen_request = 12;
+        StartSigningRequest signing_request = 13;
+        StartResharingRequest resharing_request = 14;
+    }
+}
+
+// CancelOperationRequest represents a request to cancel an operation
+message CancelOperationRequest {
+    // Operation ID to cancel
+    string operation_id = 1;
+}
+
+// CancelOperationResponse represents the response to cancel operation request
+message CancelOperationResponse {
+    // Confirmation message
+    string message = 1;
+}
+
+// ListOperationsRequest represents a request to list operations
+message ListOperationsRequest {
+    // Optional filter by operation type
+    optional OperationType type_filter = 1;
+    
+    // Optional filter by status
+    optional OperationStatus status_filter = 2;
+    
+    // Page size for pagination (default: 50, max: 100)
+    int32 page_size = 3;
+    
+    // Page token for pagination
+    string page_token = 4;
+}
+
+// ListOperationsResponse represents the response containing operation list
+message ListOperationsResponse {
+    // List of operations
+    repeated GetOperationResponse operations = 1;
+    
+    // Token for next page (empty if no more pages)
+    string next_page_token = 2;
+    
+    // Total count of operations matching the filter
+    int64 total_count = 3;
+} 

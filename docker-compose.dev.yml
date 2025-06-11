@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # TSS Node 1
+  tss-node1:
+    build: .
+    container_name: tss-node1-dev
+    hostname: tss-node1
+    command: ["start", "--config", "/app/node/config.yaml"]
+    ports:
+      - "8081:8080"  # HTTP API
+      - "9091:9090"  # gRPC API
+      - "4001:4001"  # P2P
+    volumes:
+      - ./docker/node1:/app/node:ro
+      - tss-node1-dev-data:/app/data
+    environment:
+      - TSS_CONFIG_FILE=/app/node/config.yaml
+      - LOG_LEVEL=debug
+    networks:
+      tss-network:
+        ipv4_address: 172.20.0.2
+    restart: unless-stopped
+
+  # TSS Node 2
+  tss-node2:
+    build: .
+    container_name: tss-node2-dev
+    hostname: tss-node2
+    command: ["start", "--config", "/app/node/config.yaml"]
+    ports:
+      - "8082:8080"  # HTTP API
+      - "9092:9090"  # gRPC API
+      - "4002:4001"  # P2P
+    volumes:
+      - ./docker/node2:/app/node:ro
+      - tss-node2-dev-data:/app/data
+    environment:
+      - TSS_CONFIG_FILE=/app/node/config.yaml
+      - LOG_LEVEL=debug
+    networks:
+      tss-network:
+        ipv4_address: 172.20.0.3
+    restart: unless-stopped
+    depends_on:
+      - tss-node1
+
+  # TSS Node 3
+  tss-node3:
+    build: .
+    container_name: tss-node3-dev
+    hostname: tss-node3
+    command: ["start", "--config", "/app/node/config.yaml"]
+    ports:
+      - "8083:8080"  # HTTP API
+      - "9093:9090"  # gRPC API
+      - "4003:4001"  # P2P
+    volumes:
+      - ./docker/node3:/app/node:ro
+      - tss-node3-dev-data:/app/data
+    environment:
+      - TSS_CONFIG_FILE=/app/node/config.yaml
+      - LOG_LEVEL=debug
+    networks:
+      tss-network:
+        ipv4_address: 172.20.0.4
+    restart: unless-stopped
+    depends_on:
+      - tss-node1
+      - tss-node2
+
+volumes:
+  tss-node1-dev-data:
+    driver: local
+  tss-node2-dev-data:
+    driver: local
+  tss-node3-dev-data:
+    driver: local
+
+networks:
+  tss-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16 
