@@ -3,6 +3,7 @@ package tss
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -11,10 +12,9 @@ import (
 	"github.com/bnb-chain/tss-lib/v2/common"
 	"github.com/bnb-chain/tss-lib/v2/ecdsa/signing"
 	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/dreamer-zq/DKNet/internal/p2p"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-
-	"github.com/dreamer-zq/DKNet/internal/p2p"
 )
 
 // StartSigning starts a new signing operation
@@ -223,6 +223,72 @@ func (s *Service) createSyncedSigningOperation(ctx context.Context, msg *p2p.Mes
 	s.logger.Info("Synced signing operation created successfully",
 		zap.String("operation_id", syncData.OperationID),
 		zap.String("key_id", syncData.KeyID))
+
+	return nil
+}
+
+// runSigningOperation runs a signing operation
+func (s *Service) runSigningOperation(ctx context.Context, operation *Operation, endCh <-chan *common.SignatureData) {
+	// Update status
+	operation.Lock()
+	operation.Status = StatusInProgress
+	operation.Unlock()
+
+	// Start the party
+	go func() {
+		if err := operation.Party.Start(); err != nil {
+			s.logger.Error("Signing party failed", zap.Error(err))
+			s.handleOperationFailure(ctx, operation, err)
+		}
+	}()
+
+	// Handle outgoing messages
+	go s.handleOutgoingMessages(ctx, operation)
+
+	// Wait for completion or cancellation
+	select {
+	case result := <-endCh:
+		// Save result
+		if err := s.saveSigningResult(ctx, operation, result); err != nil {
+			s.logger.Error("Failed to save signing result", zap.Error(err))
+			s.handleOperationFailure(ctx, operation, err)
+		} else {
+			// Send to generic channel
+			operation.EndCh <- result
+			operation.Lock()
+			operation.Status = StatusCompleted
+			now := time.Now()
+			operation.CompletedAt = &now
+			operation.Unlock()
+			
+			// Move completed operation to persistent storage
+			go func() {
+				if err := s.moveCompletedOperationToStorage(ctx, operation.ID); err != nil {
+					s.logger.Error("Failed to move completed signing operation to persistent storage",
+						zap.Error(err),
+						zap.String("operation_id", operation.ID))
+				}
+			}()
+		}
+	case <-ctx.Done():
+		s.logger.Info("Signing operation cancelled", zap.String("operation_id", operation.ID))
+	}
+}
+
+// saveSigningResult saves signing result
+func (s *Service) saveSigningResult(_ context.Context, operation *Operation, result *common.SignatureData) error {
+	// Create signing result
+	signingResult := &SigningResult{
+		Signature: hex.EncodeToString(result.Signature),
+		R:         hex.EncodeToString(result.R),
+		S:         hex.EncodeToString(result.S),
+	}
+
+	operation.Lock()
+	operation.Result = signingResult
+	operation.Unlock()
+
+	s.logger.Info("Saved signing result")
 
 	return nil
 }
