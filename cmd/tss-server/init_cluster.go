@@ -42,14 +42,8 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 
 	logger.Info("Initializing TSS cluster",
 		zap.Int("nodes", nodes),
-		zap.Int("threshold", threshold),
 		zap.String("output", outputDir),
 		zap.Bool("docker", dockerMode))
-
-	// Validate parameters
-	if err := validateThreshold(threshold, nodes); err != nil {
-		return err
-	}
 
 	// Create output directory
 	if err := ensureNodeDirectory(outputDir); err != nil {
@@ -115,7 +109,7 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 			httpPort = 8080 + i - 1
 			grpcPort = 9090 + i - 1
 		}
-		if err := generateAndSaveNodeConfig(nodeID, fmt.Sprintf("TSS Node %d", i), threshold, nodes, bootstrapPeers,
+		if err := generateAndSaveNodeConfig(nodeID, fmt.Sprintf("TSS Node %d", i), bootstrapPeers,
 			httpPort, grpcPort, getNodeP2PPort(i, dockerMode), getNodeListenAddr(dockerMode), configFile, dockerMode); err != nil {
 			return fmt.Errorf("failed to save config for %s: %w", nodeID, err)
 		}
@@ -125,14 +119,14 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 		// Generate node info file
 		p2pPort := getNodeP2PPort(i, dockerMode)
 		listenAddr := getNodeListenAddr(dockerMode)
-		if err := generateNodeInfo(nodeDir, nodeID, nodeKeys[nodeID].PeerID, threshold, nodes,
+		if err := generateNodeInfo(nodeDir, nodeID, nodeKeys[nodeID].PeerID,
 			listenAddr, p2pPort, bootstrapPeers, dockerMode); err != nil {
 			return fmt.Errorf("failed to generate node info for %s: %w", nodeID, err)
 		}
 	}
 
 	// Generate summary
-	if err := generateSummary(outputDir, nodeKeys, allMultiaddrs, nodes, threshold, dockerMode); err != nil {
+	if err := generateSummary(outputDir, nodeKeys, allMultiaddrs, nodes, dockerMode); err != nil {
 		return fmt.Errorf("failed to generate summary: %w", err)
 	}
 

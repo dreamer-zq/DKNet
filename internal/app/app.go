@@ -60,8 +60,6 @@ func New(cfg *config.NodeConfig, logger *zap.Logger) (*App, error) {
 	tssConfig := &tss.Config{
 		NodeID:    cfg.TSS.NodeID,
 		Moniker:   cfg.TSS.Moniker,
-		Threshold: cfg.TSS.Threshold,
-		Parties:   cfg.TSS.Parties,
 	}
 	
 	tssService, err := tss.NewService(tssConfig, store, network, logger.Named("tss"))

@@ -24,8 +24,6 @@ const (
 type Config struct {
 	NodeID    string
 	Moniker   string
-	Threshold int
-	Parties   int
 }
 
 // Operation represents an active TSS operation

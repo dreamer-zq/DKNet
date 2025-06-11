@@ -13,7 +13,6 @@ import (
 
 // addCommonFlags adds flags that are common to multiple commands
 func addCommonFlags(cmd *cobra.Command) {
-	cmd.Flags().IntP(flagThreshold, "t", 2, "Threshold for TSS operations")
 	cmd.Flags().StringP(flagOutput, "o", "./", "Output directory for generated files")
 	cmd.Flags().BoolP(flagDocker, "d", false, "Generate Docker-specific configurations")
 }
@@ -21,11 +20,6 @@ func addCommonFlags(cmd *cobra.Command) {
 // parseCommonFlags parses common flags from the command
 func parseCommonFlags(cmd *cobra.Command) error {
 	var err error
-	
-	threshold, err = cmd.Flags().GetInt(flagThreshold)
-	if err != nil {
-		return fmt.Errorf("failed to parse threshold flag: %w", err)
-	}
 	
 	outputDir, err = cmd.Flags().GetString(flagOutput)
 	if err != nil {
@@ -35,19 +29,6 @@ func parseCommonFlags(cmd *cobra.Command) error {
 	dockerMode, err = cmd.Flags().GetBool(flagDocker)
 	if err != nil {
 		return fmt.Errorf("failed to parse docker flag: %w", err)
-	}
-	
-	return nil
-}
-
-// validateThreshold validates threshold against total parties
-func validateThreshold(threshold, parties int) error {
-	if threshold >= parties {
-		return fmt.Errorf("threshold (%d) must be less than number of parties (%d)", threshold, parties)
-	}
-	
-	if threshold < 1 {
-		return fmt.Errorf("threshold must be at least 1")
 	}
 	
 	return nil

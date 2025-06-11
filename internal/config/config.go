@@ -54,8 +54,6 @@ type StorageConfig struct {
 type TSSConfig struct {
 	NodeID    string `yaml:"node_id"`
 	Moniker   string `yaml:"moniker"`
-	Threshold int    `yaml:"threshold"`
-	Parties   int    `yaml:"parties"`
 }
 
 // NodeKeyInfo contains information about a node's P2P key
@@ -156,8 +154,6 @@ func setDefaults(v *viper.Viper) {
 	hostname, _ := os.Hostname()
 	v.SetDefault("tss.node_id", hostname)
 	v.SetDefault("tss.moniker", hostname)
-	v.SetDefault("tss.threshold", 2)
-	v.SetDefault("tss.parties", 3)
 	
 	// Security defaults
 	v.SetDefault("security.tls_enabled", false)
@@ -167,19 +163,6 @@ func setDefaults(v *viper.Viper) {
 
 // validateConfig validates the configuration
 func validateConfig(config *NodeConfig) error {
-	if config.TSS.Threshold >= config.TSS.Parties {
-		return fmt.Errorf("threshold (%d) must be less than parties (%d)", 
-			config.TSS.Threshold, config.TSS.Parties)
-	}
-	
-	if config.TSS.Threshold <= 0 {
-		return fmt.Errorf("threshold must be greater than 0")
-	}
-	
-	if config.TSS.Parties <= 0 {
-		return fmt.Errorf("parties must be greater than 0")
-	}
-	
 	if config.TSS.NodeID == "" {
 		return fmt.Errorf("node_id cannot be empty")
 	}

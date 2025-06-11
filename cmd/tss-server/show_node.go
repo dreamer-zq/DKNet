@@ -98,8 +98,6 @@ func runShowNode(cmd *cobra.Command, args []string) error {
 		Multiaddr:      multiaddr,
 		ListenAddr:     listenAddr,
 		Port:           port,
-		Threshold:      cfg.TSS.Threshold,
-		Parties:        cfg.TSS.Parties,
 		BootstrapPeers: cfg.P2P.BootstrapPeers,
 		HTTPPort:       cfg.Server.HTTP.Port,
 		GRPCPort:       cfg.Server.GRPC.Port,
@@ -120,8 +118,6 @@ type NodeDisplayInfo struct {
 	Multiaddr      string   `json:"multiaddr"`
 	ListenAddr     string   `json:"listen_addr"`
 	Port           int      `json:"port"`
-	Threshold      int      `json:"threshold"`
-	Parties        int      `json:"parties"`
 	BootstrapPeers []string `json:"bootstrap_peers"`
 	HTTPPort       int      `json:"http_port"`
 	GRPCPort       int      `json:"grpc_port"`
@@ -244,14 +240,9 @@ Network Configuration:
   HTTP Port:      %d
   gRPC Port:      %d
 
-TSS Configuration:
-  Threshold:      %d
-  Total Parties:  %d
-
 Bootstrap Peers:
 `, info.NodeID, info.Moniker, info.PeerID, info.Multiaddr,
-		info.ListenAddr, info.Port, info.HTTPPort, info.GRPCPort,
-		info.Threshold, info.Parties)
+		info.ListenAddr, info.Port, info.HTTPPort, info.GRPCPort)
 
 	if len(info.BootstrapPeers) == 0 {
 		fmt.Println("  None configured")

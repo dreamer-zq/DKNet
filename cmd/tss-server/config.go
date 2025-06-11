@@ -13,7 +13,6 @@ import (
 // generateAndSaveNodeConfig generates node configuration and saves it to file
 func generateAndSaveNodeConfig(
 	nodeID, moniker string, 
-	threshold, parties int, 
 	bootstrapPeers []string,
 	httpPort, grpcPort, p2pPort int, 
 	listenAddr, configFile string, 
@@ -47,8 +46,6 @@ func generateAndSaveNodeConfig(
 	// TSS configuration
 	cfg.TSS.NodeID = nodeID
 	cfg.TSS.Moniker = moniker
-	cfg.TSS.Threshold = threshold
-	cfg.TSS.Parties = parties
 
 	// Security configuration
 	cfg.Security.TLSEnabled = false
@@ -67,7 +64,6 @@ func generateAndSaveNodeConfig(
 // generateNodeInfo creates a node information file
 func generateNodeInfo(
 	nodeDir, nodeID, peerID string, 
-	threshold, parties int,
 	listenAddr string, 
 	p2pPort int, 
 	bootstrapPeers []string, 
@@ -76,14 +72,12 @@ func generateNodeInfo(
 	
 	infoFile := filepath.Join(nodeDir, "node-info.txt")
 	
-	content := fmt.Sprintf(`TSS Node Information
+	content := fmt.Sprintf(`DKNet Node Information
 ====================
 
 Node Details:
 - Node ID: %s
 - Peer ID: %s
-- Threshold: %d
-- Total Parties: %d
 
 Network Configuration:
 - Listen Address: %s:%d
@@ -94,7 +88,7 @@ Generated Files:
 - Private Key: ./node_key
 
 Bootstrap Peers:
-`, nodeID, peerID, threshold, parties, listenAddr, p2pPort, listenAddr, p2pPort, peerID)
+`, nodeID, peerID, listenAddr, p2pPort, listenAddr, p2pPort, peerID)
 
 	if len(bootstrapPeers) == 0 {
 		content += "- None specified (you need to add bootstrap peers to connect to the network)\n"
@@ -124,7 +118,7 @@ Security Note:
 }
 
 // generateSummary creates a cluster summary file
-func generateSummary(outputDir string, nodeKeys map[string]config.NodeKeyInfo, multiaddrs []string, nodes, threshold int, dockerMode bool) error {
+func generateSummary(outputDir string, nodeKeys map[string]config.NodeKeyInfo, multiaddrs []string, nodes int, dockerMode bool) error {
 	summaryFile := filepath.Join(outputDir, "cluster-info.txt")
 	
 	content := fmt.Sprintf(`TSS Cluster Configuration Summary
@@ -132,7 +126,6 @@ func generateSummary(outputDir string, nodeKeys map[string]config.NodeKeyInfo, m
 
 Cluster Parameters:
 - Nodes: %d
-- Threshold: %d
 - Mode: %s
 
 Generated Files Structure:
@@ -142,7 +135,7 @@ Each node has its own directory with:
 - %s/node3/config.yaml & node_key & node-info.txt
 
 Node Information:
-`, nodes, threshold, map[bool]string{true: "Docker", false: "Local"}[dockerMode], outputDir, outputDir, outputDir)
+`, nodes, map[bool]string{true: "Docker", false: "Local"}[dockerMode], outputDir, outputDir, outputDir)
 
 	for i := 1; i <= nodes; i++ {
 		nodeID := fmt.Sprintf("node%d", i)
