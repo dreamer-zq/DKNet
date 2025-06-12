@@ -83,9 +83,17 @@ jobs:
     - name: Download dependencies
       run: go mod download
 
+    - name: Install go-junit-report
+      run: go install github.com/jstemmer/go-junit-report/v2@latest
+
     - name: Run unit tests
       run: |
-        go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+        go test -v -race -coverprofile=coverage.out -covermode=atomic ./... 2>&1 | tee /tmp/test-results.txt
+
+    - name: Generate JUnit XML report
+      if: success() || failure()
+      run: |
+        cat /tmp/test-results.txt | go-junit-report -set-exit-code > test-results.xml
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
@@ -99,7 +107,7 @@ jobs:
       if: success() || failure()
       with:
         name: Go Test Results
-        path: '*.xml'
+        path: 'test-results.xml'
         reporter: java-junit
 
   # Build and test Docker images
