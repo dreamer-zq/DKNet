@@ -13,6 +13,8 @@ import (
 	"github.com/bnb-chain/tss-lib/v2/tss"
 	"go.uber.org/zap"
 
+	"slices"
+
 	"github.com/dreamer-zq/DKNet/internal/p2p"
 	"github.com/dreamer-zq/DKNet/internal/storage"
 )
@@ -275,13 +277,7 @@ func (s *Service) handleOperationSync(ctx context.Context, msg *p2p.Message) err
 	}
 
 	// Check if we are one of the participants
-	isParticipant := false
-	for _, participant := range baseData.Participants {
-		if participant == s.nodeID {
-			isParticipant = true
-			break
-		}
-	}
+	isParticipant := slices.Contains(baseData.Participants, s.nodeID)
 
 	if !isParticipant {
 		s.logger.Info("Ignoring operation sync - not a participant",

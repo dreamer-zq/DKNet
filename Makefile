@@ -1,6 +1,6 @@
 # DKNet Makefile
 
-.PHONY: help build test clean proto-gen proto-clean
+.PHONY: help build test clean proto-gen proto-clean docker-build
 
 # Default target
 help:
@@ -14,6 +14,15 @@ help:
 	@echo "Protocol Buffers:"
 	@echo "  proto-gen        - Generate Go code from protobuf definitions"
 	@echo "  proto-clean      - Clean generated protobuf code"
+	@echo ""
+	@echo "Docker Commands:"
+	@echo "  docker-build     - Build development Docker image with latest tag"
+
+# Docker configuration
+DOCKER_IMAGE_NAME ?= dknet/tss-server
+DOCKER_TAG ?= latest
+DOCKER_REGISTRY ?= 
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 
 # Build commands
 build: build-server build-client
@@ -53,3 +62,8 @@ proto-clean:
 	@echo "Cleaning generated protobuf code..."
 	rm -f proto/tss/v1/*.pb.go
 	rm -f proto/health/v1/*.pb.go
+
+docker-build:
+	@echo "Building development Docker image: $(DOCKER_IMAGE_NAME):latest"
+	docker build -t $(DOCKER_IMAGE_NAME):latest .
+	@echo "Development Docker image built successfully: $(DOCKER_IMAGE_NAME):latest"

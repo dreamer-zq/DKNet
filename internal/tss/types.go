@@ -2,10 +2,12 @@ package tss
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/bnb-chain/tss-lib/v2/tss"
+	"golang.org/x/crypto/sha3"
 )
 
 // OperationType defines the type of TSS operation
@@ -196,4 +198,16 @@ type KeyData struct {
 	Parties   int    `json:"parties"`
 	CreatedAt int64  `json:"created_at"`
 	UpdatedAt int64  `json:"updated_at"`
+}
+
+// hashMessageForEthereum creates an Ethereum-compatible hash that can be verified with ecrecover
+func hashMessageForEthereum(message []byte) []byte {
+	// Ethereum message prefix format: "\x19Ethereum Signed Message:\n" + len(message) + message
+	prefix := fmt.Sprintf("\x19Ethereum Signed Message:\n%d", len(message))
+	prefixedMessage := append([]byte(prefix), message...)
+	
+	// Use Keccak256 (not SHA3-256) as required by Ethereum
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write(prefixedMessage)
+	return hash.Sum(nil)
 }

@@ -2,7 +2,6 @@ package tss
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -12,9 +11,10 @@ import (
 	"github.com/bnb-chain/tss-lib/v2/common"
 	"github.com/bnb-chain/tss-lib/v2/ecdsa/signing"
 	"github.com/bnb-chain/tss-lib/v2/tss"
-	"github.com/dreamer-zq/DKNet/internal/p2p"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+
+	"github.com/dreamer-zq/DKNet/internal/p2p"
 )
 
 // StartSigning starts a new signing operation
@@ -62,11 +62,11 @@ func (s *Service) StartSigning(ctx context.Context, req *SigningRequest) (*Opera
 	outCh := make(chan tss.Message, 100)
 	endCh := make(chan *common.SignatureData, 1)
 
-	// Hash the message to sign
-	hash := sha256.Sum256(req.Message)
+	// Hash the message to sign - use Ethereum-compatible hash for ecrecover verification
+	hash := hashMessageForEthereum(req.Message)
 
 	// Create signing party
-	party := signing.NewLocalParty(new(big.Int).SetBytes(hash[:]), params, *keyData, outCh, endCh)
+	party := signing.NewLocalParty(new(big.Int).SetBytes(hash), params, *keyData, outCh, endCh)
 
 	// Create operation context with cancellation - use background context to avoid HTTP timeout
 	// Set a shorter timeout for signing operations (5 minutes)
@@ -194,11 +194,11 @@ func (s *Service) createSyncedSigningOperation(ctx context.Context, msg *p2p.Mes
 	outCh := make(chan tss.Message, 100)
 	endCh := make(chan *common.SignatureData, 1)
 
-	// Hash the message to sign
-	hash := sha256.Sum256(syncData.Message)
+	// Hash the message to sign - use Ethereum-compatible hash for ecrecover verification
+	hash := hashMessageForEthereum(syncData.Message)
 
 	// Create signing party
-	party := signing.NewLocalParty(new(big.Int).SetBytes(hash[:]), params, *keyData, outCh, endCh)
+	party := signing.NewLocalParty(new(big.Int).SetBytes(hash), params, *keyData, outCh, endCh)
 
 	// Create operation context with cancellation - use background context to avoid HTTP timeout
 	operationCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -287,9 +287,9 @@ func (s *Service) runSigningOperation(ctx context.Context, operation *Operation,
 	}
 }
 
-// saveSigningResult saves signing result
+// saveSigningResult saves signing result with Ethereum-compatible format
 func (s *Service) saveSigningResult(_ context.Context, operation *Operation, result *common.SignatureData) error {
-	// Create signing result
+	// Create signing result with Ethereum-compatible format
 	signingResult := &SigningResult{
 		Signature: hex.EncodeToString(result.Signature),
 		R:         hex.EncodeToString(result.R),
@@ -300,7 +300,7 @@ func (s *Service) saveSigningResult(_ context.Context, operation *Operation, res
 	operation.Result = signingResult
 	operation.Unlock()
 
-	s.logger.Info("Saved signing result")
+	s.logger.Info("Saved signing result (Ethereum-compatible format for ecrecover)")
 
 	return nil
 }
