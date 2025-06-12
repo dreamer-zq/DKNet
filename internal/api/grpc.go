@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/dreamer-zq/DKNet/internal/p2p"
 	"github.com/dreamer-zq/DKNet/internal/tss"
 	healthv1 "github.com/dreamer-zq/DKNet/proto/health/v1"
 	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
@@ -55,6 +56,7 @@ func (s *Server) stopGRPCServer() {
 func (s *Server) setupGRPCServices() {
 	tssServer := &gRPCTSSServer{
 		tssService: s.tssService,
+		network:    s.network,
 		logger:     s.logger,
 	}
 
@@ -73,6 +75,7 @@ func (s *Server) setupGRPCServices() {
 type gRPCTSSServer struct {
 	tssv1.UnimplementedTSSServiceServer
 	tssService *tss.Service
+	network    *p2p.Network
 	logger     *zap.Logger
 }
 
@@ -413,4 +416,24 @@ func (g *gRPCHealthServer) Watch(req *healthv1.WatchRequest, stream healthv1.Hea
 			}
 		}
 	}
+}
+
+// GetNetworkAddresses implements TSSService.GetNetworkAddresses
+func (g *gRPCTSSServer) GetNetworkAddresses(ctx context.Context, req *tssv1.GetNetworkAddressesRequest) (*tssv1.GetNetworkAddressesResponse, error) {
+	mappings := g.network.GetAllNodeMappings()
+	
+	// Convert to proto NodeMapping array
+	var result []*tssv1.NodeMapping
+	for _, mapping := range mappings {
+		result = append(result, &tssv1.NodeMapping{
+			NodeId:    mapping.NodeID,
+			PeerId:    mapping.PeerID,
+			Moniker:   mapping.Moniker,
+			Timestamp: timestamppb.New(mapping.Timestamp),
+		})
+	}
+	
+	return &tssv1.GetNetworkAddressesResponse{
+		Mappings: result,
+	}, nil
 }

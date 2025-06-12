@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/spf13/viper"
@@ -15,6 +16,9 @@ type NodeConfig struct {
 	Storage  StorageConfig  `yaml:"storage" mapstructure:"storage"`
 	TSS      TSSConfig      `yaml:"tss" mapstructure:"tss"`
 	Security SecurityConfig `yaml:"security" mapstructure:"security"`
+	
+	// ConfigDir is the directory containing the config file (not saved to YAML)
+	ConfigDir string `yaml:"-" mapstructure:"-"`
 }
 
 // ServerConfig holds HTTP and gRPC server configurations
@@ -94,14 +98,19 @@ func Load(configFile string) (*NodeConfig, error) {
 	// Set default values
 	setDefaults(v)
 
+	var configDir string
 	// Read config file if provided
 	if configFile != "" {
 		v.SetConfigFile(configFile)
+		// Extract directory from config file path
+		configDir = filepath.Dir(configFile)
 	} else {
 		v.SetConfigName("config")
 		v.SetConfigType("yaml")
 		v.AddConfigPath(".")
 		v.AddConfigPath("./configs")
+		// Default to current directory
+		configDir = "."
 	}
 
 	// Read environment variables
@@ -119,6 +128,9 @@ func Load(configFile string) (*NodeConfig, error) {
 	if err := v.Unmarshal(&config); err != nil {
 		return nil, fmt.Errorf("error unmarshaling config: %w", err)
 	}
+
+	// Set the config directory
+	config.ConfigDir = configDir
 
 	// Validate configuration
 	if err := validateConfig(&config); err != nil {

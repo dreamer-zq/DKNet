@@ -80,6 +80,9 @@ func (s *Server) setupHTTPRoutes(router *gin.Engine) {
 	// Operations
 	api.GET("/operations/:operation_id", s.getOperationHandler)
 	api.DELETE("/operations/:operation_id", s.cancelOperationHandler)
+
+	// Network and address management
+	api.GET("/network/addresses", s.getAddressesHandler)
 }
 
 // healthHandler handles health check requests
@@ -385,5 +388,24 @@ func (s *Server) cancelOperationHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "operation canceled",
+	})
+}
+
+// getAddressesHandler handles requests for node address mappings
+func (s *Server) getAddressesHandler(c *gin.Context) {
+	mappings := s.network.GetAllNodeMappings()
+	// Convert to array of proto NodeMapping
+	var result []*tssv1.NodeMapping
+	for _, mapping := range mappings {
+		result = append(result, &tssv1.NodeMapping{
+			NodeId:    mapping.NodeID,
+			PeerId:    mapping.PeerID,
+			Moniker:   mapping.Moniker,
+			Timestamp: timestamppb.New(mapping.Timestamp),
+		})
+	}
+
+	c.JSON(http.StatusOK, tssv1.GetNetworkAddressesResponse{
+		Mappings: result,
 	})
 }

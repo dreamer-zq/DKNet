@@ -34,10 +34,6 @@ type Service struct {
 	moniker string
 	partyID *tss.PartyID
 
-	// Node ID to P2P peer ID mapping
-	nodeIDToPeerID map[string]string
-	mappingMutex   sync.RWMutex
-
 	// Validation service client (optional)
 	validationService ValidationService
 }
@@ -58,7 +54,6 @@ func NewService(cfg *Config, store storage.Storage, network *p2p.Network, logger
 		nodeID:         cfg.NodeID,
 		moniker:        cfg.Moniker,
 		partyID:        partyID,
-		nodeIDToPeerID: make(map[string]string),
 	}
 
 	// Check if validation service is configured and enabled
@@ -251,16 +246,6 @@ func (s *Service) CancelOperation(operationID string) error {
 
 // handleOperationSync handles operation synchronization messages
 func (s *Service) handleOperationSync(ctx context.Context, msg *p2p.Message) error {
-	// Build mapping from sender node ID to P2P peer ID first
-	if msg.SenderPeerID != "" {
-		s.mappingMutex.Lock()
-		s.nodeIDToPeerID[msg.From] = msg.SenderPeerID
-		s.mappingMutex.Unlock()
-		s.logger.Info("Updated node ID to peer ID mapping from operation sync",
-			zap.String("node_id", msg.From),
-			zap.String("peer_id", msg.SenderPeerID))
-	}
-
 	// Parse operation sync data from message data
 	var baseData OperationSyncData
 	if err := json.Unmarshal(msg.Data, &baseData); err != nil {
@@ -273,14 +258,9 @@ func (s *Service) handleOperationSync(ctx context.Context, msg *p2p.Message) err
 		zap.String("operation_type", baseData.OperationType),
 		zap.String("session_id", baseData.SessionID),
 		zap.String("from", msg.From),
-		zap.String("sender_peer_id", msg.SenderPeerID),
 		zap.Strings("participants", baseData.Participants))
 
-	// Handle mapping-only messages (just for peer ID exchange)
-	if baseData.OperationType == "mapping" {
-		s.logger.Info("Received mapping-only message, mapping table updated")
-		return nil // Mapping was already updated above
-	}
+
 
 	// Check if we are one of the participants
 	isParticipant := slices.Contains(baseData.Participants, s.nodeID)
@@ -316,28 +296,6 @@ func (s *Service) handleOperationSync(ctx context.Context, msg *p2p.Message) err
 	default:
 		return fmt.Errorf("unknown operation type: %s", baseData.OperationType)
 	}
-}
-
-// broadcastOwnMapping broadcasts this node's mapping information to other nodes
-func (s *Service) broadcastOwnMapping(ctx context.Context, sessionID string) {
-	// Create a simple operation sync message containing only our mapping info
-	go func() {
-		syncData := &KeygenSyncData{
-			OperationSyncData: OperationSyncData{
-				OperationID:   "mapping_only",
-				OperationType: "mapping",
-				SessionID:     sessionID,
-				Participants:  []string{s.nodeID},
-			},
-		}
-
-		// Create a dummy operation sync message just to share our peer mapping
-		if err := s.broadcastOperationSync(ctx, syncData); err != nil {
-			s.logger.Error("Failed to broadcast own mapping",
-				zap.Error(err),
-				zap.String("node_id", s.nodeID))
-		}
-	}()
 }
 
 // handleOutgoingMessages handles outgoing TSS messages
@@ -391,11 +349,8 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 				}
 			} else {
 				for _, to := range routing.To {
-					// Convert node ID to P2P peer ID
-					s.mappingMutex.RLock()
-					peerID, exists := s.nodeIDToPeerID[to.Id]
-					s.mappingMutex.RUnlock()
-
+					// Convert node ID to P2P peer ID using network address manager
+					peerID, exists := s.network.GetNodePeerID(to.Id)
 					if !exists {
 						// If we don't have the mapping, try using the node ID directly as fallback
 						s.logger.Warn("No P2P peer ID mapping found for node ID, using node ID as fallback",
@@ -512,7 +467,7 @@ func (s *Service) broadcastOperationSync(ctx context.Context, syncData Message) 
 		IsBroadcast:  true,
 		Data:         data, // Serialized operation sync data
 		Timestamp:    time.Now(),
-		SenderPeerID: s.network.GetPeerID().String(),
+		SenderPeerID: s.network.GetPeerID().String(), // Include sender's PeerID
 	}
 	return s.network.SendMessage(ctx, msg)
 }

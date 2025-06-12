@@ -48,6 +48,9 @@ func New(cfg *config.NodeConfig, logger *zap.Logger) (*App, error) {
 		BootstrapPeers: cfg.P2P.BootstrapPeers,
 		PrivateKeyFile: cfg.P2P.PrivateKeyFile,
 		MaxPeers:       cfg.P2P.MaxPeers,
+		DataDir:        cfg.ConfigDir, // Use config directory for address book (same as config.yaml)
+		NodeID:         cfg.TSS.NodeID,
+		Moniker:        cfg.TSS.Moniker,
 	}
 
 	network, err := p2p.NewNetwork(p2pConfig, logger.Named("p2p"))
@@ -96,7 +99,7 @@ func New(cfg *config.NodeConfig, logger *zap.Logger) (*App, error) {
 		},
 	}
 
-	apiServer, err := api.NewServer(apiConfig, tssService, logger.Named("api"))
+	apiServer, err := api.NewServer(apiConfig, tssService, network, logger.Named("api"))
 	if err != nil {
 		if closeErr := store.Close(); closeErr != nil {
 			logger.Error("Failed to close storage during cleanup", zap.Error(closeErr))

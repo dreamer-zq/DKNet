@@ -81,9 +81,6 @@ func (s *Service) StartKeygen(ctx context.Context, req *KeygenRequest) (*Operati
 	// Broadcast keygen operation sync message to other participants
 	go s.broadcastKeygenOperation(operationID, sessionID, req.Threshold, req.Parties, req.Participants)
 
-	// Broadcast own mapping
-	s.broadcastOwnMapping(context.Background(), sessionID)
-
 	return operation, nil
 }
 
@@ -334,8 +331,7 @@ func (s *Service) createSyncedKeygenOperation(ctx context.Context, msg *p2p.Mess
 		zap.String("operation_id", syncData.OperationID),
 		zap.String("session_id", syncData.SessionID))
 
-	// Broadcast own mapping to help other nodes know our P2P peer ID
-	s.broadcastOwnMapping(ctx, syncData.SessionID)
+
 
 	return nil
 }

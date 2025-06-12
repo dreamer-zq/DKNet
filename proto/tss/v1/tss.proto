@@ -25,6 +25,9 @@ service TSSService {
     
     // ListOperations lists all operations with optional filtering
     rpc ListOperations(ListOperationsRequest) returns (ListOperationsResponse);
+    
+    // GetNetworkAddresses gets all known node address mappings
+    rpc GetNetworkAddresses(GetNetworkAddressesRequest) returns (GetNetworkAddressesResponse);
 }
 
 // Operation status enumeration
@@ -228,4 +231,30 @@ message ListOperationsResponse {
     
     // Total count of operations matching the filter
     int64 total_count = 3;
+}
+
+// NodeMapping represents a node's address mapping information
+message NodeMapping {
+    // Node identifier
+    string node_id = 1;
+    
+    // Peer ID in the P2P network
+    string peer_id = 2;
+    
+    // Human-readable node name
+    string moniker = 3;
+    
+    // Timestamp when mapping was last updated
+    google.protobuf.Timestamp timestamp = 4;
+}
+
+// GetNetworkAddressesRequest represents a request to get network addresses
+message GetNetworkAddressesRequest {
+    // Currently no parameters needed
+}
+
+// GetNetworkAddressesResponse represents the response containing network addresses
+message GetNetworkAddressesResponse {
+    // List of node mappings
+    repeated NodeMapping mappings = 1;
 } 

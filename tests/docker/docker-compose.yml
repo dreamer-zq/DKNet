@@ -31,7 +31,7 @@ services:
       - "9095:9090"  # gRPC API
       - "4001:4001"  # P2P
     volumes:
-      - ./node1:/app/node:ro
+      - ./node1:/app/node
       - tss-node1-data:/app/data
     environment:
       - TSS_CONFIG_FILE=/app/node/config.yaml
@@ -58,7 +58,7 @@ services:
       - "9096:9090"  # gRPC API
       - "4002:4001"  # P2P
     volumes:
-      - ./node2:/app/node:ro
+      - ./node2:/app/node
       - tss-node2-data:/app/data
     environment:
       - TSS_CONFIG_FILE=/app/node/config.yaml
@@ -86,7 +86,7 @@ services:
       - "9097:9090"  # gRPC API
       - "4003:4001"  # P2P
     volumes:
-      - ./node3:/app/node:ro
+      - ./node3:/app/node
       - tss-node3-data:/app/data
     environment:
       - TSS_CONFIG_FILE=/app/node/config.yaml

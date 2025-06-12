@@ -107,8 +107,6 @@ func (s *Service) StartSigning(ctx context.Context, req *SigningRequest) (*Opera
 		operationID, sessionID,
 		threshold, len(participants), req.Participants, req.KeyID, req.Message,
 	)
-	// Broadcast own mapping
-	s.broadcastOwnMapping(context.Background(), sessionID)
 
 	return operation, nil
 }

@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
+	"github.com/dreamer-zq/DKNet/internal/p2p"
 	"github.com/dreamer-zq/DKNet/internal/tss"
 )
 
@@ -15,6 +16,7 @@ import (
 type Server struct {
 	config     *Config
 	tssService *tss.Service
+	network    *p2p.Network
 	logger     *zap.Logger
 
 	httpServer *http.Server
@@ -22,10 +24,11 @@ type Server struct {
 }
 
 // NewServer creates a new API server
-func NewServer(cfg *Config, tssService *tss.Service, logger *zap.Logger) (*Server, error) {
+func NewServer(cfg *Config, tssService *tss.Service, network *p2p.Network, logger *zap.Logger) (*Server, error) {
 	return &Server{
 		config:     cfg,
 		tssService: tssService,
+		network:    network,
 		logger:     logger,
 	}, nil
 }

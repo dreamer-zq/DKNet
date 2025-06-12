@@ -19,12 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	TSSService_StartKeygen_FullMethodName     = "/tss.v1.TSSService/StartKeygen"
-	TSSService_StartSigning_FullMethodName    = "/tss.v1.TSSService/StartSigning"
-	TSSService_StartResharing_FullMethodName  = "/tss.v1.TSSService/StartResharing"
-	TSSService_GetOperation_FullMethodName    = "/tss.v1.TSSService/GetOperation"
-	TSSService_CancelOperation_FullMethodName = "/tss.v1.TSSService/CancelOperation"
-	TSSService_ListOperations_FullMethodName  = "/tss.v1.TSSService/ListOperations"
+	TSSService_StartKeygen_FullMethodName         = "/tss.v1.TSSService/StartKeygen"
+	TSSService_StartSigning_FullMethodName        = "/tss.v1.TSSService/StartSigning"
+	TSSService_StartResharing_FullMethodName      = "/tss.v1.TSSService/StartResharing"
+	TSSService_GetOperation_FullMethodName        = "/tss.v1.TSSService/GetOperation"
+	TSSService_CancelOperation_FullMethodName     = "/tss.v1.TSSService/CancelOperation"
+	TSSService_ListOperations_FullMethodName      = "/tss.v1.TSSService/ListOperations"
+	TSSService_GetNetworkAddresses_FullMethodName = "/tss.v1.TSSService/GetNetworkAddresses"
 )
 
 // TSSServiceClient is the client API for TSSService service.
@@ -45,6 +46,8 @@ type TSSServiceClient interface {
 	CancelOperation(ctx context.Context, in *CancelOperationRequest, opts ...grpc.CallOption) (*CancelOperationResponse, error)
 	// ListOperations lists all operations with optional filtering
 	ListOperations(ctx context.Context, in *ListOperationsRequest, opts ...grpc.CallOption) (*ListOperationsResponse, error)
+	// GetNetworkAddresses gets all known node address mappings
+	GetNetworkAddresses(ctx context.Context, in *GetNetworkAddressesRequest, opts ...grpc.CallOption) (*GetNetworkAddressesResponse, error)
 }
 
 type tSSServiceClient struct {
@@ -115,6 +118,16 @@ func (c *tSSServiceClient) ListOperations(ctx context.Context, in *ListOperation
 	return out, nil
 }
 
+func (c *tSSServiceClient) GetNetworkAddresses(ctx context.Context, in *GetNetworkAddressesRequest, opts ...grpc.CallOption) (*GetNetworkAddressesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetNetworkAddressesResponse)
+	err := c.cc.Invoke(ctx, TSSService_GetNetworkAddresses_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TSSServiceServer is the server API for TSSService service.
 // All implementations must embed UnimplementedTSSServiceServer
 // for forward compatibility.
@@ -133,6 +146,8 @@ type TSSServiceServer interface {
 	CancelOperation(context.Context, *CancelOperationRequest) (*CancelOperationResponse, error)
 	// ListOperations lists all operations with optional filtering
 	ListOperations(context.Context, *ListOperationsRequest) (*ListOperationsResponse, error)
+	// GetNetworkAddresses gets all known node address mappings
+	GetNetworkAddresses(context.Context, *GetNetworkAddressesRequest) (*GetNetworkAddressesResponse, error)
 	mustEmbedUnimplementedTSSServiceServer()
 }
 
@@ -160,6 +175,9 @@ func (UnimplementedTSSServiceServer) CancelOperation(context.Context, *CancelOpe
 }
 func (UnimplementedTSSServiceServer) ListOperations(context.Context, *ListOperationsRequest) (*ListOperationsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListOperations not implemented")
+}
+func (UnimplementedTSSServiceServer) GetNetworkAddresses(context.Context, *GetNetworkAddressesRequest) (*GetNetworkAddressesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNetworkAddresses not implemented")
 }
 func (UnimplementedTSSServiceServer) mustEmbedUnimplementedTSSServiceServer() {}
 func (UnimplementedTSSServiceServer) testEmbeddedByValue()                    {}
@@ -290,6 +308,24 @@ func _TSSService_ListOperations_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TSSService_GetNetworkAddresses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetNetworkAddressesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TSSServiceServer).GetNetworkAddresses(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TSSService_GetNetworkAddresses_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TSSServiceServer).GetNetworkAddresses(ctx, req.(*GetNetworkAddressesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TSSService_ServiceDesc is the grpc.ServiceDesc for TSSService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -320,6 +356,10 @@ var TSSService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListOperations",
 			Handler:    _TSSService_ListOperations_Handler,
+		},
+		{
+			MethodName: "GetNetworkAddresses",
+			Handler:    _TSSService_GetNetworkAddresses_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

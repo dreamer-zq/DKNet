@@ -21,37 +21,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	// Protocol IDs for different TSS operations
-	tssKeygenProtocol    = "/tss/keygen/1.0.0"
-	tssSigningProtocol   = "/tss/signing/1.0.0"
-	tssResharingProtocol = "/tss/resharing/1.0.0"
-
-	// PubSub topics
-	tssDiscoveryTopic = "tss-discovery"
-	tssBroadcastTopic = "tss-broadcast"
-	connectTimeout    = 30 * time.Second
-)
-
-// Message represents a generic message sent over the network
-type Message struct {
-	SessionID   string    `json:"session_id"`
-	Type        string    `json:"type"` // Message type for routing
-	From        string    `json:"from"` // sender node ID
-	To          []string  `json:"to"`   // recipient node IDs (empty for broadcast)
-	IsBroadcast bool      `json:"is_broadcast"`
-	Data        []byte    `json:"data"` // message payload
-	Timestamp   time.Time `json:"timestamp"`
-
-	// P2P layer information
-	SenderPeerID string `json:"sender_peer_id,omitempty"` // actual P2P peer ID of sender
-}
-
-// MessageHandler defines the interface for handling received messages
-type MessageHandler interface {
-	HandleMessage(ctx context.Context, msg *Message) error
-}
-
 // Network provides secure P2P communication for TSS operations
 type Network struct {
 	host   host.Host
@@ -67,9 +36,13 @@ type Network struct {
 	peerMutex sync.RWMutex
 
 	// PubSub topics
-	discoveryTopic *pubsub.Topic
-	broadcastTopic *pubsub.Topic
-	topicMutex     sync.RWMutex
+	discoveryTopic     *pubsub.Topic
+	broadcastTopic     *pubsub.Topic
+	nodeDiscoveryTopic *pubsub.Topic // New topic for node address discovery
+	topicMutex         sync.RWMutex
+
+	// Address management
+	addressManager *AddressManager
 }
 
 // Config holds P2P network configuration
@@ -78,6 +51,9 @@ type Config struct {
 	BootstrapPeers []string
 	PrivateKeyFile string
 	MaxPeers       int
+	DataDir        string // Directory for storing node address mappings
+	NodeID         string // This node's NodeID for TSS
+	Moniker        string // Human-readable node name
 }
 
 // NewNetwork creates a new P2P network instance
@@ -141,6 +117,21 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		peers:  make(map[peer.ID]bool),
 	}
 
+	// Initialize address manager if NodeID is provided
+	if cfg.NodeID != "" {
+		addressManager, err := NewAddressManager(cfg.DataDir, cfg.NodeID, h.ID(), cfg.Moniker, logger.Named("address-manager"))
+		if err != nil {
+			if closeErr := h.Close(); closeErr != nil {
+				logger.Error("Failed to close host during cleanup", zap.Error(closeErr))
+			}
+			return nil, fmt.Errorf("failed to create address manager: %w", err)
+		}
+		n.addressManager = addressManager
+
+		// Set up broadcast callback for address manager
+		addressManager.setBroadcastCallback(n.broadcastAddressBook)
+	}
+
 	// Set up protocol handlers
 	n.setupProtocolHandlers()
 
@@ -172,6 +163,14 @@ func (n *Network) Start(ctx context.Context, bootstrapPeers []string) error {
 	if err := n.subscribeToDiscovery(ctx); err != nil {
 		n.logger.Error("Failed to subscribe to discovery", zap.Error(err))
 		return fmt.Errorf("failed to subscribe to discovery: %w", err)
+	}
+
+	// Start address discovery if address manager is available
+	if n.addressManager != nil {
+		if err := n.StartAddressDiscovery(ctx); err != nil {
+			n.logger.Error("Failed to start address discovery", zap.Error(err))
+			return fmt.Errorf("failed to start address discovery: %w", err)
+		}
 	}
 
 	n.logger.Info("P2P network started successfully")
@@ -252,7 +251,10 @@ func (n *Network) handleStream(stream network.Stream) {
 		return
 	}
 
-	// Handle message
+	// Extract and update sender's address mapping at network layer
+	n.extractAndUpdateSenderMapping(&msg, stream.Conn().RemotePeer().String())
+
+	// Handle message at business layer
 	if n.handler != nil {
 		ctx := context.Background()
 		if err := n.handler.HandleMessage(ctx, &msg); err != nil {
@@ -506,6 +508,9 @@ func (n *Network) subscribeToDiscovery(ctx context.Context) error {
 				zap.String("from", tssMsg.From),
 				zap.Bool("is_broadcast", tssMsg.IsBroadcast))
 
+			// Extract and update sender's address mapping at network layer
+			n.extractAndUpdateSenderMapping(&tssMsg, msg.ReceivedFrom.String())
+
 			// Handle the message if we have a handler
 			if n.handler != nil {
 				if err := n.handler.HandleMessage(ctx, &tssMsg); err != nil {
@@ -548,4 +553,159 @@ func loadOrGeneratePrivateKey(keyFile string, logger *zap.Logger) (crypto.PrivKe
 
 	logger.Info("Successfully loaded private key from file")
 	return privKey, nil
+}
+
+// broadcastAddressBook broadcasts an address book to the network
+func (n *Network) broadcastAddressBook(book *AddressBook) error {
+	data, err := json.Marshal(book)
+	if err != nil {
+		return fmt.Errorf("failed to marshal address book: %w", err)
+	}
+
+	// Get the node discovery topic
+	n.topicMutex.RLock()
+	topic := n.nodeDiscoveryTopic
+	n.topicMutex.RUnlock()
+
+	if topic == nil {
+		return fmt.Errorf("node discovery topic not initialized")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := topic.Publish(ctx, data); err != nil {
+		return fmt.Errorf("failed to publish address book: %w", err)
+	}
+
+	n.logger.Debug("Address book broadcasted successfully",
+		zap.Int("mappings_count", len(book.Mappings)),
+		zap.Int64("version", book.Version))
+
+	return nil
+}
+
+// GetNodePeerID returns the PeerID for a given NodeID using the address manager
+func (n *Network) GetNodePeerID(nodeID string) (string, bool) {
+	if n.addressManager == nil {
+		return "", false
+	}
+	return n.addressManager.getPeerID(nodeID)
+}
+
+// UpdateNodeMapping updates a node mapping temporarily (used during TSS operations)
+func (n *Network) UpdateNodeMapping(nodeID, peerID, moniker string) error {
+	if n.addressManager == nil {
+		return fmt.Errorf("address manager not initialized")
+	}
+
+	// Update the mapping in address manager
+	return n.addressManager.updateMapping(nodeID, peerID, moniker)
+}
+
+// GetAllNodeMappings returns all node address mappings
+func (n *Network) GetAllNodeMappings() map[string]*NodeAddressMapping {
+	if n.addressManager == nil {
+		return make(map[string]*NodeAddressMapping)
+	}
+	
+	return n.addressManager.getAllMappings()
+}
+
+// StartAddressDiscovery starts the address discovery and broadcasting process
+func (n *Network) StartAddressDiscovery(ctx context.Context) error {
+	if n.addressManager == nil {
+		return fmt.Errorf("address manager not initialized")
+	}
+
+	// Subscribe to node discovery topic
+	nodeDiscoveryTopic, err := n.pubsub.Join(nodeDiscoveryTopic)
+	if err != nil {
+		return fmt.Errorf("failed to join node discovery topic: %w", err)
+	}
+
+	// Store topic reference
+	n.topicMutex.Lock()
+	n.nodeDiscoveryTopic = nodeDiscoveryTopic
+	n.topicMutex.Unlock()
+
+	nodeDiscoverySub, err := nodeDiscoveryTopic.Subscribe()
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to node discovery topic: %w", err)
+	}
+
+	n.logger.Info("Subscribed to node discovery topic", zap.String("topic", "node-discovery"))
+
+	// Handle node discovery messages in a separate goroutine
+	go func() {
+		defer nodeDiscoverySub.Cancel()
+		for {
+			message, msgErr := nodeDiscoverySub.Next(ctx)
+			if msgErr != nil {
+				if ctx.Err() != nil {
+					return // Context canceled
+				}
+				n.logger.Error("Error reading node discovery message", zap.Error(msgErr))
+				continue
+			}
+
+			// Skip our own messages
+			if message.ReceivedFrom == n.host.ID() {
+				continue
+			}
+
+			// Parse and merge address book
+			var addressBook AddressBook
+			if err := json.Unmarshal(message.Data, &addressBook); err != nil {
+				n.logger.Warn("Failed to unmarshal address book from peer",
+					zap.String("from", message.ReceivedFrom.String()),
+					zap.Error(err))
+				continue
+			}
+
+			if err := n.addressManager.mergeAddressBook(&addressBook); err != nil {
+				n.logger.Warn("Failed to merge address book from peer",
+					zap.String("from", message.ReceivedFrom.String()),
+					zap.Error(err))
+			}
+		}
+	}()
+
+	// Broadcast our own mapping immediately upon startup
+	if err := n.addressManager.broadcastOwnMapping(); err != nil {
+		n.logger.Warn("Failed to broadcast own mapping on startup", zap.Error(err))
+	}
+
+	// Start periodic broadcasting of full address book
+	n.addressManager.startPeriodicBroadcast(addressBroadcastInterval)
+
+	n.logger.Info("Address discovery started successfully")
+	return nil
+}
+
+// extractAndUpdateSenderMapping extracts and updates the sender's address mapping at the network layer
+func (n *Network) extractAndUpdateSenderMapping(msg *Message, peerID string) {
+	// Only update mapping if we have sender peer ID information
+	if msg.SenderPeerID == "" || msg.From == "" {
+		return
+	}
+
+	// Skip our own messages
+	if msg.SenderPeerID == n.host.ID().String() {
+		return
+	}
+
+	// Update the sender's address mapping in the address manager
+	if n.addressManager != nil {
+		n.logger.Debug("Updating node mapping at network layer",
+			zap.String("sender_node_id", msg.From),
+			zap.String("sender_peer_id", msg.SenderPeerID))
+
+		if err := n.addressManager.updateMapping(msg.From, msg.SenderPeerID, ""); err != nil {
+			n.logger.Warn("Failed to update sender's address mapping at network layer",
+				zap.String("sender_node_id", msg.From),
+				zap.String("sender_peer_id", msg.SenderPeerID),
+				zap.Error(err))
+		}
+	}
 }

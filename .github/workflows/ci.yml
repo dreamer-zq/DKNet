@@ -240,34 +240,4 @@ jobs:
   #   #   with:
   #   #     status: ${{ job.status }}
   #   #     channel: '#deployments'
-  #   #     webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-
-  # Performance benchmarks
-  benchmark:
-    name: Performance Benchmarks
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: ${{ env.GO_VERSION }}
-
-    - name: Run benchmarks
-      run: |
-        go test -bench=. -benchmem -run=^$ ./... | tee benchmark.txt
-
-    - name: Store benchmark result
-      uses: benchmark-action/github-action-benchmark@v1
-      with:
-        tool: 'go'
-        output-file-path: benchmark.txt
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        auto-push: true
-        comment-on-alert: true
-        alert-threshold: '200%'
-        fail-on-alert: true 
+  #   #     webhook_url: ${{ secrets.SLACK_WEBHOOK }} 
