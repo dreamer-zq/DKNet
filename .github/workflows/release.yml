@@ -149,7 +149,7 @@ jobs:
           type=semver,pattern={{major}}
 
     - name: Build and push Docker image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: .
         platforms: linux/amd64,linux/arm64
@@ -162,7 +162,7 @@ jobs:
           VERSION=${{ needs.create-release.outputs.version }}
 
     - name: Build and push validation service image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: .
         file: tests/validation-service/Dockerfile
