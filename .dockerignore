@@ -1,0 +1,61 @@
+# Binaries
+tss-server
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Data directories
+data/
+storage/
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+
+# Config files (will be mounted as volumes)
+config*.yaml
+
+# Test and development files (exclude most but allow validation-service source)
+tests/
+!tests/validation-service/
+!tests/validation-service/main.go
+examples/
+docs/ 

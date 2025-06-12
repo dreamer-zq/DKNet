@@ -54,7 +54,7 @@ config/staging.yaml
 .env.*
 
 # Docker related
-.dockerignore
+# .dockerignore
 
 # Keys and certificates (important for TSS)
 keys/
