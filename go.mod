@@ -4,7 +4,7 @@ go 1.23.5
 
 require (
 	github.com/bnb-chain/tss-lib/v2 v2.0.2
-	github.com/gin-gonic/gin v1.10.0
+	github.com/gin-gonic/gin v1.10.1
 	github.com/google/uuid v1.6.0
 	github.com/libp2p/go-libp2p v0.33.0
 	github.com/libp2p/go-libp2p-kad-dht v0.25.2
