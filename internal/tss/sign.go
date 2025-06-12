@@ -19,6 +19,14 @@ import (
 
 // StartSigning starts a new signing operation
 func (s *Service) StartSigning(ctx context.Context, req *SigningRequest) (*Operation, error) {
+	// Validate signing request with external validation service (if configured)
+	if err := s.validateSigningRequest(ctx, req); err != nil {
+		s.logger.Error("Signing request validation failed",
+			zap.Error(err),
+			zap.String("key_id", req.KeyID))
+		return nil, fmt.Errorf("signing request validation failed: %w", err)
+	}
+
 	// Load key data and metadata
 	keyData, err := s.loadKeyData(ctx, req.KeyID)
 	if err != nil {
@@ -153,6 +161,22 @@ func (s *Service) createSyncedSigningOperation(ctx context.Context, msg *p2p.Mes
 	}
 	if len(syncData.Message) == 0 {
 		return fmt.Errorf("message is required for signing operation sync")
+	}
+
+	// Create SigningRequest for validation
+	signingReq := &SigningRequest{
+		Message:      syncData.Message,
+		KeyID:        syncData.KeyID,
+		Participants: syncData.Participants,
+	}
+
+	// Validate signing request with external validation service (if configured)
+	if err := s.validateSigningRequest(ctx, signingReq); err != nil {
+		s.logger.Error("Synced signing request validation failed",
+			zap.Error(err),
+			zap.String("key_id", syncData.KeyID),
+			zap.String("operation_id", syncData.OperationID))
+		return fmt.Errorf("synced signing request validation failed: %w", err)
 	}
 
 	// Load key data and metadata

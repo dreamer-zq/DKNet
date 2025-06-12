@@ -11,7 +11,8 @@ DKNet 是一个高性能的阈值签名服务，支持：
 - 🔄 **密钥重新分享**：动态调整阈值和参与方
 - 🌐 **双协议支持**：HTTP RESTful API 和 gRPC
 - 📊 **操作管理**：完整的操作状态跟踪和管理
-- 🏥 **健康监控**：实时健康状态检查
+- �� **健康监控**：实时健康状态检查
+- 🛡️ **验证服务**：可选的外部签名请求验证
 
 ## 快速开始
 
@@ -43,6 +44,22 @@ make build
 # gRPC API: localhost:9001
 ```
 
+### 测试验证服务
+
+```bash
+# 启动测试环境（包含验证服务）
+./tests/scripts/start-test-env.sh start
+
+# 运行验证服务测试
+./tests/scripts/start-test-env.sh test
+
+# 查看服务状态
+./tests/scripts/start-test-env.sh status
+
+# 停止测试环境
+./tests/scripts/start-test-env.sh stop
+```
+
 ### 使用客户端工具
 
 ```bash
@@ -70,10 +87,42 @@ tss-server/
 ├── proto/
 │   ├── tss/v1/              # TSS 服务 protobuf 定义
 │   └── health/v1/           # 健康检查服务定义
+├── tests/                   # 测试套件
+│   ├── validation-service/  # 验证服务实现
+│   ├── scripts/            # 测试脚本
+│   ├── docker/             # Docker 配置
+│   └── docs/               # 测试文档
 ├── docs/                    # 项目文档
 ├── Makefile                 # 构建和开发命令
 └── README.md               # 项目说明
 ```
+
+## 验证服务
+
+DKNet 支持可选的外部验证服务，在签名前对请求进行安全验证：
+
+### 功能特性
+
+- 🔍 **请求验证**：验证签名请求的合法性和安全性
+- 🚫 **内容过滤**：阻止包含恶意内容的签名请求
+- ⏰ **时间戳检查**：防止重放攻击
+- 👥 **参与者验证**：确保参与者数量和身份合规
+- 🔑 **密钥白名单**：限制可用的密钥范围
+
+### 快速测试
+
+```bash
+# 启动完整测试环境
+./tests/scripts/start-test-env.sh start
+
+# 运行验证服务测试
+./tests/scripts/start-test-env.sh test
+
+# 查看详细帮助
+./tests/scripts/start-test-env.sh help
+```
+
+详细信息请参见：[测试套件文档](tests/README.md)
 
 ## 文档
 
@@ -81,11 +130,16 @@ tss-server/
 
 - **[服务器使用指南](docs/server-usage.md)** - DKNet 的完整配置、部署和管理说明
 - **[客户端使用指南](docs/client-usage.md)** - TSS Client 命令行工具的详细使用教程
+- **[验证服务指南](docs/validation-service.md)** - 外部验证服务的配置和使用
 
 ### API 文档
 
 - **[HTTP API 文档](docs/api.md)** - RESTful API 接口说明
 - **[gRPC API 文档](docs/grpc-api.md)** - gRPC 服务接口文档
+
+### 部署文档
+
+- **[Docker 部署指南](tests/docs/docker-deployment.md)** - 使用 Docker 部署完整测试环境
 
 ## 核心功能
 
@@ -94,6 +148,7 @@ tss-server/
 - **密钥生成 (Keygen)**: 分布式生成阈值密钥
 - **数字签名 (Signing)**: 使用阈值密钥进行安全签名
 - **密钥重新分享 (Resharing)**: 更改密钥阈值或参与方
+- **签名验证 (Validation)**: 可选的外部签名请求验证
 
 ## 开发和构建
 
@@ -102,6 +157,7 @@ tss-server/
 - Go 1.21+
 - Protocol Buffers 编译器 (`protoc`)
 - gRPC Go 插件
+- Docker & Docker Compose (用于测试)
 
 ### 主要构建命令
 
@@ -132,6 +188,9 @@ make docker-dev
 
 # 启动生产集群
 make docker-prod
+
+# 启动验证服务测试环境
+docker-compose up -d
 ```
 
 ### 本地部署
@@ -153,6 +212,7 @@ make init-local-cluster
 3. **访问控制**：限制 API 访问权限和网络访问
 4. **审计日志**：启用完整的操作审计记录
 5. **参与方验证**：验证所有参与方的身份和权限
+6. **验证服务**：配置适当的验证规则防止恶意签名
 
 ## 技术架构
 
@@ -160,6 +220,7 @@ DKNet 采用模块化设计：
 
 - **API Layer**: HTTP 和 gRPC 双协议支持
 - **Business Logic**: TSS 核心算法实现
+- **Validation Layer**: 可选的外部验证服务
 - **Storage Layer**: 操作状态和结果持久化
 - **Network Layer**: 安全的参与方通信
 

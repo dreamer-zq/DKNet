@@ -8,9 +8,9 @@ Cluster Parameters:
 
 Generated Files Structure:
 Each node has its own directory with:
-- ./docker/node1/config.yaml & node_key & node-info.txt
-- ./docker/node2/config.yaml & node_key & node-info.txt
-- ./docker/node3/config.yaml & node_key & node-info.txt
+- ./tests/docker/node1/config.yaml & node_key & node-info.txt
+- ./tests/docker/node2/config.yaml & node_key & node-info.txt
+- ./tests/docker/node3/config.yaml & node_key & node-info.txt
 
 Node Information:
 - node1: QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF
@@ -23,11 +23,12 @@ Bootstrap Multiaddrs:
 - node3: /ip4/172.20.0.4/tcp/4001/p2p/QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi
 
 Docker Usage:
-1. Update your docker-compose.yml to mount each node directory:
-   volumes:
-     - ././docker/node1:/app/node:ro
-   
-2. Start the cluster:
-   docker-compose up -d
+1. Use the unified test environment script:
+   ./tests/scripts/start-test-env.sh start
 
-3. Each container should reference ./node/config.yaml and ./node/node_key
+2. Or manually with docker-compose:
+   docker-compose -f tests/docker/docker-compose.yml up -d
+
+3. Each container mounts the node directory:
+   volumes:
+     - ./tests/docker/node1:/app/node:ro
