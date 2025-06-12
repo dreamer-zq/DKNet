@@ -1,6 +1,6 @@
 # Updated with latest signing functionality - 2025/06/10
 # Multi-stage build for DKNet
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Install dependencies for building
 RUN apk add --no-cache git gcc musl-dev
