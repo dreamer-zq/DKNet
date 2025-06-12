@@ -104,12 +104,12 @@ func outputStartKeygenResponse(resp *tssv1.StartKeygenResponse) error {
 	if outputFormat == "json" {
 		return outputJSON(resp)
 	}
-	
+
 	fmt.Printf("✅ Operation started successfully\n")
 	fmt.Printf("Operation ID: %s\n", resp.OperationId)
 	fmt.Printf("Status: %s\n", resp.Status)
 	fmt.Printf("Created At: %s\n", resp.CreatedAt.AsTime().Format(time.RFC3339))
-	
+
 	return nil
 }
 
@@ -117,12 +117,12 @@ func outputStartSigningResponse(resp *tssv1.StartSigningResponse) error {
 	if outputFormat == "json" {
 		return outputJSON(resp)
 	}
-	
+
 	fmt.Printf("✅ Operation started successfully\n")
 	fmt.Printf("Operation ID: %s\n", resp.OperationId)
 	fmt.Printf("Status: %s\n", resp.Status)
 	fmt.Printf("Created At: %s\n", resp.CreatedAt.AsTime().Format(time.RFC3339))
-	
+
 	return nil
 }
 
@@ -135,7 +135,7 @@ func outputStartResharingResponse(resp *tssv1.StartResharingResponse) error {
 	fmt.Printf("Operation ID: %s\n", resp.OperationId)
 	fmt.Printf("Status: %s\n", resp.Status)
 	fmt.Printf("Created At: %s\n", resp.CreatedAt.AsTime().Format(time.RFC3339))
-	
+
 	return nil
 }
 
@@ -143,7 +143,7 @@ func outputGetOperationResponse(resp *tssv1.GetOperationResponse) error {
 	if outputFormat == "json" {
 		return outputJSON(resp)
 	}
-	
+
 	// Text format output
 	fmt.Printf("📋 Operation Details\n")
 	fmt.Printf("Operation ID: %s\n", resp.OperationId)
@@ -196,6 +196,6 @@ func outputGetOperationResponse(resp *tssv1.GetOperationResponse) error {
 			fmt.Printf("  New Participants: %s\n", strings.Join(request.ResharingRequest.NewParticipants, ", "))
 		}
 	}
-	
+
 	return nil
 }

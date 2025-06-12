@@ -163,7 +163,7 @@ func (s *Service) runKeygenOperation(ctx context.Context, operation *Operation, 
 			now := time.Now()
 			operation.CompletedAt = &now
 			operation.Unlock()
-			
+
 			// Move completed operation to persistent storage
 			go func() {
 				if err := s.moveCompletedOperationToStorage(ctx, operation.ID); err != nil {
@@ -204,7 +204,7 @@ func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, re
 
 	// Get original threshold from operation request
 	originalReq := operation.Request.(*KeygenRequest)
-	
+
 	// Store key data
 	keyDataStruct := &KeyData{
 		NodeID:    s.nodeID,

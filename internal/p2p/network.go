@@ -134,11 +134,11 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 	}
 
 	n := &Network{
-		host:     h,
-		dht:      kademliaDHT,
-		pubsub:   ps,
-		logger:   logger,
-		peers:    make(map[peer.ID]bool),
+		host:   h,
+		dht:    kademliaDHT,
+		pubsub: ps,
+		logger: logger,
+		peers:  make(map[peer.ID]bool),
 	}
 
 	// Set up protocol handlers

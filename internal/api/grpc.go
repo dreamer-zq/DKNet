@@ -20,25 +20,25 @@ import (
 // startGRPCServer starts the gRPC server
 func (s *Server) startGRPCServer() error {
 	addr := fmt.Sprintf("%s:%d", s.config.GRPC.Host, s.config.GRPC.Port)
-	
+
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %w", addr, err)
 	}
-	
+
 	// Create gRPC server
 	s.grpcServer = grpc.NewServer()
-	
+
 	// Register services
 	s.setupGRPCServices()
-	
+
 	// Start server in a goroutine
 	go func() {
 		if err := s.grpcServer.Serve(listener); err != nil {
 			s.logger.Error("gRPC server error", zap.Error(err))
 		}
 	}()
-	
+
 	return nil
 }
 
@@ -47,7 +47,7 @@ func (s *Server) stopGRPCServer() {
 	if s.grpcServer == nil {
 		return
 	}
-	
+
 	s.grpcServer.GracefulStop()
 }
 
@@ -57,15 +57,15 @@ func (s *Server) setupGRPCServices() {
 		tssService: s.tssService,
 		logger:     s.logger,
 	}
-	
+
 	healthServer := &gRPCHealthServer{
 		logger: s.logger,
 	}
-	
+
 	// Register services with the gRPC server
 	tssv1.RegisterTSSServiceServer(s.grpcServer, tssServer)
 	healthv1.RegisterHealthServiceServer(s.grpcServer, healthServer)
-	
+
 	s.logger.Info("gRPC services registered successfully")
 }
 
@@ -90,14 +90,14 @@ func (g *gRPCTSSServer) StartKeygen(ctx context.Context, req *tssv1.StartKeygenR
 		Parties:      int(req.Parties),
 		Participants: req.Participants,
 	}
-	
+
 	// Start keygen operation
 	operation, err := g.tssService.StartKeygen(ctx, tssReq)
 	if err != nil {
 		g.logger.Error("Failed to start keygen", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to start keygen: %v", err)
 	}
-	
+
 	// Convert to proto response
 	return &tssv1.StartKeygenResponse{
 		OperationId: operation.ID,
@@ -108,20 +108,20 @@ func (g *gRPCTSSServer) StartKeygen(ctx context.Context, req *tssv1.StartKeygenR
 
 // StartSigning implements TSSService.StartSigning
 func (g *gRPCTSSServer) StartSigning(ctx context.Context, req *tssv1.StartSigningRequest) (*tssv1.StartSigningResponse, error) {
-	// Convert proto request to internal request  
+	// Convert proto request to internal request
 	tssReq := &tss.SigningRequest{
 		Message:      req.Message,
 		KeyID:        req.KeyId,
 		Participants: req.Participants,
 	}
-	
+
 	// Start signing operation
 	operation, err := g.tssService.StartSigning(ctx, tssReq)
 	if err != nil {
 		g.logger.Error("Failed to start signing", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to start signing: %v", err)
 	}
-	
+
 	// Convert to proto response
 	return &tssv1.StartSigningResponse{
 		OperationId: operation.ID,
@@ -140,14 +140,14 @@ func (g *gRPCTSSServer) StartResharing(ctx context.Context, req *tssv1.StartResh
 		OldParticipants: req.OldParticipants,
 		NewParticipants: req.NewParticipants,
 	}
-	
+
 	// Start resharing operation
 	operation, err := g.tssService.StartResharing(ctx, tssReq)
 	if err != nil {
 		g.logger.Error("Failed to start resharing", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to start resharing: %v", err)
 	}
-	
+
 	// Convert to proto response
 	return &tssv1.StartResharingResponse{
 		OperationId: operation.ID,
@@ -163,7 +163,7 @@ func (g *gRPCTSSServer) GetOperation(ctx context.Context, req *tssv1.GetOperatio
 	if exists {
 		operation.RLock()
 		defer operation.RUnlock()
-		
+
 		response := &tssv1.GetOperationResponse{
 			OperationId: operation.ID,
 			Type:        convertOperationType(operation.Type),
@@ -171,23 +171,23 @@ func (g *gRPCTSSServer) GetOperation(ctx context.Context, req *tssv1.GetOperatio
 			Status:      convertOperationStatus(operation.Status),
 			CreatedAt:   timestamppb.New(operation.CreatedAt),
 		}
-		
+
 		// Add participants
 		for _, p := range operation.Participants {
 			response.Participants = append(response.Participants, p.Id)
 		}
-		
+
 		// Add completion time if available
 		if operation.CompletedAt != nil {
 			response.CompletedAt = timestamppb.New(*operation.CompletedAt)
 		}
-		
+
 		// Add error if available
 		if operation.Error != nil {
 			errMsg := operation.Error.Error()
 			response.Error = &errMsg
 		}
-		
+
 		// Add result based on operation type
 		if operation.Result != nil {
 			switch operation.Type {
@@ -221,7 +221,7 @@ func (g *gRPCTSSServer) GetOperation(ctx context.Context, req *tssv1.GetOperatio
 				}
 			}
 		}
-		
+
 		// Add original request
 		if operation.Request != nil {
 			switch req := operation.Request.(type) {
@@ -253,17 +253,17 @@ func (g *gRPCTSSServer) GetOperation(ctx context.Context, req *tssv1.GetOperatio
 				}
 			}
 		}
-		
+
 		return response, nil
 	}
-	
+
 	// If not found in memory, try persistent storage
 	operationData, err := g.tssService.GetOperationData(ctx, req.OperationId)
 	if err != nil {
 		g.logger.Warn("Operation not found", zap.String("operation_id", req.OperationId), zap.Error(err))
 		return nil, status.Errorf(codes.NotFound, "operation not found")
 	}
-	
+
 	response := &tssv1.GetOperationResponse{
 		OperationId:  operationData.ID,
 		Type:         convertOperationType(operationData.Type),
@@ -272,17 +272,17 @@ func (g *gRPCTSSServer) GetOperation(ctx context.Context, req *tssv1.GetOperatio
 		Participants: operationData.Participants,
 		CreatedAt:    timestamppb.New(operationData.CreatedAt),
 	}
-	
+
 	// Add completion time if available
 	if operationData.CompletedAt != nil {
 		response.CompletedAt = timestamppb.New(*operationData.CompletedAt)
 	}
-	
+
 	// Add error if available
 	if operationData.Error != "" {
 		response.Error = &operationData.Error
 	}
-	
+
 	// Add result based on operation type if available
 	if operationData.Result != nil {
 		switch operationData.Type {
@@ -316,7 +316,7 @@ func (g *gRPCTSSServer) GetOperation(ctx context.Context, req *tssv1.GetOperatio
 			}
 		}
 	}
-	
+
 	// Add original request if available
 	if operationData.Request != nil {
 		switch req := operationData.Request.(type) {
@@ -348,7 +348,7 @@ func (g *gRPCTSSServer) GetOperation(ctx context.Context, req *tssv1.GetOperatio
 			}
 		}
 	}
-	
+
 	return response, nil
 }
 
@@ -358,7 +358,7 @@ func (g *gRPCTSSServer) CancelOperation(ctx context.Context, req *tssv1.CancelOp
 		g.logger.Error("Failed to cancel operation", zap.String("operation_id", req.OperationId), zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to cancel operation: %v", err)
 	}
-	
+
 	return &tssv1.CancelOperationResponse{
 		Message: "operation cancelled",
 	}, nil
@@ -370,8 +370,8 @@ func (g *gRPCTSSServer) ListOperations(ctx context.Context, req *tssv1.ListOpera
 	// In a complete implementation, you would need to add a GetAllOperations method to the TSS service
 	// or iterate through persistent storage
 	return &tssv1.ListOperationsResponse{
-		Operations:  []*tssv1.GetOperationResponse{},
-		TotalCount:  0,
+		Operations: []*tssv1.GetOperationResponse{},
+		TotalCount: 0,
 	}, nil
 }
 
@@ -392,7 +392,7 @@ func (g *gRPCHealthServer) Check(ctx context.Context, req *healthv1.CheckRequest
 func (g *gRPCHealthServer) Watch(req *healthv1.WatchRequest, stream healthv1.HealthService_WatchServer) error {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-stream.Context().Done():
@@ -407,7 +407,7 @@ func (g *gRPCHealthServer) Watch(req *healthv1.WatchRequest, stream healthv1.Hea
 					"version": "1.0.0",
 				},
 			}
-			
+
 			if err := stream.Send(resp); err != nil {
 				return err
 			}

@@ -217,13 +217,14 @@ jobs:
         # kubectl apply -f k8s/production/
         # helm upgrade --install dknet-prod ./helm-chart
 
-    - name: Notify deployment status
-      if: always()
-      uses: 8398a7/action-slack@v3
-      with:
-        status: ${{ job.status }}
-        channel: '#deployments'
-        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+    # Slack notifications disabled - uncomment to re-enable
+    # - name: Notify deployment status
+    #   if: always()
+    #   uses: 8398a7/action-slack@v3
+    #   with:
+    #     status: ${{ job.status }}
+    #     channel: '#deployments'
+    #     webhook_url: ${{ secrets.SLACK_WEBHOOK }}
 
   # Performance benchmarks
   benchmark:

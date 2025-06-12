@@ -39,7 +39,7 @@ func runInitNode(cmd *cobra.Command, args []string) error {
 	if err := parseCommonFlags(cmd); err != nil {
 		return err
 	}
-	
+
 	// Get node-specific flags
 	nodeID, _ := cmd.Flags().GetString("node-id")
 	moniker, _ := cmd.Flags().GetString("moniker")
@@ -75,7 +75,7 @@ func runInitNode(cmd *cobra.Command, args []string) error {
 
 	// Generate and save configuration
 	configFile := filepath.Join(nodeDir, "config.yaml")
-	if err := generateAndSaveNodeConfig(nodeID, moniker, bootstrapPeers, 
+	if err := generateAndSaveNodeConfig(nodeID, moniker, bootstrapPeers,
 		httpPort, grpcPort, p2pPort, listenAddr, configFile, dockerMode); err != nil {
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
@@ -83,13 +83,13 @@ func runInitNode(cmd *cobra.Command, args []string) error {
 	logger.Info("Generated configuration", zap.String("file", configFile))
 
 	// Generate node info
-	if err := generateNodeInfo(nodeDir, nodeID, peerID.String(), 
+	if err := generateNodeInfo(nodeDir, nodeID, peerID.String(),
 		listenAddr, p2pPort, bootstrapPeers, dockerMode); err != nil {
 		return fmt.Errorf("failed to generate node info: %w", err)
 	}
 
-	logger.Info("TSS node initialization completed successfully", 
+	logger.Info("TSS node initialization completed successfully",
 		zap.String("nodeDir", nodeDir),
 		zap.String("peerID", peerID.String()))
 	return nil
-} 
+}

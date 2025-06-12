@@ -50,17 +50,17 @@ func NewService(cfg *Config, storage storage.Storage, network *p2p.Network, logg
 
 	partyID := tss.NewPartyID(cfg.NodeID, cfg.Moniker, nodeKey)
 	s := &Service{
-		config:            cfg,
-		storage:           storage,
-		network:           network,
-		logger:            logger,
-		operations:        make(map[string]*Operation),
-		nodeID:            cfg.NodeID,
-		moniker:           cfg.Moniker,
-		partyID:           partyID,
-		nodeIDToPeerID:    make(map[string]string),
+		config:         cfg,
+		storage:        storage,
+		network:        network,
+		logger:         logger,
+		operations:     make(map[string]*Operation),
+		nodeID:         cfg.NodeID,
+		moniker:        cfg.Moniker,
+		partyID:        partyID,
+		nodeIDToPeerID: make(map[string]string),
 	}
-	
+
 	// Check if validation service is configured and enabled
 	if cfg.ValidationService != nil && cfg.ValidationService.Enabled {
 		s.validationService = NewHTTPValidationService(cfg.ValidationService, cfg.NodeID, logger)

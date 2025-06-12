@@ -137,7 +137,7 @@ func (s *Service) runResharingOperation(ctx context.Context, operation *Operatio
 			now := time.Now()
 			operation.CompletedAt = &now
 			operation.Unlock()
-			
+
 			// Move completed operation to persistent storage
 			go func() {
 				if err := s.moveCompletedOperationToStorage(ctx, operation.ID); err != nil {

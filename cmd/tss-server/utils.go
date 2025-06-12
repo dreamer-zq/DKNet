@@ -20,17 +20,17 @@ func addCommonFlags(cmd *cobra.Command) {
 // parseCommonFlags parses common flags from the command
 func parseCommonFlags(cmd *cobra.Command) error {
 	var err error
-	
+
 	outputDir, err = cmd.Flags().GetString(flagOutput)
 	if err != nil {
 		return fmt.Errorf("failed to parse output flag: %w", err)
 	}
-	
+
 	dockerMode, err = cmd.Flags().GetBool(flagDocker)
 	if err != nil {
 		return fmt.Errorf("failed to parse docker flag: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -98,4 +98,4 @@ func getNodeListenAddr(dockerMode bool) string {
 		return "0.0.0.0"
 	}
 	return "127.0.0.1"
-} 
+}

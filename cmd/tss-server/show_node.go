@@ -164,24 +164,24 @@ func buildDisplayMultiaddr(cfg *config.NodeConfig, listenAddr string, port int, 
 	if listenAddr == "0.0.0.0" {
 		// Look for Docker network IP in bootstrap peers
 		nodeID := cfg.TSS.NodeID
-		
+
 		// Try to extract our IP from a pattern in bootstrap peers
 		// Docker nodes typically have IPs like 172.20.0.2, 172.20.0.3, etc.
 		if dockerIP := inferDockerIPFromNodeID(nodeID); dockerIP != "" {
 			return fmt.Sprintf("/ip4/%s/tcp/%d/p2p/%s", dockerIP, port, peerID)
 		}
-		
+
 		// If we can't infer Docker IP, check if we have bootstrap peers to get network pattern
 		if len(cfg.P2P.BootstrapPeers) > 0 {
 			if dockerIP := inferDockerIPFromBootstrapPeers(cfg.P2P.BootstrapPeers, nodeID); dockerIP != "" {
 				return fmt.Sprintf("/ip4/%s/tcp/%d/p2p/%s", dockerIP, port, peerID)
 			}
 		}
-		
+
 		// Fallback: use Docker network base + node number guess
 		return fmt.Sprintf("/ip4/172.20.0.2/tcp/%d/p2p/%s", port, peerID)
 	}
-	
+
 	// For non-Docker mode or specific IP, use as-is
 	return fmt.Sprintf("/ip4/%s/tcp/%d/p2p/%s", listenAddr, port, peerID)
 }
@@ -208,7 +208,7 @@ func inferDockerIPFromBootstrapPeers(bootstrapPeers []string, nodeID string) str
 			return ""
 		}
 	}
-	
+
 	if nodeNum > 0 {
 		// Look for the Docker network pattern in bootstrap peers
 		for _, peer := range bootstrapPeers {
@@ -218,7 +218,7 @@ func inferDockerIPFromBootstrapPeers(bootstrapPeers []string, nodeID string) str
 			}
 		}
 	}
-	
+
 	return ""
 }
 
@@ -275,4 +275,4 @@ Security Note:
 `, info.Multiaddr, info.Multiaddr)
 
 	return nil
-} 
+}

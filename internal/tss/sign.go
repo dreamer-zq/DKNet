@@ -32,7 +32,7 @@ func (s *Service) StartSigning(ctx context.Context, req *SigningRequest) (*Opera
 	if err != nil {
 		return nil, fmt.Errorf("failed to load key data: %w", err)
 	}
-	
+
 	// Load key metadata to get original threshold
 	keyMetadata, err := s.loadKeyDataStruct(ctx, req.KeyID)
 	if err != nil {
@@ -104,7 +104,7 @@ func (s *Service) StartSigning(ctx context.Context, req *SigningRequest) (*Opera
 
 	// Broadcast signing operation sync message to other participants
 	go s.broadcastSigningOperation(operationID, sessionID,
-			threshold, len(participants), req.Participants, req.KeyID, req.Message)
+		threshold, len(participants), req.Participants, req.KeyID, req.Message)
 	// Broadcast own mapping
 	s.broadcastOwnMapping(context.Background(), sessionID)
 
@@ -184,7 +184,7 @@ func (s *Service) createSyncedSigningOperation(ctx context.Context, msg *p2p.Mes
 	if err != nil {
 		return fmt.Errorf("failed to load key data for synced signing: %w", err)
 	}
-	
+
 	// Load key metadata to get original threshold
 	keyMetadata, err := s.loadKeyDataStruct(ctx, syncData.KeyID)
 	if err != nil {
@@ -296,7 +296,7 @@ func (s *Service) runSigningOperation(ctx context.Context, operation *Operation,
 			now := time.Now()
 			operation.CompletedAt = &now
 			operation.Unlock()
-			
+
 			// Move completed operation to persistent storage
 			go func() {
 				if err := s.moveCompletedOperationToStorage(ctx, operation.ID); err != nil {
