@@ -1,0 +1,109 @@
+version: "2"
+
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+  go: '1.23'
+
+output:
+  formats:
+    text:
+      path: stdout
+      colors: true
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gosec
+    - misspell
+    - unconvert
+    - gocritic
+    - gocyclo
+    - funlen
+    - gocognit
+    - goconst
+    - dupl
+    - lll
+    - nakedret
+    - whitespace
+
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+
+    gocyclo:
+      min-complexity: 15
+
+    dupl:
+      threshold: 100
+
+    goconst:
+      min-len: 2
+      min-occurrences: 2
+
+    misspell:
+      locale: US
+
+    lll:
+      line-length: 140
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+      disabled-checks:
+        - dupImport
+        - ifElseChain
+        - octalLiteral
+        - whyNoLint
+        - wrapperFunc
+
+    funlen:
+      lines: 100
+      statements: 50
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - funlen
+          - gocyclo
+          - errcheck
+          - gosec
+
+      - path: cmd/
+        linters:
+          - gochecknoinits
+
+      - path: internal/
+        text: "weak cryptographic primitive"
+        linters:
+          - gosec
+
+      - linters:
+          - lll
+        source: "^//go:generate "
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+  settings:
+    goimports:
+      local-prefixes: 
+        - github.com/dreamer-zq/DKNet
+
+issues:
+  max-issues-per-linter: 50
+  max-same-issues: 3 

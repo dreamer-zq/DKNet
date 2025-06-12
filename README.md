@@ -1,5 +1,13 @@
 # DKNet
 
+[![CI/CD](https://github.com/dreamer-zq/DKNet/actions/workflows/ci.yml/badge.svg)](https://github.com/dreamer-zq/DKNet/actions/workflows/ci.yml)
+[![Release](https://github.com/dreamer-zq/DKNet/actions/workflows/release.yml/badge.svg)](https://github.com/dreamer-zq/DKNet/actions/workflows/release.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/dreamer-zq/DKNet)](https://goreportcard.com/report/github.com/dreamer-zq/DKNet)
+[![codecov](https://codecov.io/gh/dreamer-zq/DKNet/branch/main/graph/badge.svg)](https://codecov.io/gh/dreamer-zq/DKNet)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
+[![Docker](https://img.shields.io/badge/docker-supported-blue.svg)](https://hub.docker.com/r/dreamer-zq/dknet)
+
 阈值签名方案（Threshold Signature Scheme）服务器，提供分布式密钥生成、签名和密钥管理功能。
 
 ## 项目概述

@@ -1,0 +1,274 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  GO_VERSION: '1.23'
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Create GitHub release
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get version
+      id: get_version
+      run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Generate changelog
+      id: changelog
+      uses: metcalfc/changelog-generator@v4.3.1
+      with:
+        myToken: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_version.outputs.version }}
+        release_name: Release ${{ steps.get_version.outputs.version }}
+        body: |
+          ## Changes in this Release
+          ${{ steps.changelog.outputs.changelog }}
+          
+          ## Docker Images
+          - `${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get_version.outputs.version }}`
+          - `${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:latest`
+          
+          ## Installation
+          ```bash
+          # Download binary
+          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/tss-server-linux-amd64
+          chmod +x tss-server-linux-amd64
+          
+          # Or use Docker
+          docker pull ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get_version.outputs.version }}
+          ```
+        draft: false
+        prerelease: ${{ contains(steps.get_version.outputs.version, '-') }}
+
+  # Build and upload binaries
+  build-binaries:
+    name: Build Binaries
+    runs-on: ubuntu-latest
+    needs: create-release
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+        exclude:
+          - goos: windows
+            goarch: arm64
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Build binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 0
+      run: |
+        mkdir -p dist
+        binary_name="tss-server-${{ matrix.goos }}-${{ matrix.goarch }}"
+        if [ "${{ matrix.goos }}" = "windows" ]; then
+          binary_name="${binary_name}.exe"
+        fi
+        go build -ldflags="-s -w -X main.version=${{ needs.create-release.outputs.version }}" \
+          -o "dist/${binary_name}" ./cmd/tss-server
+
+    - name: Upload binary to release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./dist/tss-server-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
+        asset_name: tss-server-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
+        asset_content_type: application/octet-stream
+
+  # Build and push Docker images
+  build-docker:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    needs: create-release
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.DOCKER_REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=tag
+          type=raw,value=latest
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          VERSION=${{ needs.create-release.outputs.version }}
+
+    - name: Build and push validation service image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: tests/validation-service/Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: |
+          ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}/validation-service:${{ needs.create-release.outputs.version }}
+          ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}/validation-service:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # Run release tests
+  release-tests:
+    name: Release Tests
+    runs-on: ubuntu-latest
+    needs: [create-release, build-docker]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install jq
+      run: sudo apt-get update && sudo apt-get install -y jq
+
+    - name: Test Docker images
+      run: |
+        # Test main TSS server image
+        docker run --rm ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.create-release.outputs.version }} --version
+        
+        # Test validation service image
+        docker run --rm -d --name validation-test \
+          ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}/validation-service:${{ needs.create-release.outputs.version }}
+        
+        sleep 5
+        
+        # Test health endpoint
+        docker exec validation-test curl -f http://localhost:8888/health || exit 1
+        
+        docker stop validation-test
+
+    - name: Run integration tests with release images
+      run: |
+        # Update docker-compose to use release images
+        sed -i "s|docker-tss-node1|${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.create-release.outputs.version }}|g" tests/docker/docker-compose.yml
+        sed -i "s|docker-tss-node2|${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.create-release.outputs.version }}|g" tests/docker/docker-compose.yml
+        sed -i "s|docker-tss-node3|${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.create-release.outputs.version }}|g" tests/docker/docker-compose.yml
+        sed -i "s|docker-validation-service|${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}/validation-service:${{ needs.create-release.outputs.version }}|g" tests/docker/docker-compose.yml
+        
+        # Run tests
+        chmod +x tests/scripts/*.sh
+        cd tests/scripts
+        ./start-test-env.sh test
+        ./start-test-env.sh cleanup
+
+  # Update documentation
+  update-docs:
+    name: Update Documentation
+    runs-on: ubuntu-latest
+    needs: [create-release, release-tests]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Update README with latest version
+      run: |
+        # Update version badges and installation instructions
+        sed -i "s|releases/download/v[0-9]\+\.[0-9]\+\.[0-9]\+|releases/download/${{ needs.create-release.outputs.version }}|g" README.md
+        sed -i "s|:v[0-9]\+\.[0-9]\+\.[0-9]\+|:${{ needs.create-release.outputs.version }}|g" README.md
+
+    - name: Commit documentation updates
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add README.md
+        git diff --staged --quiet || git commit -m "docs: update version to ${{ needs.create-release.outputs.version }}"
+        git push
+
+  # Notify stakeholders
+  notify:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: [create-release, build-binaries, build-docker, release-tests]
+    if: always()
+    steps:
+    - name: Notify Slack
+      if: success()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        channel: '#releases'
+        text: |
+          🚀 New release published: ${{ needs.create-release.outputs.version }}
+          
+          📦 Binaries: https://github.com/${{ github.repository }}/releases/tag/${{ needs.create-release.outputs.version }}
+          🐳 Docker: `${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.create-release.outputs.version }}`
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+    - name: Notify on failure
+      if: failure()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        channel: '#releases'
+        text: |
+          ❌ Release ${{ needs.create-release.outputs.version }} failed!
+          
+          Please check the workflow: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }} 

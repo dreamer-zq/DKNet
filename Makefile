@@ -1,6 +1,6 @@
 # DKNet Makefile
 
-.PHONY: help build test clean proto-gen proto-clean docker-build
+.PHONY: help build test clean proto-gen proto-clean docker-build ci-test lint security-scan
 
 # Default target
 help:
@@ -17,6 +17,11 @@ help:
 	@echo ""
 	@echo "Docker Commands:"
 	@echo "  docker-build     - Build development Docker image with latest tag"
+	@echo ""
+	@echo "CI/CD Commands:"
+	@echo "  ci-test          - Run CI test suite locally"
+	@echo "  lint             - Run code linting"
+	@echo "  security-scan    - Run security scanning"
 
 # Docker configuration
 DOCKER_IMAGE_NAME ?= dknet/tss-server
@@ -67,3 +72,29 @@ docker-build:
 	@echo "Building development Docker image: $(DOCKER_IMAGE_NAME):latest"
 	docker build -t $(DOCKER_IMAGE_NAME):latest .
 	@echo "Development Docker image built successfully: $(DOCKER_IMAGE_NAME):latest"
+
+# CI/CD commands
+ci-test: lint test
+	@echo "Running validation service tests..."
+	@cd tests/scripts && ./start-test-env.sh start
+	@cd tests/scripts && ./test-validation-simple.sh
+	@cd tests/scripts && ./start-test-env.sh stop
+	@echo "All CI tests passed!"
+
+lint:
+	@echo "Running code linting..."
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run; \
+	else \
+		echo "golangci-lint not found. Install it with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
+		go vet ./...; \
+		go fmt ./...; \
+	fi
+
+security-scan:
+	@echo "Running security scanning..."
+	@if command -v gosec >/dev/null 2>&1; then \
+		gosec ./...; \
+	else \
+		echo "gosec not found. Install it with: go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest"; \
+	fi
