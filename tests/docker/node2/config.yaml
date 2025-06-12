@@ -10,7 +10,7 @@ p2p:
         - /ip4/0.0.0.0/tcp/4001
     bootstrap_peers:
         - /ip4/172.20.0.3/tcp/4001/p2p/QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF
-        - /ip4/172.20.0.5/tcp/4001/p2p/QmQjz2j7wFScU4Rj1cP3iwisbGwdhkNXmfmUYUHmvtEXY3
+        - /ip4/172.20.0.5/tcp/4001/p2p/QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi
     private_key_file: ./node/node_key
     max_peers: 50
 storage:

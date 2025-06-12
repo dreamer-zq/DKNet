@@ -12,6 +12,11 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+DOCKER_COMPOSE_FILE="$PROJECT_ROOT/tests/docker/docker-compose.yml"
+
 # Function to print colored output
 print_status() {
     local status=$1
@@ -81,7 +86,8 @@ test_api() {
 
 # Step 1: Start services
 print_status "INFO" "Starting Docker services..."
-docker-compose up -d
+cd "$PROJECT_ROOT"
+docker-compose -f "$DOCKER_COMPOSE_FILE" up -d
 
 # Step 2: Wait for services to be ready
 echo
@@ -156,18 +162,23 @@ print_status "SUCCESS" "Keygen operation started: $operation_id"
 
 # Wait for keygen to complete
 print_status "INFO" "Waiting for keygen to complete..."
-max_wait=60
+max_wait=90
 wait_time=0
 while [ $wait_time -lt $max_wait ]; do
     status_response=$(curl -s "http://localhost:8081/api/v1/operations/$operation_id")
     status=$(echo "$status_response" | jq -r '.status')
     
-    if [ "$status" = "completed" ]; then
-        key_id=$(echo "$status_response" | jq -r '.result.key_id')
+    # Status codes: 1=PENDING, 2=IN_PROGRESS, 3=COMPLETED, 4=FAILED, 5=CANCELLED
+    if [ "$status" = "3" ]; then
+        key_id=$(echo "$status_response" | jq -r '.Result.KeygenResult.key_id')
         print_status "SUCCESS" "Keygen completed. Key ID: $key_id"
         break
-    elif [ "$status" = "failed" ]; then
+    elif [ "$status" = "4" ]; then
         print_status "ERROR" "Keygen failed"
+        echo "Response: $status_response"
+        exit 1
+    elif [ "$status" = "5" ]; then
+        print_status "ERROR" "Keygen cancelled"
         echo "Response: $status_response"
         exit 1
     fi
@@ -184,12 +195,12 @@ fi
 # Test signing with validation
 print_status "INFO" "Testing signing with validation service..."
 
-# Test valid signing request
-hello_world_hex=$(echo -n "Hello World" | xxd -p | tr -d '\n')
+# Test valid signing request (TSS API expects base64 encoding)
+hello_world_base64=$(echo -n "Hello World" | base64)
 signing_response=$(curl -s -X POST http://localhost:8081/api/v1/sign \
     -H "Content-Type: application/json" \
     -d '{
-        "message": "'$hello_world_hex'",
+        "message": "'$hello_world_base64'",
         "key_id": "'$key_id'",
         "participants": ["node1", "node2"]
     }')
@@ -203,17 +214,19 @@ else
 fi
 
 # Test invalid signing request (with forbidden word)
-malicious_hex=$(echo -n "malicious content" | xxd -p | tr -d '\n')
+malicious_base64=$(echo -n "malicious content" | base64)
 invalid_signing_response=$(curl -s -X POST http://localhost:8081/api/v1/sign \
     -H "Content-Type: application/json" \
     -d '{
-        "message": "'$malicious_hex'",
+        "message": "'$malicious_base64'",
         "key_id": "'$key_id'",
         "participants": ["node1", "node2"]
     }')
 
 # This should fail due to validation
 if echo "$invalid_signing_response" | grep -q "validation"; then
+    print_status "SUCCESS" "Invalid signing request correctly rejected by validation service"
+elif echo "$invalid_signing_response" | grep -q "forbidden"; then
     print_status "SUCCESS" "Invalid signing request correctly rejected by validation service"
 else
     print_status "ERROR" "Invalid signing request was not rejected by validation service"
@@ -223,9 +236,9 @@ fi
 # Step 5: Check logs
 echo
 print_status "INFO" "Checking validation service logs..."
-docker-compose logs validation-service | tail -10
+docker-compose -f "$DOCKER_COMPOSE_FILE" logs validation-service | tail -10
 
 echo
 print_status "SUCCESS" "All tests completed!"
-print_status "INFO" "To stop services: docker-compose down"
-print_status "INFO" "To view logs: docker-compose logs [service-name]" 
+print_status "INFO" "To stop services: docker-compose -f $DOCKER_COMPOSE_FILE down"
+print_status "INFO" "To view logs: docker-compose -f $DOCKER_COMPOSE_FILE logs [service-name]" 

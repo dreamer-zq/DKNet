@@ -4,7 +4,7 @@
 
 ## 目录结构
 
-```
+```text
 tests/
 ├── README.md                    # 本文档
 ├── validation-service/          # 验证服务实现
@@ -83,9 +83,9 @@ cd /path/to/DKNet
 
 ### TSS 节点
 
-- **节点 1**: http://localhost:8081 (gRPC: 9095)
-- **节点 2**: http://localhost:8082 (gRPC: 9096)
-- **节点 3**: http://localhost:8083 (gRPC: 9097)
+- **节点 1**: <http://localhost:8081> (gRPC: 9095)
+- **节点 2**: <http://localhost:8082> (gRPC: 9096)
+- **节点 3**: <http://localhost:8083> (gRPC: 9097)
 
 每个节点都配置了验证服务集成，在签名前会调用验证服务进行请求验证。
 
@@ -104,6 +104,7 @@ cd /path/to/DKNet
 ### test-validation-docker.sh
 
 完整的 Docker 环境测试，包括：
+
 - 密钥生成测试
 - 有效签名请求测试
 - 无效签名请求测试（验证拒绝）
@@ -122,6 +123,7 @@ cd /path/to/DKNet
 ### 验证服务配置
 
 验证服务的配置通过环境变量或配置文件进行设置，包括：
+
 - 验证规则开关
 - 白名单配置
 - 日志级别等
@@ -131,6 +133,7 @@ cd /path/to/DKNet
 ### 常见问题
 
 1. **服务启动失败**
+
    ```bash
    # 查看服务日志
    ./tests/scripts/start-test-env.sh logs
@@ -143,6 +146,7 @@ cd /path/to/DKNet
    - 确保端口 8081-8083, 8888, 9095-9097 没有被其他服务占用
 
 3. **Docker 相关问题**
+
    ```bash
    # 清理环境重新开始
    ./tests/scripts/start-test-env.sh cleanup
