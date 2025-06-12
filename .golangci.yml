@@ -19,7 +19,6 @@ linters:
     - ineffassign
     - staticcheck
     - unused
-    - gosec
     - misspell
     - unconvert
     - gocritic
@@ -79,16 +78,10 @@ linters:
           - funlen
           - gocyclo
           - errcheck
-          - gosec
 
       - path: cmd/
         linters:
           - gochecknoinits
-
-      - path: internal/
-        text: "weak cryptographic primitive"
-        linters:
-          - gosec
 
       - linters:
           - lll
