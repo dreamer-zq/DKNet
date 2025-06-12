@@ -31,7 +31,7 @@ const (
 	OperationStatus_OPERATION_STATUS_IN_PROGRESS OperationStatus = 2
 	OperationStatus_OPERATION_STATUS_COMPLETED   OperationStatus = 3
 	OperationStatus_OPERATION_STATUS_FAILED      OperationStatus = 4
-	OperationStatus_OPERATION_STATUS_CANCELLED   OperationStatus = 5
+	OperationStatus_OPERATION_STATUS_CANCELED    OperationStatus = 5
 )
 
 // Enum value maps for OperationStatus.
@@ -42,7 +42,7 @@ var (
 		2: "OPERATION_STATUS_IN_PROGRESS",
 		3: "OPERATION_STATUS_COMPLETED",
 		4: "OPERATION_STATUS_FAILED",
-		5: "OPERATION_STATUS_CANCELLED",
+		5: "OPERATION_STATUS_CANCELED",
 	}
 	OperationStatus_value = map[string]int32{
 		"OPERATION_STATUS_UNSPECIFIED": 0,
@@ -50,7 +50,7 @@ var (
 		"OPERATION_STATUS_IN_PROGRESS": 2,
 		"OPERATION_STATUS_COMPLETED":   3,
 		"OPERATION_STATUS_FAILED":      4,
-		"OPERATION_STATUS_CANCELLED":   5,
+		"OPERATION_STATUS_CANCELED":    5,
 	}
 )
 
@@ -1253,14 +1253,14 @@ const file_proto_tss_v1_tss_proto_rawDesc = "" +
 	"operations\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
 	"\vtotal_count\x18\x03 \x01(\x03R\n" +
-	"totalCount*\xd0\x01\n" +
+	"totalCount*\xcf\x01\n" +
 	"\x0fOperationStatus\x12 \n" +
 	"\x1cOPERATION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18OPERATION_STATUS_PENDING\x10\x01\x12 \n" +
 	"\x1cOPERATION_STATUS_IN_PROGRESS\x10\x02\x12\x1e\n" +
 	"\x1aOPERATION_STATUS_COMPLETED\x10\x03\x12\x1b\n" +
-	"\x17OPERATION_STATUS_FAILED\x10\x04\x12\x1e\n" +
-	"\x1aOPERATION_STATUS_CANCELLED\x10\x05*\x84\x01\n" +
+	"\x17OPERATION_STATUS_FAILED\x10\x04\x12\x1d\n" +
+	"\x19OPERATION_STATUS_CANCELED\x10\x05*\x84\x01\n" +
 	"\rOperationType\x12\x1e\n" +
 	"\x1aOPERATION_TYPE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15OPERATION_TYPE_KEYGEN\x10\x01\x12\x1a\n" +

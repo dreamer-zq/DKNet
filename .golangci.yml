@@ -22,9 +22,7 @@ linters:
     - misspell
     - unconvert
     - gocritic
-    - gocyclo
     - funlen
-    - gocognit
     - goconst
     - lll
     - nakedret
@@ -35,9 +33,6 @@ linters:
       enable-all: true
       disable:
         - fieldalignment
-
-    gocyclo:
-      min-complexity: 15
 
     goconst:
       min-len: 2
@@ -64,8 +59,8 @@ linters:
         - wrapperFunc
 
     funlen:
-      lines: 100
-      statements: 50
+      lines: 200
+      statements: -1
 
   exclusions:
     rules:

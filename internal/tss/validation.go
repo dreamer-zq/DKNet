@@ -11,8 +11,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dreamer-zq/DKNet/internal/config"
 	"go.uber.org/zap"
+
+	"github.com/dreamer-zq/DKNet/internal/config"
 )
 
 // ValidationService defines the interface for external validation service

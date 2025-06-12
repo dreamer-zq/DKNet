@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"github.com/bnb-chain/tss-lib/v2/tss"
-	"github.com/dreamer-zq/DKNet/internal/config"
 	"golang.org/x/crypto/sha3"
+
+	"github.com/dreamer-zq/DKNet/internal/config"
 )
 
 // OperationType defines the type of TSS operation
@@ -141,7 +142,7 @@ type OperationSyncData struct {
 }
 
 // ID implement Message.ID
-func (o OperationSyncData) ID() string {
+func (o *OperationSyncData) ID() string {
 	return o.OperationID
 }
 
