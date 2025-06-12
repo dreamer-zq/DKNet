@@ -94,7 +94,7 @@ formatters:
 
   settings:
     goimports:
-      local-prefixes: 
+      local-prefixes:
         - github.com/dreamer-zq/DKNet
 
 issues:
