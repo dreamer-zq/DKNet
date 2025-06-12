@@ -118,14 +118,18 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 	// Create DHT for peer discovery
 	kademliaDHT, err := dht.New(context.Background(), h)
 	if err != nil {
-		h.Close()
+		if closeErr := h.Close(); closeErr != nil {
+			logger.Error("Failed to close host during cleanup", zap.Error(closeErr))
+		}
 		return nil, fmt.Errorf("failed to create DHT: %w", err)
 	}
 
 	// Create PubSub for broadcasting
 	ps, err := pubsub.NewGossipSub(context.Background(), h)
 	if err != nil {
-		h.Close()
+		if closeErr := h.Close(); closeErr != nil {
+			logger.Error("Failed to close host during cleanup", zap.Error(closeErr))
+		}
 		return nil, fmt.Errorf("failed to create pubsub: %w", err)
 	}
 
@@ -228,7 +232,11 @@ func (n *Network) setupProtocolHandlers() {
 
 // handleStream handles incoming streams
 func (n *Network) handleStream(stream network.Stream) {
-	defer stream.Close()
+	defer func() {
+		if err := stream.Close(); err != nil {
+			n.logger.Warn("Failed to close incoming stream", zap.Error(err))
+		}
+	}()
 
 	// Read message
 	data, err := io.ReadAll(stream)
@@ -291,7 +299,9 @@ func (n *Network) sendDirectMessage(ctx context.Context, msg *Message) error {
 			n.logger.Error("Failed to write to stream", zap.String("peer_id", recipient), zap.Error(err))
 		}
 
-		stream.Close()
+		if err := stream.Close(); err != nil {
+			n.logger.Warn("Failed to close stream", zap.String("peer_id", recipient), zap.Error(err))
+		}
 	}
 
 	return nil

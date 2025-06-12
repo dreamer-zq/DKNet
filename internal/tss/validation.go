@@ -116,7 +116,11 @@ func (v *HTTPValidationService) ValidateSigningRequest(ctx context.Context, req 
 	if err != nil {
 		return nil, fmt.Errorf("failed to send validation request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			v.logger.Warn("Failed to close response body", zap.Error(closeErr))
+		}
+	}()
 
 	// Read response body
 	respBody, err := io.ReadAll(resp.Body)

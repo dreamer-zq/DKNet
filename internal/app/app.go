@@ -70,7 +70,9 @@ func New(cfg *config.NodeConfig, logger *zap.Logger) (*App, error) {
 		if closeErr := store.Close(); closeErr != nil {
 			logger.Error("Failed to close storage during cleanup", zap.Error(closeErr))
 		}
-		network.Stop()
+		if stopErr := network.Stop(); stopErr != nil {
+			logger.Error("Failed to stop network during cleanup", zap.Error(stopErr))
+		}
 		return nil, fmt.Errorf("failed to create TSS service: %w", err)
 	}
 	
@@ -96,8 +98,12 @@ func New(cfg *config.NodeConfig, logger *zap.Logger) (*App, error) {
 	
 	apiServer, err := api.NewServer(apiConfig, tssService, logger.Named("api"))
 	if err != nil {
-		store.Close()
-		network.Stop()
+		if closeErr := store.Close(); closeErr != nil {
+			logger.Error("Failed to close storage during cleanup", zap.Error(closeErr))
+		}
+		if stopErr := network.Stop(); stopErr != nil {
+			logger.Error("Failed to stop network during cleanup", zap.Error(stopErr))
+		}
 		return nil, fmt.Errorf("failed to create API server: %w", err)
 	}
 	
@@ -122,7 +128,9 @@ func (a *App) Start(ctx context.Context) error {
 	
 	// Start API server
 	if err := a.api.Start(ctx); err != nil {
-		a.network.Stop()
+		if stopErr := a.network.Stop(); stopErr != nil {
+			a.logger.Error("Failed to stop network during cleanup", zap.Error(stopErr))
+		}
 		return fmt.Errorf("failed to start API server: %w", err)
 	}
 	
