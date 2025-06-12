@@ -83,17 +83,9 @@ jobs:
     - name: Download dependencies
       run: go mod download
 
-    - name: Install go-junit-report
-      run: go install github.com/jstemmer/go-junit-report/v2@latest
-
     - name: Run unit tests
       run: |
-        go test -v -race -coverprofile=coverage.out -covermode=atomic ./... 2>&1 | tee /tmp/test-results.txt
-
-    - name: Generate JUnit XML report
-      if: success() || failure()
-      run: |
-        cat /tmp/test-results.txt | go-junit-report -set-exit-code > test-results.xml
+        go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
@@ -101,14 +93,6 @@ jobs:
         file: ./coverage.out
         flags: unittests
         name: codecov-umbrella
-
-    - name: Generate test report
-      uses: dorny/test-reporter@v1
-      if: success() || failure()
-      with:
-        name: Go Test Results
-        path: 'test-results.xml'
-        reporter: java-junit
 
   # Build and test Docker images
   docker-build:
@@ -192,47 +176,47 @@ jobs:
         cd tests/scripts
         ./start-test-env.sh cleanup
 
-  # Deploy to staging/production
-  deploy:
-    name: Deploy
-    runs-on: ubuntu-latest
-    needs: [validation-service-test]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+  # Deploy to staging/production (commented out)
+  # deploy:
+  #   name: Deploy
+  #   runs-on: ubuntu-latest
+  #   needs: [validation-service-test]
+  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #   environment: production
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
 
-    - name: Deploy to staging
-      run: |
-        echo "Deploying to staging environment..."
-        # Add your deployment commands here
-        # For example:
-        # kubectl apply -f k8s/staging/
-        # helm upgrade --install dknet-staging ./helm-chart
+  #   - name: Deploy to staging
+  #     run: |
+  #       echo "Deploying to staging environment..."
+  #       # Add your deployment commands here
+  #       # For example:
+  #       # kubectl apply -f k8s/staging/
+  #       # helm upgrade --install dknet-staging ./helm-chart
 
-    - name: Run smoke tests
-      run: |
-        echo "Running smoke tests..."
-        # Add smoke test commands here
-        # curl -f http://staging.example.com/health
+  #   - name: Run smoke tests
+  #     run: |
+  #       echo "Running smoke tests..."
+  #       # Add smoke test commands here
+  #       # curl -f http://staging.example.com/health
 
-    - name: Deploy to production
-      if: success()
-      run: |
-        echo "Deploying to production environment..."
-        # Add your production deployment commands here
-        # kubectl apply -f k8s/production/
-        # helm upgrade --install dknet-prod ./helm-chart
+  #   - name: Deploy to production
+  #     if: success()
+  #     run: |
+  #       echo "Deploying to production environment..."
+  #       # Add your production deployment commands here
+  #       # kubectl apply -f k8s/production/
+  #       # helm upgrade --install dknet-prod ./helm-chart
 
-    # Slack notifications disabled - uncomment to re-enable
-    # - name: Notify deployment status
-    #   if: always()
-    #   uses: 8398a7/action-slack@v3
-    #   with:
-    #     status: ${{ job.status }}
-    #     channel: '#deployments'
-    #     webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+  #   # Slack notifications disabled - uncomment to re-enable
+  #   # - name: Notify deployment status
+  #   #   if: always()
+  #   #   uses: 8398a7/action-slack@v3
+  #   #   with:
+  #   #     status: ${{ job.status }}
+  #   #     channel: '#deployments'
+  #   #     webhook_url: ${{ secrets.SLACK_WEBHOOK }}
 
   # Performance benchmarks
   benchmark:
