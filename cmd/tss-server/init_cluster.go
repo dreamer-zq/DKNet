@@ -35,7 +35,7 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 	if err := parseCommonFlags(cmd); err != nil {
 		return err
 	}
-	
+
 	// Get cluster-specific flags
 	nodes, _ := cmd.Flags().GetInt("nodes")
 
@@ -54,12 +54,12 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 	for i := 1; i <= nodes; i++ {
 		nodeID := fmt.Sprintf("node%d", i)
 		nodeDir := filepath.Join(outputDir, nodeID)
-		
+
 		// Create node directory
 		if err := ensureNodeDirectory(nodeDir); err != nil {
 			return err
 		}
-		
+
 		// Generate and save node key
 		privKey, peerID, err := generateAndSaveNodeKey(nodeDir, nodeID)
 		if err != nil {
@@ -114,7 +114,7 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 		}
 
 		logger.Info("Generated config for node", zap.String("node", nodeID), zap.String("file", configFile))
-		
+
 		// Generate node info file
 		p2pPort := getNodeP2PPort(i, dockerMode)
 		listenAddr := getNodeListenAddr(dockerMode)
@@ -131,4 +131,4 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 
 	logger.Info("TSS cluster initialization completed successfully", zap.String("output", outputDir))
 	return nil
-} 
+}

@@ -12,19 +12,18 @@ import (
 
 // generateAndSaveNodeConfig generates node configuration and saves it to file
 func generateAndSaveNodeConfig(
-	nodeID, moniker string, 
+	nodeID, moniker string,
 	bootstrapPeers []string,
-	httpPort, grpcPort, p2pPort int, 
-	listenAddr, configFile string, 
+	httpPort, grpcPort, p2pPort int,
+	listenAddr, configFile string,
 	dockerMode bool,
 ) error {
-	
 	cfg := &config.NodeConfig{}
-	
+
 	// Server configuration
-	cfg.Server.HTTP.Host = "0.0.0.0"
+	cfg.Server.HTTP.Host = defaultBindIP
 	cfg.Server.HTTP.Port = httpPort
-	cfg.Server.GRPC.Host = "0.0.0.0"
+	cfg.Server.GRPC.Host = defaultBindIP
 	cfg.Server.GRPC.Port = grpcPort
 
 	// P2P configuration
@@ -57,21 +56,20 @@ func generateAndSaveNodeConfig(
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
-	
+
 	return os.WriteFile(configFile, data, 0644)
 }
 
 // generateNodeInfo creates a node information file
 func generateNodeInfo(
-	nodeDir, nodeID, peerID string, 
-	listenAddr string, 
-	p2pPort int, 
-	bootstrapPeers []string, 
+	nodeDir, nodeID, peerID string,
+	listenAddr string,
+	p2pPort int,
+	bootstrapPeers []string,
 	dockerMode bool,
 ) error {
-	
 	infoFile := filepath.Join(nodeDir, "node-info.txt")
-	
+
 	content := fmt.Sprintf(`DKNet Node Information
 ====================
 
@@ -120,7 +118,7 @@ Security Note:
 // generateSummary creates a cluster summary file
 func generateSummary(outputDir string, nodeKeys map[string]config.NodeKeyInfo, multiaddrs []string, nodes int, dockerMode bool) error {
 	summaryFile := filepath.Join(outputDir, "cluster-info.txt")
-	
+
 	content := fmt.Sprintf(`TSS Cluster Configuration Summary
 =====================================
 
@@ -173,4 +171,4 @@ Local Usage:
 	}
 
 	return os.WriteFile(summaryFile, []byte(content), 0644)
-} 
+}

@@ -77,7 +77,10 @@ func runShowNode(cmd *cobra.Command, args []string) error {
 		parts := strings.Split(addr, "/")
 		if len(parts) >= 5 {
 			listenAddr = parts[2]
-			fmt.Sscanf(parts[4], "%d", &port)
+			if _, err := fmt.Sscanf(parts[4], "%d", &port); err != nil {
+				// If parsing fails, use default port
+				port = 4001
+			}
 		}
 	}
 
@@ -105,9 +108,9 @@ func runShowNode(cmd *cobra.Command, args []string) error {
 
 	// Output in requested format
 	if jsonOutput {
-		return outputJSON(nodeInfo)
+		return outputJSON(&nodeInfo)
 	} else {
-		return outputText(nodeInfo)
+		return outputText(&nodeInfo)
 	}
 }
 
@@ -158,27 +161,27 @@ func loadPeerIDFromKeyFile(keyFile string) (peer.ID, error) {
 
 func buildDisplayMultiaddr(cfg *config.NodeConfig, listenAddr string, port int, peerID string) string {
 	// If listen address is 0.0.0.0 (Docker mode), try to infer the correct IP
-	if listenAddr == "0.0.0.0" {
+	if listenAddr == defaultBindIP {
 		// Look for Docker network IP in bootstrap peers
 		nodeID := cfg.TSS.NodeID
-		
+
 		// Try to extract our IP from a pattern in bootstrap peers
 		// Docker nodes typically have IPs like 172.20.0.2, 172.20.0.3, etc.
 		if dockerIP := inferDockerIPFromNodeID(nodeID); dockerIP != "" {
 			return fmt.Sprintf("/ip4/%s/tcp/%d/p2p/%s", dockerIP, port, peerID)
 		}
-		
+
 		// If we can't infer Docker IP, check if we have bootstrap peers to get network pattern
 		if len(cfg.P2P.BootstrapPeers) > 0 {
 			if dockerIP := inferDockerIPFromBootstrapPeers(cfg.P2P.BootstrapPeers, nodeID); dockerIP != "" {
 				return fmt.Sprintf("/ip4/%s/tcp/%d/p2p/%s", dockerIP, port, peerID)
 			}
 		}
-		
+
 		// Fallback: use Docker network base + node number guess
 		return fmt.Sprintf("/ip4/172.20.0.2/tcp/%d/p2p/%s", port, peerID)
 	}
-	
+
 	// For non-Docker mode or specific IP, use as-is
 	return fmt.Sprintf("/ip4/%s/tcp/%d/p2p/%s", listenAddr, port, peerID)
 }
@@ -200,9 +203,12 @@ func inferDockerIPFromBootstrapPeers(bootstrapPeers []string, nodeID string) str
 	// If we see IPs like 172.20.0.3, 172.20.0.4, we can infer that node1 is 172.20.0.2
 	nodeNum := 0
 	if strings.HasPrefix(nodeID, "node") && len(nodeID) > 4 {
-		fmt.Sscanf(nodeID[4:], "%d", &nodeNum)
+		if _, err := fmt.Sscanf(nodeID[4:], "%d", &nodeNum); err != nil {
+			// If parsing fails, return empty string
+			return ""
+		}
 	}
-	
+
 	if nodeNum > 0 {
 		// Look for the Docker network pattern in bootstrap peers
 		for _, peer := range bootstrapPeers {
@@ -212,11 +218,11 @@ func inferDockerIPFromBootstrapPeers(bootstrapPeers []string, nodeID string) str
 			}
 		}
 	}
-	
+
 	return ""
 }
 
-func outputJSON(info NodeDisplayInfo) error {
+func outputJSON(info *NodeDisplayInfo) error {
 	data, err := json.MarshalIndent(info, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
@@ -225,7 +231,7 @@ func outputJSON(info NodeDisplayInfo) error {
 	return nil
 }
 
-func outputText(info NodeDisplayInfo) error {
+func outputText(info *NodeDisplayInfo) error {
 	fmt.Printf(`TSS Node Information
 ====================
 
@@ -269,4 +275,4 @@ Security Note:
 `, info.Multiaddr, info.Multiaddr)
 
 	return nil
-} 
+}

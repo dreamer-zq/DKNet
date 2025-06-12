@@ -91,11 +91,11 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 	// Parse listen addresses
 	var listenAddrs []multiaddr.Multiaddr
 	for _, addr := range cfg.ListenAddrs {
-		maddr, err := multiaddr.NewMultiaddr(addr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid listen address %s: %w", addr, err)
+		multiAddr, parseErr := multiaddr.NewMultiaddr(addr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid multiaddr %s: %w", addr, parseErr)
 		}
-		listenAddrs = append(listenAddrs, maddr)
+		listenAddrs = append(listenAddrs, multiAddr)
 	}
 
 	// Create libp2p host
@@ -118,23 +118,27 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 	// Create DHT for peer discovery
 	kademliaDHT, err := dht.New(context.Background(), h)
 	if err != nil {
-		h.Close()
+		if closeErr := h.Close(); closeErr != nil {
+			logger.Error("Failed to close host during cleanup", zap.Error(closeErr))
+		}
 		return nil, fmt.Errorf("failed to create DHT: %w", err)
 	}
 
 	// Create PubSub for broadcasting
 	ps, err := pubsub.NewGossipSub(context.Background(), h)
 	if err != nil {
-		h.Close()
+		if closeErr := h.Close(); closeErr != nil {
+			logger.Error("Failed to close host during cleanup", zap.Error(closeErr))
+		}
 		return nil, fmt.Errorf("failed to create pubsub: %w", err)
 	}
 
 	n := &Network{
-		host:     h,
-		dht:      kademliaDHT,
-		pubsub:   ps,
-		logger:   logger,
-		peers:    make(map[peer.ID]bool),
+		host:   h,
+		dht:    kademliaDHT,
+		pubsub: ps,
+		logger: logger,
+		peers:  make(map[peer.ID]bool),
 	}
 
 	// Set up protocol handlers
@@ -228,7 +232,11 @@ func (n *Network) setupProtocolHandlers() {
 
 // handleStream handles incoming streams
 func (n *Network) handleStream(stream network.Stream) {
-	defer stream.Close()
+	defer func() {
+		if err := stream.Close(); err != nil {
+			n.logger.Warn("Failed to close incoming stream", zap.Error(err))
+		}
+	}()
 
 	// Read message
 	data, err := io.ReadAll(stream)
@@ -291,7 +299,9 @@ func (n *Network) sendDirectMessage(ctx context.Context, msg *Message) error {
 			n.logger.Error("Failed to write to stream", zap.String("peer_id", recipient), zap.Error(err))
 		}
 
-		stream.Close()
+		if err := stream.Close(); err != nil {
+			n.logger.Warn("Failed to close stream", zap.String("peer_id", recipient), zap.Error(err))
+		}
 	}
 
 	return nil
@@ -433,18 +443,18 @@ func (n *Network) subscribeToDiscovery(ctx context.Context) error {
 	go func() {
 		defer discoverySub.Cancel()
 		for {
-			msg, err := discoverySub.Next(ctx)
-			if err != nil {
+			message, msgErr := discoverySub.Next(ctx)
+			if msgErr != nil {
 				if ctx.Err() != nil {
-					return // Context cancelled
+					return // Context canceled
 				}
-				n.logger.Error("Error reading discovery message", zap.Error(err))
+				n.logger.Error("Error reading discovery message", zap.Error(msgErr))
 				continue
 			}
 
 			// Process discovery message
 			n.logger.Debug("Received discovery message",
-				zap.String("from", msg.ReceivedFrom.String()))
+				zap.String("from", message.ReceivedFrom.String()))
 		}
 	}()
 
@@ -473,7 +483,7 @@ func (n *Network) subscribeToDiscovery(ctx context.Context) error {
 			msg, err := broadcastSub.Next(ctx)
 			if err != nil {
 				if ctx.Err() != nil {
-					return // Context cancelled
+					return // Context canceled
 				}
 				n.logger.Error("Error reading broadcast message", zap.Error(err))
 				continue

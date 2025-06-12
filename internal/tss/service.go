@@ -43,24 +43,24 @@ type Service struct {
 }
 
 // NewService creates a new TSS service
-func NewService(cfg *Config, storage storage.Storage, network *p2p.Network, logger *zap.Logger) (*Service, error) {
+func NewService(cfg *Config, store storage.Storage, network *p2p.Network, logger *zap.Logger) (*Service, error) {
 	// Create party ID from node information
 	nodeKey := big.NewInt(0)
 	nodeKey.SetString(cfg.NodeID, 16)
 
 	partyID := tss.NewPartyID(cfg.NodeID, cfg.Moniker, nodeKey)
 	s := &Service{
-		config:            cfg,
-		storage:           storage,
-		network:           network,
-		logger:            logger,
-		operations:        make(map[string]*Operation),
-		nodeID:            cfg.NodeID,
-		moniker:           cfg.Moniker,
-		partyID:           partyID,
-		nodeIDToPeerID:    make(map[string]string),
+		config:         cfg,
+		storage:        store,
+		network:        network,
+		logger:         logger,
+		operations:     make(map[string]*Operation),
+		nodeID:         cfg.NodeID,
+		moniker:        cfg.Moniker,
+		partyID:        partyID,
+		nodeIDToPeerID: make(map[string]string),
 	}
-	
+
 	// Check if validation service is configured and enabled
 	if cfg.ValidationService != nil && cfg.ValidationService.Enabled {
 		s.validationService = NewHTTPValidationService(cfg.ValidationService, cfg.NodeID, logger)
@@ -234,13 +234,13 @@ func (s *Service) CancelOperation(operationID string) error {
 	now := time.Now()
 	operation.CompletedAt = &now
 
-	s.logger.Info("Cancelled operation", zap.String("operation_id", operationID))
+	s.logger.Info("Canceled operation", zap.String("operation_id", operationID))
 
-	// Move cancelled operation to persistent storage
+	// Move canceled operation to persistent storage
 	go func() {
 		ctx := context.Background()
 		if err := s.moveCompletedOperationToStorage(ctx, operationID); err != nil {
-			s.logger.Error("Failed to move cancelled operation to persistent storage",
+			s.logger.Error("Failed to move canceled operation to persistent storage",
 				zap.Error(err),
 				zap.String("operation_id", operationID))
 		}

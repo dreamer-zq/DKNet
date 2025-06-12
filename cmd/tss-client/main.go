@@ -12,20 +12,21 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 
-	healthv1 "github.com/dreamer-zq/DKNet/proto/health/v1"
 	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
 )
 
 // Global configuration
 var (
+	// Global variables for connection management
+	grpcConn   *grpc.ClientConn
+	httpClient *http.Client
+	tssClient  tssv1.TSSServiceClient
+
+	// Command line flags
 	serverAddr   string
 	useGRPC      bool
 	timeout      time.Duration
 	outputFormat string
-	httpClient   *http.Client
-	grpcConn     *grpc.ClientConn
-	tssClient    tssv1.TSSServiceClient
-	healthClient healthv1.HealthServiceClient
 )
 
 func main() {
@@ -101,9 +102,15 @@ func createKeygenCommand() *cobra.Command {
 	cmd.Flags().IntVarP(&parties, "parties", "p", 0, "Total number of parties (required)")
 	cmd.Flags().StringSliceVarP(&participants, "participants", "P", nil, "List of participant IDs (required)")
 
-	cmd.MarkFlagRequired("threshold")
-	cmd.MarkFlagRequired("parties")
-	cmd.MarkFlagRequired("participants")
+	if err := cmd.MarkFlagRequired("threshold"); err != nil {
+		panic(fmt.Sprintf("Failed to mark threshold flag as required: %v", err))
+	}
+	if err := cmd.MarkFlagRequired("parties"); err != nil {
+		panic(fmt.Sprintf("Failed to mark parties flag as required: %v", err))
+	}
+	if err := cmd.MarkFlagRequired("participants"); err != nil {
+		panic(fmt.Sprintf("Failed to mark participants flag as required: %v", err))
+	}
 
 	return cmd
 }
@@ -155,9 +162,15 @@ func createSignCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&messageHex, "hex", false, "Treat message as hex string")
 	cmd.Flags().StringSliceVarP(&participants, "participants", "P", nil, "List of participant IDs (required)")
 
-	cmd.MarkFlagRequired("message")
-	cmd.MarkFlagRequired("key-id")
-	cmd.MarkFlagRequired("participants")
+	if err := cmd.MarkFlagRequired("message"); err != nil {
+		panic(fmt.Sprintf("Failed to mark message flag as required: %v", err))
+	}
+	if err := cmd.MarkFlagRequired("key-id"); err != nil {
+		panic(fmt.Sprintf("Failed to mark key-id flag as required: %v", err))
+	}
+	if err := cmd.MarkFlagRequired("participants"); err != nil {
+		panic(fmt.Sprintf("Failed to mark participants flag as required: %v", err))
+	}
 
 	return cmd
 }
@@ -204,11 +217,21 @@ func createReshareCommand() *cobra.Command {
 	cmd.Flags().StringSliceVar(&oldParticipants, "old-participants", nil, "List of old participant IDs (required)")
 	cmd.Flags().StringSliceVar(&newParticipants, "new-participants", nil, "List of new participant IDs (required)")
 
-	cmd.MarkFlagRequired("key-id")
-	cmd.MarkFlagRequired("new-threshold")
-	cmd.MarkFlagRequired("new-parties")
-	cmd.MarkFlagRequired("old-participants")
-	cmd.MarkFlagRequired("new-participants")
+	if err := cmd.MarkFlagRequired("key-id"); err != nil {
+		panic(fmt.Sprintf("Failed to mark key-id flag as required: %v", err))
+	}
+	if err := cmd.MarkFlagRequired("new-threshold"); err != nil {
+		panic(fmt.Sprintf("Failed to mark new-threshold flag as required: %v", err))
+	}
+	if err := cmd.MarkFlagRequired("new-parties"); err != nil {
+		panic(fmt.Sprintf("Failed to mark new-parties flag as required: %v", err))
+	}
+	if err := cmd.MarkFlagRequired("old-participants"); err != nil {
+		panic(fmt.Sprintf("Failed to mark old-participants flag as required: %v", err))
+	}
+	if err := cmd.MarkFlagRequired("new-participants"); err != nil {
+		panic(fmt.Sprintf("Failed to mark new-participants flag as required: %v", err))
+	}
 
 	return cmd
 }

@@ -39,11 +39,11 @@ func validateSigningRequest(req *ValidationRequest) *ValidationResponse {
 	}
 
 	messageStr := string(messageBytes)
-	log.Printf("Validating signing request: KeyID=%s, Message=%s, NodeID=%s", 
+	log.Printf("Validating signing request: KeyID=%s, Message=%s, NodeID=%s",
 		req.KeyID, messageStr, req.NodeID)
 
 	// Example validation rules:
-	
+
 	// 1. Reject empty messages
 	if len(messageBytes) == 0 {
 		return &ValidationResponse{
@@ -112,7 +112,7 @@ func validateSigningRequest(req *ValidationRequest) *ValidationResponse {
 		Approved: true,
 		Reason:   "All validation checks passed",
 		Metadata: map[string]interface{}{
-			"validated_at": time.Now().Unix(),
+			"validated_at":   time.Now().Unix(),
 			"message_length": len(messageBytes),
 		},
 	}
@@ -156,11 +156,15 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "healthy",
+	if err := json.NewEncoder(w).Encode(map[string]string{
+		"status":  "healthy",
 		"service": "DKNet Validation Service",
 		"version": "1.0.0",
-	})
+	}); err != nil {
+		log.Printf("Error encoding health response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func main() {
@@ -173,8 +177,8 @@ func main() {
 	log.Printf("Starting DKNet Validation Service on port %s", port)
 	log.Printf("Validation endpoint: http://localhost%s/validate", port)
 	log.Printf("Health endpoint: http://localhost%s/health", port)
-	
+
 	if err := http.ListenAndServe(port, nil); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
-} 
+}

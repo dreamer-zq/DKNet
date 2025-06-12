@@ -43,7 +43,7 @@ func convertOperationStatus(status tss.OperationStatus) tssv1.OperationStatus {
 	case tss.StatusFailed:
 		return tssv1.OperationStatus_OPERATION_STATUS_FAILED
 	case tss.StatusCancelled:
-		return tssv1.OperationStatus_OPERATION_STATUS_CANCELLED
+		return tssv1.OperationStatus_OPERATION_STATUS_CANCELED
 	default:
 		return tssv1.OperationStatus_OPERATION_STATUS_UNSPECIFIED
 	}

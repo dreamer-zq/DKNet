@@ -248,27 +248,33 @@ jobs:
     needs: [create-release, build-binaries, build-docker, release-tests]
     if: always()
     steps:
-    - name: Notify Slack
-      if: success()
-      uses: 8398a7/action-slack@v3
-      with:
-        status: success
-        channel: '#releases'
-        text: |
-          🚀 New release published: ${{ needs.create-release.outputs.version }}
-          
-          📦 Binaries: https://github.com/${{ github.repository }}/releases/tag/${{ needs.create-release.outputs.version }}
-          🐳 Docker: `${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.create-release.outputs.version }}`
-        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+    # Slack notifications disabled - uncomment to re-enable
+    # - name: Notify Slack
+    #   if: success()
+    #   uses: 8398a7/action-slack@v3
+    #   with:
+    #     status: success
+    #     channel: '#releases'
+    #     text: |
+    #       🚀 New release published: ${{ needs.create-release.outputs.version }}
+    #       
+    #       📦 Binaries: https://github.com/${{ github.repository }}/releases/tag/${{ needs.create-release.outputs.version }}
+    #       🐳 Docker: `${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.create-release.outputs.version }}`
+    #     webhook_url: ${{ secrets.SLACK_WEBHOOK }}
 
-    - name: Notify on failure
-      if: failure()
-      uses: 8398a7/action-slack@v3
-      with:
-        status: failure
-        channel: '#releases'
-        text: |
-          ❌ Release ${{ needs.create-release.outputs.version }} failed!
-          
-          Please check the workflow: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        webhook_url: ${{ secrets.SLACK_WEBHOOK }} 
+    # - name: Notify on failure
+    #   if: failure()
+    #   uses: 8398a7/action-slack@v3
+    #   with:
+    #     status: failure
+    #     channel: '#releases'
+    #     text: |
+    #       ❌ Release ${{ needs.create-release.outputs.version }} failed!
+    #       
+    #       Please check the workflow: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    #     webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+    
+    - name: Release completed
+      run: |
+        echo "Release process completed successfully"
+        echo "Version: ${{ needs.create-release.outputs.version }}" 

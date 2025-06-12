@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"github.com/bnb-chain/tss-lib/v2/tss"
-	"github.com/dreamer-zq/DKNet/internal/config"
 	"golang.org/x/crypto/sha3"
+
+	"github.com/dreamer-zq/DKNet/internal/config"
 )
 
 // OperationType defines the type of TSS operation
@@ -16,41 +17,41 @@ type OperationType string
 
 const (
 	// OperationKeygen is the type for key generation operations
-	OperationKeygen    OperationType = "keygen"
+	OperationKeygen OperationType = "keygen"
 	// OperationSigning is the type for signing operations
-	OperationSigning   OperationType = "signing"
+	OperationSigning OperationType = "signing"
 	// OperationResharing is the type for resharing operations
 	OperationResharing OperationType = "resharing"
 )
 
 // Config holds TSS service configuration
 type Config struct {
-	NodeID    string
-	Moniker   string
+	NodeID  string
+	Moniker string
 	// Validation service configuration (optional)
 	ValidationService *config.ValidationServiceConfig `json:"validation_service,omitempty"`
 }
 
 // Operation represents an active TSS operation
 type Operation struct {
-	ID          string
-	Type        OperationType
-	SessionID   string
+	ID           string
+	Type         OperationType
+	SessionID    string
 	Participants []*tss.PartyID
-	Party       tss.Party
-	OutCh       chan tss.Message
-	EndCh       chan interface{}
-	ErrCh       chan *tss.Error
-	Status      OperationStatus
-	CreatedAt   time.Time
-	CompletedAt *time.Time
-	Result      interface{}
-	Error       error
-	Request     interface{} // Store the original request (KeygenRequest, SigningRequest, etc.)
-	
+	Party        tss.Party
+	OutCh        chan tss.Message
+	EndCh        chan interface{}
+	ErrCh        chan *tss.Error
+	Status       OperationStatus
+	CreatedAt    time.Time
+	CompletedAt  *time.Time
+	Result       interface{}
+	Error        error
+	Request      interface{} // Store the original request (KeygenRequest, SigningRequest, etc.)
+
 	// Synchronization
-	mutex   sync.RWMutex
-	cancel  context.CancelFunc
+	mutex  sync.RWMutex
+	cancel context.CancelFunc
 }
 
 // Lock locks the operation
@@ -78,15 +79,15 @@ type OperationStatus string
 
 const (
 	// StatusPending is the status for pending operations
-	StatusPending     OperationStatus = "pending"
+	StatusPending OperationStatus = "pending"
 	// StatusInProgress is the status for in progress operations
-	StatusInProgress  OperationStatus = "in_progress"
+	StatusInProgress OperationStatus = "in_progress"
 	// StatusCompleted is the status for completed operations
-	StatusCompleted   OperationStatus = "completed"
+	StatusCompleted OperationStatus = "completed"
 	// StatusFailed is the status for failed operations
-	StatusFailed      OperationStatus = "failed"
-	// StatusCancelled is the status for cancelled operations
-	StatusCancelled   OperationStatus = "cancelled"
+	StatusFailed OperationStatus = "failed"
+	// StatusCancelled is the status for canceled operations
+	StatusCancelled OperationStatus = "canceled"
 )
 
 // KeygenRequest represents a keygen request
@@ -141,8 +142,8 @@ type OperationSyncData struct {
 }
 
 // ID implement Message.ID
-func(o OperationSyncData) ID() string{
-	return o.SessionID
+func (o *OperationSyncData) ID() string {
+	return o.OperationID
 }
 
 // KeygenSyncData contains keygen-specific sync data
@@ -208,7 +209,7 @@ func hashMessageForEthereum(message []byte) []byte {
 	// Ethereum message prefix format: "\x19Ethereum Signed Message:\n" + len(message) + message
 	prefix := fmt.Sprintf("\x19Ethereum Signed Message:\n%d", len(message))
 	prefixedMessage := append([]byte(prefix), message...)
-	
+
 	// Use Keccak256 (not SHA3-256) as required by Ethereum
 	hash := sha3.NewLegacyKeccak256()
 	hash.Write(prefixedMessage)

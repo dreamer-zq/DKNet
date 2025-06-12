@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -14,19 +15,22 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	healthv1 "github.com/dreamer-zq/DKNet/proto/health/v1"
 	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
+)
+
+const (
+	outputFormatJSON = "json"
 )
 
 func setupConnection(cmd *cobra.Command, args []string) error {
 	if useGRPC {
-		grpcConn, err := grpc.NewClient(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpc.NewClient(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			return fmt.Errorf("failed to connect to gRPC server: %w", err)
 		}
+		grpcConn = conn
 
 		tssClient = tssv1.NewTSSServiceClient(grpcConn)
-		healthClient = healthv1.NewHealthServiceClient(grpcConn)
 		return nil
 	}
 
@@ -67,7 +71,12 @@ func makeHTTPRequest(ctx context.Context, method, path string, body interface{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			// Log the error but don't fail the request
+			fmt.Fprintf(os.Stderr, "Warning: failed to close response body: %v\n", closeErr)
+		}
+	}()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -95,33 +104,33 @@ func cleanup(_ *cobra.Command, _ []string) {
 
 // Unified output functions
 func outputStartKeygenResponse(resp *tssv1.StartKeygenResponse) error {
-	if outputFormat == "json" {
+	if outputFormat == outputFormatJSON {
 		return outputJSON(resp)
 	}
-	
+
 	fmt.Printf("✅ Operation started successfully\n")
 	fmt.Printf("Operation ID: %s\n", resp.OperationId)
 	fmt.Printf("Status: %s\n", resp.Status)
 	fmt.Printf("Created At: %s\n", resp.CreatedAt.AsTime().Format(time.RFC3339))
-	
+
 	return nil
 }
 
 func outputStartSigningResponse(resp *tssv1.StartSigningResponse) error {
-	if outputFormat == "json" {
+	if outputFormat == outputFormatJSON {
 		return outputJSON(resp)
 	}
-	
+
 	fmt.Printf("✅ Operation started successfully\n")
 	fmt.Printf("Operation ID: %s\n", resp.OperationId)
 	fmt.Printf("Status: %s\n", resp.Status)
 	fmt.Printf("Created At: %s\n", resp.CreatedAt.AsTime().Format(time.RFC3339))
-	
+
 	return nil
 }
 
 func outputStartResharingResponse(resp *tssv1.StartResharingResponse) error {
-	if outputFormat == "json" {
+	if outputFormat == outputFormatJSON {
 		return outputJSON(resp)
 	}
 
@@ -129,15 +138,15 @@ func outputStartResharingResponse(resp *tssv1.StartResharingResponse) error {
 	fmt.Printf("Operation ID: %s\n", resp.OperationId)
 	fmt.Printf("Status: %s\n", resp.Status)
 	fmt.Printf("Created At: %s\n", resp.CreatedAt.AsTime().Format(time.RFC3339))
-	
+
 	return nil
 }
 
 func outputGetOperationResponse(resp *tssv1.GetOperationResponse) error {
-	if outputFormat == "json" {
+	if outputFormat == outputFormatJSON {
 		return outputJSON(resp)
 	}
-	
+
 	// Text format output
 	fmt.Printf("📋 Operation Details\n")
 	fmt.Printf("Operation ID: %s\n", resp.OperationId)
@@ -190,6 +199,6 @@ func outputGetOperationResponse(resp *tssv1.GetOperationResponse) error {
 			fmt.Printf("  New Participants: %s\n", strings.Join(request.ResharingRequest.NewParticipants, ", "))
 		}
 	}
-	
+
 	return nil
 }

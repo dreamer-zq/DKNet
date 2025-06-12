@@ -18,7 +18,7 @@ func NewLevelDBStorage(path string) (*LevelDBStorage, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &LevelDBStorage{
 		db: db,
 	}, nil
@@ -49,18 +49,18 @@ func (s *LevelDBStorage) Delete(ctx context.Context, key string) error {
 // List returns all keys with the given prefix
 func (s *LevelDBStorage) List(ctx context.Context, prefix string) ([]string, error) {
 	var keys []string
-	
+
 	iter := s.db.NewIterator(util.BytesPrefix([]byte(prefix)), nil)
 	defer iter.Release()
-	
+
 	for iter.Next() {
 		keys = append(keys, string(iter.Key()))
 	}
-	
+
 	if err := iter.Error(); err != nil {
 		return nil, err
 	}
-	
+
 	return keys, nil
 }
 
@@ -73,4 +73,4 @@ func (s *LevelDBStorage) Exists(ctx context.Context, key string) (bool, error) {
 // Close closes the storage
 func (s *LevelDBStorage) Close() error {
 	return s.db.Close()
-} 
+}

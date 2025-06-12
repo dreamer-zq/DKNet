@@ -20,7 +20,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer logger.Sync()
+	defer func() {
+		if syncErr := logger.Sync(); syncErr != nil {
+			// Ignore sync errors on stdout/stderr as they are common and harmless
+			// Only log if it's not a sync error on stdout/stderr
+			fmt.Fprintf(os.Stderr, "Warning: failed to sync logger: %v\n", syncErr)
+		}
+	}()
 
 	rootCmd := &cobra.Command{
 		Use:   "tss-server",

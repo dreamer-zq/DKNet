@@ -90,10 +90,10 @@ type SecurityConfig struct {
 // Load loads configuration from file or environment variables
 func Load(configFile string) (*NodeConfig, error) {
 	v := viper.New()
-	
+
 	// Set default values
 	setDefaults(v)
-	
+
 	// Read config file if provided
 	if configFile != "" {
 		v.SetConfigFile(configFile)
@@ -103,10 +103,10 @@ func Load(configFile string) (*NodeConfig, error) {
 		v.AddConfigPath(".")
 		v.AddConfigPath("./configs")
 	}
-	
+
 	// Read environment variables
 	v.AutomaticEnv()
-	
+
 	// Try to read config file
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -114,17 +114,17 @@ func Load(configFile string) (*NodeConfig, error) {
 		}
 		// Config file not found is okay, we'll use defaults and env vars
 	}
-	
+
 	var config NodeConfig
 	if err := v.Unmarshal(&config); err != nil {
 		return nil, fmt.Errorf("error unmarshaling config: %w", err)
 	}
-	
+
 	// Validate configuration
 	if err := validateConfig(&config); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
-	
+
 	return &config, nil
 }
 
@@ -135,27 +135,27 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("server.http.port", 8080)
 	v.SetDefault("server.grpc.host", "0.0.0.0")
 	v.SetDefault("server.grpc.port", 9090)
-	
+
 	// P2P defaults
 	v.SetDefault("p2p.listen_addrs", []string{"/ip4/0.0.0.0/tcp/4001"})
 	v.SetDefault("p2p.bootstrap_peers", []string{})
 	v.SetDefault("p2p.private_key_file", "./data/p2p_key")
 	v.SetDefault("p2p.max_peers", 50)
-	
+
 	// Storage defaults
 	v.SetDefault("storage.type", "leveldb")
 	v.SetDefault("storage.path", "./data/storage")
-	
+
 	// TSS defaults
 	hostname, _ := os.Hostname()
 	v.SetDefault("tss.node_id", hostname)
 	v.SetDefault("tss.moniker", hostname)
-	
+
 	// Validation service defaults
 	v.SetDefault("tss.validation_service.enabled", false)
 	v.SetDefault("tss.validation_service.timeout_seconds", 30)
 	v.SetDefault("tss.validation_service.insecure_skip_verify", false)
-	
+
 	// Security defaults
 	v.SetDefault("security.tls_enabled", false)
 	v.SetDefault("security.cert_file", "")
@@ -167,11 +167,11 @@ func validateConfig(config *NodeConfig) error {
 	if config.TSS.NodeID == "" {
 		return fmt.Errorf("node_id cannot be empty")
 	}
-	
+
 	if config.Storage.Type != "file" && config.Storage.Type != "leveldb" {
 		return fmt.Errorf("unsupported storage type: %s", config.Storage.Type)
 	}
-	
+
 	// Validate validation service configuration if enabled
 	if config.TSS.ValidationService != nil && config.TSS.ValidationService.Enabled {
 		if config.TSS.ValidationService.URL == "" {
@@ -181,6 +181,6 @@ func validateConfig(config *NodeConfig) error {
 			return fmt.Errorf("validation service timeout must be positive")
 		}
 	}
-	
+
 	return nil
-} 
+}

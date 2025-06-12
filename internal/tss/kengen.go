@@ -163,7 +163,7 @@ func (s *Service) runKeygenOperation(ctx context.Context, operation *Operation, 
 			now := time.Now()
 			operation.CompletedAt = &now
 			operation.Unlock()
-			
+
 			// Move completed operation to persistent storage
 			go func() {
 				if err := s.moveCompletedOperationToStorage(ctx, operation.ID); err != nil {
@@ -174,9 +174,8 @@ func (s *Service) runKeygenOperation(ctx context.Context, operation *Operation, 
 			}()
 		}
 	case <-ctx.Done():
-		s.logger.Info("Keygen operation cancelled",
-			zap.String("operation_id", operation.ID),
-			zap.Error(ctx.Err()))
+		s.logger.Info("Keygen operation canceled",
+			zap.String("operation_id", operation.ID))
 	}
 }
 
@@ -185,7 +184,8 @@ func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, re
 	// Generate public key bytes and Ethereum address in one go
 	xBytes := result.ECDSAPub.X().Bytes()
 	yBytes := result.ECDSAPub.Y().Bytes()
-	pubKeyBytes := append(xBytes, yBytes...)
+	xBytes = append(xBytes, yBytes...)
+	pubKeyBytes := xBytes
 
 	// Generate Ethereum address using Keccak-256
 	hasher := sha3.NewLegacyKeccak256()
@@ -204,7 +204,7 @@ func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, re
 
 	// Get original threshold from operation request
 	originalReq := operation.Request.(*KeygenRequest)
-	
+
 	// Store key data
 	keyDataStruct := &KeyData{
 		NodeID:    s.nodeID,
