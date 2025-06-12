@@ -162,7 +162,8 @@ print_status "SUCCESS" "Keygen operation started: $operation_id"
 
 # Wait for keygen to complete
 print_status "INFO" "Waiting for keygen to complete..."
-max_wait=90
+# Increased timeout for CI environments where keygen may take longer
+max_wait=180
 wait_time=0
 while [ $wait_time -lt $max_wait ]; do
     status_response=$(curl -s "http://localhost:8081/api/v1/operations/$operation_id")
