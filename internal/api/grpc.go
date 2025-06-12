@@ -360,7 +360,7 @@ func (g *gRPCTSSServer) CancelOperation(ctx context.Context, req *tssv1.CancelOp
 	}
 
 	return &tssv1.CancelOperationResponse{
-		Message: "operation cancelled",
+		Message: "operation canceled",
 	}, nil
 }
 

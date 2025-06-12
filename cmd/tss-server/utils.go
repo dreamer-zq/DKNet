@@ -11,6 +11,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	defaultBindIP = "0.0.0.0"
+)
+
 // addCommonFlags adds flags that are common to multiple commands
 func addCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP(flagOutput, "o", "./", "Output directory for generated files")
@@ -95,7 +99,7 @@ func getNodeP2PPort(nodeIndex int, dockerMode bool) int {
 // getNodeListenAddr returns the listen address for a node
 func getNodeListenAddr(dockerMode bool) string {
 	if dockerMode {
-		return "0.0.0.0"
+		return defaultBindIP
 	}
 	return "127.0.0.1"
 }

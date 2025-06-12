@@ -73,15 +73,13 @@ func (s *Server) setupHTTPRoutes(router *gin.Engine) {
 
 	// TSS operations
 	api := router.Group("/api/v1")
-	{
-		api.POST("/keygen", s.keygenHandler)
-		api.POST("/sign", s.signHandler)
-		api.POST("/reshare", s.reshareHandler)
+	api.POST("/keygen", s.keygenHandler)
+	api.POST("/sign", s.signHandler)
+	api.POST("/reshare", s.reshareHandler)
 
-		// Operations
-		api.GET("/operations/:operation_id", s.getOperationHandler)
-		api.DELETE("/operations/:operation_id", s.cancelOperationHandler)
-	}
+	// Operations
+	api.GET("/operations/:operation_id", s.getOperationHandler)
+	api.DELETE("/operations/:operation_id", s.cancelOperationHandler)
 }
 
 // healthHandler handles health check requests
@@ -385,9 +383,7 @@ func (s *Server) cancelOperationHandler(c *gin.Context) {
 		return
 	}
 
-	resp := &tssv1.CancelOperationResponse{
-		Message: "operation cancelled",
-	}
-
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "operation canceled",
+	})
 }

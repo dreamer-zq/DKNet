@@ -108,9 +108,9 @@ func runShowNode(cmd *cobra.Command, args []string) error {
 
 	// Output in requested format
 	if jsonOutput {
-		return outputJSON(nodeInfo)
+		return outputJSON(&nodeInfo)
 	} else {
-		return outputText(nodeInfo)
+		return outputText(&nodeInfo)
 	}
 }
 
@@ -161,7 +161,7 @@ func loadPeerIDFromKeyFile(keyFile string) (peer.ID, error) {
 
 func buildDisplayMultiaddr(cfg *config.NodeConfig, listenAddr string, port int, peerID string) string {
 	// If listen address is 0.0.0.0 (Docker mode), try to infer the correct IP
-	if listenAddr == "0.0.0.0" {
+	if listenAddr == defaultBindIP {
 		// Look for Docker network IP in bootstrap peers
 		nodeID := cfg.TSS.NodeID
 
@@ -222,7 +222,7 @@ func inferDockerIPFromBootstrapPeers(bootstrapPeers []string, nodeID string) str
 	return ""
 }
 
-func outputJSON(info NodeDisplayInfo) error {
+func outputJSON(info *NodeDisplayInfo) error {
 	data, err := json.MarshalIndent(info, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
@@ -231,7 +231,7 @@ func outputJSON(info NodeDisplayInfo) error {
 	return nil
 }
 
-func outputText(info NodeDisplayInfo) error {
+func outputText(info *NodeDisplayInfo) error {
 	fmt.Printf(`TSS Node Information
 ====================
 

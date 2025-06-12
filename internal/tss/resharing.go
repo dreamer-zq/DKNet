@@ -148,7 +148,7 @@ func (s *Service) runResharingOperation(ctx context.Context, operation *Operatio
 			}()
 		}
 	case <-ctx.Done():
-		s.logger.Info("Resharing operation cancelled", zap.String("operation_id", operation.ID))
+		s.logger.Info("Resharing operation canceled", zap.String("operation_id", operation.ID))
 	}
 }
 

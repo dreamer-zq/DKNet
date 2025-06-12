@@ -12,20 +12,21 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 
-	healthv1 "github.com/dreamer-zq/DKNet/proto/health/v1"
 	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
 )
 
 // Global configuration
 var (
+	// Global variables for connection management
+	grpcConn   *grpc.ClientConn
+	httpClient *http.Client
+	tssClient  tssv1.TSSServiceClient
+
+	// Command line flags
 	serverAddr   string
 	useGRPC      bool
 	timeout      time.Duration
 	outputFormat string
-	httpClient   *http.Client
-	grpcConn     *grpc.ClientConn
-	tssClient    tssv1.TSSServiceClient
-	healthClient healthv1.HealthServiceClient
 )
 
 func main() {

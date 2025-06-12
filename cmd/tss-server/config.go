@@ -18,13 +18,12 @@ func generateAndSaveNodeConfig(
 	listenAddr, configFile string,
 	dockerMode bool,
 ) error {
-
 	cfg := &config.NodeConfig{}
 
 	// Server configuration
-	cfg.Server.HTTP.Host = "0.0.0.0"
+	cfg.Server.HTTP.Host = defaultBindIP
 	cfg.Server.HTTP.Port = httpPort
-	cfg.Server.GRPC.Host = "0.0.0.0"
+	cfg.Server.GRPC.Host = defaultBindIP
 	cfg.Server.GRPC.Port = grpcPort
 
 	// P2P configuration
@@ -69,7 +68,6 @@ func generateNodeInfo(
 	bootstrapPeers []string,
 	dockerMode bool,
 ) error {
-
 	infoFile := filepath.Join(nodeDir, "node-info.txt")
 
 	content := fmt.Sprintf(`DKNet Node Information

@@ -103,15 +103,23 @@ func (s *Service) StartSigning(ctx context.Context, req *SigningRequest) (*Opera
 	go s.runSigningOperation(operationCtx, operation, endCh)
 
 	// Broadcast signing operation sync message to other participants
-	go s.broadcastSigningOperation(operationID, sessionID,
-		threshold, len(participants), req.Participants, req.KeyID, req.Message)
+	go s.broadcastSigningOperation(
+		operationID, sessionID,
+		threshold, len(participants), req.Participants, req.KeyID, req.Message,
+	)
 	// Broadcast own mapping
 	s.broadcastOwnMapping(context.Background(), sessionID)
 
 	return operation, nil
 }
 
-func (s *Service) broadcastSigningOperation(operationID, sessionID string, threshold, parties int, participants []string, keyID string, message []byte) {
+func (s *Service) broadcastSigningOperation(
+	operationID, sessionID string,
+	threshold, parties int,
+	participants []string,
+	keyID string,
+	message []byte,
+) {
 	syncCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -307,7 +315,7 @@ func (s *Service) runSigningOperation(ctx context.Context, operation *Operation,
 			}()
 		}
 	case <-ctx.Done():
-		s.logger.Info("Signing operation cancelled", zap.String("operation_id", operation.ID))
+		s.logger.Info("Signing operation canceled", zap.String("operation_id", operation.ID))
 	}
 }
 

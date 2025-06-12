@@ -15,19 +15,22 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	healthv1 "github.com/dreamer-zq/DKNet/proto/health/v1"
 	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
+)
+
+const (
+	outputFormatJSON = "json"
 )
 
 func setupConnection(cmd *cobra.Command, args []string) error {
 	if useGRPC {
-		grpcConn, err := grpc.NewClient(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpc.NewClient(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			return fmt.Errorf("failed to connect to gRPC server: %w", err)
 		}
+		grpcConn = conn
 
 		tssClient = tssv1.NewTSSServiceClient(grpcConn)
-		healthClient = healthv1.NewHealthServiceClient(grpcConn)
 		return nil
 	}
 
@@ -101,7 +104,7 @@ func cleanup(_ *cobra.Command, _ []string) {
 
 // Unified output functions
 func outputStartKeygenResponse(resp *tssv1.StartKeygenResponse) error {
-	if outputFormat == "json" {
+	if outputFormat == outputFormatJSON {
 		return outputJSON(resp)
 	}
 
@@ -114,7 +117,7 @@ func outputStartKeygenResponse(resp *tssv1.StartKeygenResponse) error {
 }
 
 func outputStartSigningResponse(resp *tssv1.StartSigningResponse) error {
-	if outputFormat == "json" {
+	if outputFormat == outputFormatJSON {
 		return outputJSON(resp)
 	}
 
@@ -127,7 +130,7 @@ func outputStartSigningResponse(resp *tssv1.StartSigningResponse) error {
 }
 
 func outputStartResharingResponse(resp *tssv1.StartResharingResponse) error {
-	if outputFormat == "json" {
+	if outputFormat == outputFormatJSON {
 		return outputJSON(resp)
 	}
 
@@ -140,7 +143,7 @@ func outputStartResharingResponse(resp *tssv1.StartResharingResponse) error {
 }
 
 func outputGetOperationResponse(resp *tssv1.GetOperationResponse) error {
-	if outputFormat == "json" {
+	if outputFormat == outputFormatJSON {
 		return outputJSON(resp)
 	}
 

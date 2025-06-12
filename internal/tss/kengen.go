@@ -174,9 +174,8 @@ func (s *Service) runKeygenOperation(ctx context.Context, operation *Operation, 
 			}()
 		}
 	case <-ctx.Done():
-		s.logger.Info("Keygen operation cancelled",
-			zap.String("operation_id", operation.ID),
-			zap.Error(ctx.Err()))
+		s.logger.Info("Keygen operation canceled",
+			zap.String("operation_id", operation.ID))
 	}
 }
 
@@ -185,7 +184,8 @@ func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, re
 	// Generate public key bytes and Ethereum address in one go
 	xBytes := result.ECDSAPub.X().Bytes()
 	yBytes := result.ECDSAPub.Y().Bytes()
-	pubKeyBytes := append(xBytes, yBytes...)
+	xBytes = append(xBytes, yBytes...)
+	pubKeyBytes := xBytes
 
 	// Generate Ethereum address using Keccak-256
 	hasher := sha3.NewLegacyKeccak256()

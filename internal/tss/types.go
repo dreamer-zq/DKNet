@@ -85,8 +85,8 @@ const (
 	StatusCompleted OperationStatus = "completed"
 	// StatusFailed is the status for failed operations
 	StatusFailed OperationStatus = "failed"
-	// StatusCancelled is the status for cancelled operations
-	StatusCancelled OperationStatus = "cancelled"
+	// StatusCancelled is the status for canceled operations
+	StatusCancelled OperationStatus = "canceled"
 )
 
 // KeygenRequest represents a keygen request
@@ -142,7 +142,7 @@ type OperationSyncData struct {
 
 // ID implement Message.ID
 func (o OperationSyncData) ID() string {
-	return o.SessionID
+	return o.OperationID
 }
 
 // KeygenSyncData contains keygen-specific sync data
