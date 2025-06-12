@@ -1,9 +1,28 @@
 version: '3.8'
 
 services:
+  # Validation Service
+  validation-service:
+    build:
+      context: ../..
+      dockerfile: tests/validation-service/Dockerfile
+    container_name: validation-service
+    hostname: validation-service
+    ports:
+      - "8888:8888"  # Validation API
+    networks:
+      - tss-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
   # TSS Node 1
   tss-node1:
-    build: .
+    build: ../..
     container_name: tss-node1
     hostname: tss-node1
     command: ["start", "--config", "/app/node/config.yaml"]
@@ -12,13 +31,15 @@ services:
       - "9095:9090"  # gRPC API
       - "4001:4001"  # P2P
     volumes:
-      - ./docker/node1:/app/node:ro
+      - ./node1:/app/node:ro
       - tss-node1-data:/app/data
     environment:
       - TSS_CONFIG_FILE=/app/node/config.yaml
     networks:
       - tss-network
     restart: unless-stopped
+    depends_on:
+      - validation-service
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
@@ -28,7 +49,7 @@ services:
 
   # TSS Node 2
   tss-node2:
-    build: .
+    build: ../..
     container_name: tss-node2
     hostname: tss-node2
     command: ["start", "--config", "/app/node/config.yaml"]
@@ -37,7 +58,7 @@ services:
       - "9096:9090"  # gRPC API
       - "4002:4001"  # P2P
     volumes:
-      - ./docker/node2:/app/node:ro
+      - ./node2:/app/node:ro
       - tss-node2-data:/app/data
     environment:
       - TSS_CONFIG_FILE=/app/node/config.yaml
@@ -45,6 +66,7 @@ services:
       - tss-network
     restart: unless-stopped
     depends_on:
+      - validation-service
       - tss-node1
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
@@ -55,7 +77,7 @@ services:
 
   # TSS Node 3
   tss-node3:
-    build: .
+    build: ../..
     container_name: tss-node3
     hostname: tss-node3
     command: ["start", "--config", "/app/node/config.yaml"]
@@ -64,7 +86,7 @@ services:
       - "9097:9090"  # gRPC API
       - "4003:4001"  # P2P
     volumes:
-      - ./docker/node3:/app/node:ro
+      - ./node3:/app/node:ro
       - tss-node3-data:/app/data
     environment:
       - TSS_CONFIG_FILE=/app/node/config.yaml
@@ -72,6 +94,7 @@ services:
       - tss-network
     restart: unless-stopped
     depends_on:
+      - validation-service
       - tss-node1
       - tss-node2
     healthcheck:

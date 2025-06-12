@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -12,8 +13,6 @@ import (
 	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
 	"github.com/bnb-chain/tss-lib/v2/tss"
 	"go.uber.org/zap"
-
-	"slices"
 
 	"github.com/dreamer-zq/DKNet/internal/p2p"
 	"github.com/dreamer-zq/DKNet/internal/storage"
@@ -38,6 +37,9 @@ type Service struct {
 	// Node ID to P2P peer ID mapping
 	nodeIDToPeerID map[string]string
 	mappingMutex   sync.RWMutex
+
+	// Validation service client (optional)
+	validationService ValidationService
 }
 
 // NewService creates a new TSS service
@@ -47,17 +49,21 @@ func NewService(cfg *Config, storage storage.Storage, network *p2p.Network, logg
 	nodeKey.SetString(cfg.NodeID, 16)
 
 	partyID := tss.NewPartyID(cfg.NodeID, cfg.Moniker, nodeKey)
-
 	s := &Service{
-		config:         cfg,
-		storage:        storage,
-		network:        network,
-		logger:         logger,
-		operations:     make(map[string]*Operation),
-		nodeID:         cfg.NodeID,
-		moniker:        cfg.Moniker,
-		partyID:        partyID,
-		nodeIDToPeerID: make(map[string]string),
+		config:            cfg,
+		storage:           storage,
+		network:           network,
+		logger:            logger,
+		operations:        make(map[string]*Operation),
+		nodeID:            cfg.NodeID,
+		moniker:           cfg.Moniker,
+		partyID:           partyID,
+		nodeIDToPeerID:    make(map[string]string),
+	}
+	
+	// Check if validation service is configured and enabled
+	if cfg.ValidationService != nil && cfg.ValidationService.Enabled {
+		s.validationService = NewHTTPValidationService(cfg.ValidationService, cfg.NodeID, logger)
 	}
 
 	return s, nil

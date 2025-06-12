@@ -54,6 +54,22 @@ type StorageConfig struct {
 type TSSConfig struct {
 	NodeID  string `yaml:"node_id" mapstructure:"node_id"`
 	Moniker string `yaml:"moniker" mapstructure:"moniker"`
+	// Validation service configuration (optional)
+	ValidationService *ValidationServiceConfig `yaml:"validation_service,omitempty" mapstructure:"validation_service"`
+}
+
+// ValidationServiceConfig holds validation service configuration
+type ValidationServiceConfig struct {
+	// Enable or disable validation service
+	Enabled bool `yaml:"enabled" mapstructure:"enabled"`
+	// Validation service HTTP endpoint URL
+	URL string `yaml:"url" mapstructure:"url"`
+	// Request timeout in seconds (default: 30)
+	TimeoutSeconds int `yaml:"timeout_seconds" mapstructure:"timeout_seconds"`
+	// HTTP headers to include in validation requests
+	Headers map[string]string `yaml:"headers,omitempty" mapstructure:"headers"`
+	// Skip TLS verification (for development only)
+	InsecureSkipVerify bool `yaml:"insecure_skip_verify" mapstructure:"insecure_skip_verify"`
 }
 
 // NodeKeyInfo contains information about a node's P2P key
@@ -135,6 +151,11 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("tss.node_id", hostname)
 	v.SetDefault("tss.moniker", hostname)
 	
+	// Validation service defaults
+	v.SetDefault("tss.validation_service.enabled", false)
+	v.SetDefault("tss.validation_service.timeout_seconds", 30)
+	v.SetDefault("tss.validation_service.insecure_skip_verify", false)
+	
 	// Security defaults
 	v.SetDefault("security.tls_enabled", false)
 	v.SetDefault("security.cert_file", "")
@@ -149,6 +170,16 @@ func validateConfig(config *NodeConfig) error {
 	
 	if config.Storage.Type != "file" && config.Storage.Type != "leveldb" {
 		return fmt.Errorf("unsupported storage type: %s", config.Storage.Type)
+	}
+	
+	// Validate validation service configuration if enabled
+	if config.TSS.ValidationService != nil && config.TSS.ValidationService.Enabled {
+		if config.TSS.ValidationService.URL == "" {
+			return fmt.Errorf("validation service URL cannot be empty when validation service is enabled")
+		}
+		if config.TSS.ValidationService.TimeoutSeconds <= 0 {
+			return fmt.Errorf("validation service timeout must be positive")
+		}
 	}
 	
 	return nil

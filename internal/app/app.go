@@ -58,8 +58,9 @@ func New(cfg *config.NodeConfig, logger *zap.Logger) (*App, error) {
 	
 	// Initialize TSS service
 	tssConfig := &tss.Config{
-		NodeID:    cfg.TSS.NodeID,
-		Moniker:   cfg.TSS.Moniker,
+		NodeID:            cfg.TSS.NodeID,
+		Moniker:           cfg.TSS.Moniker,
+		ValidationService: cfg.TSS.ValidationService,
 	}
 	
 	tssService, err := tss.NewService(tssConfig, store, network, logger.Named("tss"))

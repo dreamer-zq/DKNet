@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/dreamer-zq/DKNet/internal/config"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -26,6 +27,8 @@ const (
 type Config struct {
 	NodeID    string
 	Moniker   string
+	// Validation service configuration (optional)
+	ValidationService *config.ValidationServiceConfig `json:"validation_service,omitempty"`
 }
 
 // Operation represents an active TSS operation
