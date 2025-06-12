@@ -77,7 +77,10 @@ func runShowNode(cmd *cobra.Command, args []string) error {
 		parts := strings.Split(addr, "/")
 		if len(parts) >= 5 {
 			listenAddr = parts[2]
-			fmt.Sscanf(parts[4], "%d", &port)
+			if _, err := fmt.Sscanf(parts[4], "%d", &port); err != nil {
+				// If parsing fails, use default port
+				port = 4001
+			}
 		}
 	}
 
@@ -200,7 +203,10 @@ func inferDockerIPFromBootstrapPeers(bootstrapPeers []string, nodeID string) str
 	// If we see IPs like 172.20.0.3, 172.20.0.4, we can infer that node1 is 172.20.0.2
 	nodeNum := 0
 	if strings.HasPrefix(nodeID, "node") && len(nodeID) > 4 {
-		fmt.Sscanf(nodeID[4:], "%d", &nodeNum)
+		if _, err := fmt.Sscanf(nodeID[4:], "%d", &nodeNum); err != nil {
+			// If parsing fails, return empty string
+			return ""
+		}
 	}
 	
 	if nodeNum > 0 {

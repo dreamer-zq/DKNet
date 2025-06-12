@@ -52,7 +52,9 @@ func New(cfg *config.NodeConfig, logger *zap.Logger) (*App, error) {
 	
 	network, err := p2p.NewNetwork(p2pConfig, logger.Named("p2p"))
 	if err != nil {
-		store.Close()
+		if closeErr := store.Close(); closeErr != nil {
+			logger.Error("Failed to close storage during cleanup", zap.Error(closeErr))
+		}
 		return nil, fmt.Errorf("failed to create P2P network: %w", err)
 	}
 	
@@ -65,7 +67,9 @@ func New(cfg *config.NodeConfig, logger *zap.Logger) (*App, error) {
 	
 	tssService, err := tss.NewService(tssConfig, store, network, logger.Named("tss"))
 	if err != nil {
-		store.Close()
+		if closeErr := store.Close(); closeErr != nil {
+			logger.Error("Failed to close storage during cleanup", zap.Error(closeErr))
+		}
 		network.Stop()
 		return nil, fmt.Errorf("failed to create TSS service: %w", err)
 	}
