@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/dreamer-zq/DKNet/internal/p2p"
 	"github.com/dreamer-zq/DKNet/internal/tss"
 	healthv1 "github.com/dreamer-zq/DKNet/proto/health/v1"
 	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
@@ -393,7 +394,13 @@ func (s *Server) cancelOperationHandler(c *gin.Context) {
 
 // getAddressesHandler handles requests for node address mappings
 func (s *Server) getAddressesHandler(c *gin.Context) {
-	mappings := s.network.GetAllNodeMappings()
+	var mappings map[string]*p2p.NodeMapping
+	if s.addressManager != nil {
+		mappings = s.addressManager.GetAllMappings()
+	} else {
+		mappings = make(map[string]*p2p.NodeMapping)
+	}
+
 	// Convert to array of proto NodeMapping
 	var result []*tssv1.NodeMapping
 	for _, mapping := range mappings {

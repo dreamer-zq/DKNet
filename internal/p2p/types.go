@@ -1,27 +1,19 @@
 package p2p
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
-	"fmt"
-	"io"
 	"time"
+
+	"github.com/dreamer-zq/DKNet/internal/common"
 )
 
 const (
-	// Protocol IDs for different TSS operations
-	tssKeygenProtocol    = "/tss/keygen/1.0.0"
-	tssSigningProtocol   = "/tss/signing/1.0.0"
-	tssResharingProtocol = "/tss/resharing/1.0.0"
-
-	// PubSub topics
-	tssDiscoveryTopic        = "tss-discovery"
-	tssBroadcastTopic        = "tss-broadcast"
-	nodeDiscoveryTopic       = "node-discovery" // New topic for node address discovery
-	connectTimeout           = 30 * time.Second
-	addressBroadcastInterval = 5 * time.Minute // Interval for broadcasting address book
+	tssKeygenProtocol     = "/tss/keygen/1.0.0"
+	tssSigningProtocol    = "/tss/signing/1.0.0"
+	tssResharingProtocol  = "/tss/resharing/1.0.0"
+	tssBroadcastTopic     = "tss-broadcast"
+	addressDiscoveryTopic = "address-discovery"
 )
 
 // NodeMapping represents a mapping between NodeID and PeerID
@@ -40,6 +32,28 @@ type AddressBook struct {
 	UpdatedAt time.Time               `json:"updated_at"`
 }
 
+// Compresses compresses and serializes the address book
+func (m *AddressBook) Compresses() ([]byte, error) {
+	raw, err := json.Marshal(m)
+	if err != nil {
+		return nil, err
+	}
+	compressed, err := common.Gzip(raw)
+	if err != nil {
+		return nil, err
+	}
+	return compressed, nil
+}
+
+// Decompresses decompresses and deserializes the address book
+func (m *AddressBook) Decompresses(data []byte) error {
+	decompressed, err := common.UnGzip(data)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(decompressed, m)
+}
+
 // Message represents a generic message sent over the network
 type Message struct {
 	SessionID   string    `json:"session_id"`
@@ -54,41 +68,22 @@ type Message struct {
 	SenderPeerID string `json:"sender_peer_id,omitempty"` // actual P2P peer ID of original sender
 }
 
-// Marshal serializes and compresses the message
-func (m *Message) Marshal() ([]byte, error) {
+// Compresses serializes and compresses the message
+func (m *Message) Compresses() ([]byte, error) {
 	raw, err := json.Marshal(m)
 	if err != nil {
 		return nil, err
 	}
-	var buf bytes.Buffer
-	zw := gzip.NewWriter(&buf)
-	if _, err := zw.Write(raw); err != nil {
-		return nil, err
-	}
-	if err := zw.Close(); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return common.Gzip(raw)
 }
 
-// Unmarshal decompresses and deserializes the message
-func (m *Message) Unmarshal(data []byte) error {
-	zr, err := gzip.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return fmt.Errorf("failed to create gzip reader: %w", err)
-	}
-	defer func() {
-		if closeErr := zr.Close(); closeErr != nil {
-			// Log the error but don't override the main error
-			// This is a cleanup operation, we can't do much about close errors
-			_ = closeErr // Explicitly ignore the error
-		}
-	}()
-	raw, err := io.ReadAll(zr)
+// Decompresses decompresses and deserializes the message
+func (m *Message) Decompresses(data []byte) error {
+	decompressed, err := common.UnGzip(data)
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(raw, m)
+	return json.Unmarshal(decompressed, m)
 }
 
 // MessageHandler defines the interface for handling received messages

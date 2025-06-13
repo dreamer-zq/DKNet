@@ -45,6 +45,9 @@ type P2PConfig struct {
 	BootstrapPeers []string `yaml:"bootstrap_peers" mapstructure:"bootstrap_peers"`
 	PrivateKeyFile string   `yaml:"private_key_file" mapstructure:"private_key_file"`
 	MaxPeers       int      `yaml:"max_peers" mapstructure:"max_peers"`
+
+	// Address book broadcasting configuration
+	AddressBookBroadcastInterval string `yaml:"address_book_broadcast_interval" mapstructure:"address_book_broadcast_interval"`
 }
 
 // StorageConfig holds storage configuration
@@ -124,20 +127,25 @@ func Load(configFile string) (*NodeConfig, error) {
 		// Config file not found is okay, we'll use defaults and env vars
 	}
 
-	var config NodeConfig
-	if err := v.Unmarshal(&config); err != nil {
+	config := &NodeConfig{}
+	if err := v.Unmarshal(config); err != nil {
 		return nil, fmt.Errorf("error unmarshaling config: %w", err)
+	}
+
+	// Set default address book broadcast interval if not specified
+	if config.P2P.AddressBookBroadcastInterval == "" {
+		config.P2P.AddressBookBroadcastInterval = "5m"
 	}
 
 	// Set the config directory
 	config.ConfigDir = configDir
 
 	// Validate configuration
-	if err := validateConfig(&config); err != nil {
+	if err := validateConfig(config); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
-	return &config, nil
+	return config, nil
 }
 
 // setDefaults sets default configuration values
@@ -153,6 +161,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("p2p.bootstrap_peers", []string{})
 	v.SetDefault("p2p.private_key_file", "./data/p2p_key")
 	v.SetDefault("p2p.max_peers", 50)
+	v.SetDefault("p2p.address_book_broadcast_interval", "1m")
 
 	// Storage defaults
 	v.SetDefault("storage.type", "leveldb")

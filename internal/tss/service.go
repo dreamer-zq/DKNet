@@ -22,10 +22,11 @@ import (
 
 // Service provides TSS operations
 type Service struct {
-	config  *Config
-	storage storage.Storage
-	network *p2p.Network
-	logger  *zap.Logger
+	config         *Config
+	storage        storage.Storage
+	network        *p2p.Network
+	addressManager *p2p.AddressManager
+	logger         *zap.Logger
 
 	// Key encryption for TSS keys
 	keyEncryption *crypto.KeyEncryption
@@ -43,37 +44,51 @@ type Service struct {
 	validationService ValidationService
 }
 
-// NewService creates a new TSS service with key encryption
-func NewService(cfg *Config, store storage.Storage, network *p2p.Network, logger *zap.Logger, encryptionPassword string) (*Service, error) {
-	// Create key encryption service
+// NewService creates a new TSS service
+func NewService(
+	cfg *Config,
+	store storage.Storage,
+	network *p2p.Network,
+	addressManager *p2p.AddressManager,
+	logger *zap.Logger,
+	encryptionPassword string,
+) (*Service, error) {
+	// Initialize key encryption
 	keyEncryption, err := crypto.NewKeyEncryption(encryptionPassword)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create key encryption: %w", err)
+		return nil, fmt.Errorf("failed to initialize key encryption: %w", err)
 	}
 
-	// Create party ID from node information
-	nodeKey := big.NewInt(0)
-	nodeKey.SetString(cfg.NodeID, 16)
+	// Create party ID for this node
+	partyKey := big.NewInt(1) // Use 1 as the key for this node
+	partyID := tss.NewPartyID(cfg.NodeID, cfg.Moniker, partyKey)
 
-	partyID := tss.NewPartyID(cfg.NodeID, cfg.Moniker, nodeKey)
-	s := &Service{
-		config:        cfg,
-		storage:       store,
-		network:       network,
-		logger:        logger,
-		keyEncryption: keyEncryption,
-		operations:    make(map[string]*Operation),
-		nodeID:        cfg.NodeID,
-		moniker:       cfg.Moniker,
-		partyID:       partyID,
+	service := &Service{
+		config:         cfg,
+		storage:        store,
+		network:        network,
+		addressManager: addressManager,
+		logger:         logger,
+		keyEncryption:  keyEncryption,
+		operations:     make(map[string]*Operation),
+		nodeID:         cfg.NodeID,
+		moniker:        cfg.Moniker,
+		partyID:        partyID,
 	}
 
 	// Check if validation service is configured and enabled
 	if cfg.ValidationService != nil && cfg.ValidationService.Enabled {
-		s.validationService = NewHTTPValidationService(cfg.ValidationService, cfg.NodeID, logger)
+		service.validationService = NewHTTPValidationService(cfg.ValidationService, cfg.NodeID, logger)
 	}
 
-	return s, nil
+	// Set this service as the message handler for the network
+	network.SetMessageHandler(service)
+
+	logger.Info("TSS service initialized",
+		zap.String("node_id", cfg.NodeID),
+		zap.String("moniker", cfg.Moniker))
+
+	return service, nil
 }
 
 // HandleMessage handles incoming TSS messages from the P2P network
@@ -359,8 +374,12 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 				}
 			} else {
 				for _, to := range routing.To {
-					// Convert node ID to P2P peer ID using network address manager
-					peerID, exists := s.network.GetNodePeerID(to.Id)
+					// Convert node ID to P2P peer ID using address manager
+					var peerID string
+					var exists bool
+					if s.addressManager != nil {
+						peerID, exists = s.addressManager.GetPeerID(to.Id)
+					}
 					if !exists {
 						// If we don't have the mapping, try using the node ID directly as fallback
 						s.logger.Warn("No P2P peer ID mapping found for node ID, using node ID as fallback",

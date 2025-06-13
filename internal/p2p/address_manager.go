@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -8,9 +9,18 @@ import (
 	"sync"
 	"time"
 
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"go.uber.org/zap"
 )
+
+// transport defines the interface for low-level network operations
+type transport interface {
+	// JoinTopic joins a pubsub topic and returns the topic handle
+	JoinTopic(topicName string) (*pubsub.Topic, error)
+	// GetHostID returns the local peer ID
+	GetHostID() peer.ID
+}
 
 // AddressManager manages NodeID to PeerID mappings
 type AddressManager struct {
@@ -19,21 +29,51 @@ type AddressManager struct {
 	filePath    string
 	nodeID      string  // this node's NodeID
 	peerID      peer.ID // this node's PeerID
-	moniker     string
 	logger      *zap.Logger
 
-	// Broadcast callback
-	broadcastCallback func(*AddressBook) error
+	// Broadcast configuration and control
+	broadcastTicker *time.Ticker
+	stopBroadcast   chan struct{}
+
+	// Network transport for low-level operations
+	transport transport
+
+	// PubSub topic for address book discovery
+	discoveryTopic *pubsub.Topic
+	subscription   *pubsub.Subscription
+
+	// Context for managing goroutines
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // NewAddressManager creates a new address manager
-func NewAddressManager(dataDir, nodeID string, peerID peer.ID, moniker string, logger *zap.Logger) (*AddressManager, error) {
+func NewAddressManager(
+	dataDir, nodeID string,
+	peerID peer.ID,
+	moniker string,
+	broadcastIntervalStr string,
+	transport transport,
+	logger *zap.Logger,
+) (*AddressManager, error) {
 	// Ensure data directory exists
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create data directory %s: %w", dataDir, err)
 	}
 
-	filePath := filepath.Join(dataDir, "node_addresses.json")
+	// Parse broadcast interval
+	broadcastInterval, err := time.ParseDuration(broadcastIntervalStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid address book broadcast interval: %w", err)
+	}
+
+	// Set default broadcast interval if not specified and broadcasting is enabled
+	if broadcastInterval <= 0 {
+		broadcastInterval = 5 * time.Minute
+	}
+
+	// Create context for managing goroutines
+	ctx, cancel := context.WithCancel(context.Background())
 
 	am := &AddressManager{
 		addressBook: &AddressBook{
@@ -41,11 +81,15 @@ func NewAddressManager(dataDir, nodeID string, peerID peer.ID, moniker string, l
 			Version:   1,
 			UpdatedAt: time.Now(),
 		},
-		filePath: filePath,
-		nodeID:   nodeID,
-		peerID:   peerID,
-		moniker:  moniker,
-		logger:   logger,
+		filePath:        filepath.Join(dataDir, "node_addresses.json"),
+		nodeID:          nodeID,
+		peerID:          peerID,
+		logger:          logger,
+		broadcastTicker: time.NewTicker(broadcastInterval),
+		stopBroadcast:   make(chan struct{}),
+		transport:       transport,
+		ctx:             ctx,
+		cancel:          cancel,
 	}
 
 	// Load existing address book if it exists
@@ -59,19 +103,127 @@ func NewAddressManager(dataDir, nodeID string, peerID peer.ID, moniker string, l
 	}
 
 	logger.Info("Address manager initialized",
-		zap.String("file_path", filePath),
 		zap.String("node_id", nodeID),
 		zap.String("peer_id", peerID.String()),
-		zap.Int("existing_mappings", len(am.addressBook.Mappings)))
+		zap.Int("existing_mappings", len(am.addressBook.Mappings)),
+		zap.Duration("broadcast_interval", broadcastInterval))
 
 	return am, nil
 }
 
-// setBroadcastCallback sets the callback function for broadcasting address book updates
-func (am *AddressManager) setBroadcastCallback(callback func(*AddressBook) error) {
+// Start initializes the address manager's network operations
+func (am *AddressManager) Start() error {
 	am.mu.Lock()
 	defer am.mu.Unlock()
-	am.broadcastCallback = callback
+
+	// Join the discovery topic
+	topic, err := am.transport.JoinTopic(addressDiscoveryTopic)
+	if err != nil {
+		return fmt.Errorf("failed to join discovery topic: %w", err)
+	}
+	am.discoveryTopic = topic
+
+	// Subscribe to the topic
+	subscription, err := topic.Subscribe()
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to discovery topic: %w", err)
+	}
+	am.subscription = subscription
+
+	// Start listening for address book updates
+	go am.handleIncomingAddressBooks()
+
+	// Start broadcasting
+	am.startBroadcasting()
+	return nil
+}
+
+// Stop gracefully shuts down the address manager
+func (am *AddressManager) Stop() {
+	am.mu.Lock()
+	defer am.mu.Unlock()
+
+	// Cancel context to stop all goroutines
+	if am.cancel != nil {
+		am.cancel()
+	}
+
+	// Stop broadcasting
+	am.stopBroadcasting()
+
+	// Close subscription
+	if am.subscription != nil {
+		am.subscription.Cancel()
+		am.subscription = nil
+	}
+
+	// Close topic
+	if am.discoveryTopic != nil {
+		if err := am.discoveryTopic.Close(); err != nil {
+			am.logger.Warn("Failed to close discovery topic", zap.Error(err))
+		}
+		am.discoveryTopic = nil
+	}
+
+	am.logger.Info("Address manager stopped")
+}
+
+// handleIncomingAddressBooks processes incoming address book updates
+func (am *AddressManager) handleIncomingAddressBooks() {
+	for {
+		select {
+		case <-am.ctx.Done():
+			return
+		default:
+			msg, err := am.subscription.Next(am.ctx)
+			if err != nil {
+				if am.ctx.Err() != nil {
+					// Context canceled, normal shutdown
+					return
+				}
+				am.logger.Error("Failed to receive message from discovery topic", zap.Error(err))
+				continue
+			}
+
+			// Skip messages from ourselves
+			if msg.ReceivedFrom == am.transport.GetHostID() {
+				continue
+			}
+
+			// Parse the address book
+			var receivedBook AddressBook
+			if err := receivedBook.Decompresses(msg.Data); err != nil {
+				am.logger.Warn("Failed to unmarshal received address book", zap.Error(err))
+				continue
+			}
+
+			// Merge the received address book
+			am.mergeAddressBook(&receivedBook)
+		}
+	}
+}
+
+// broadcastAddressBook sends the current address book to the network
+func (am *AddressManager) broadcastAddressBook() error {
+	am.mu.RLock()
+	book := am.getAddressBookCopy()
+	am.mu.RUnlock()
+
+	data, err := book.Compresses()
+	if err != nil {
+		return fmt.Errorf("failed to marshal address book: %w", err)
+	}
+
+	if am.discoveryTopic == nil {
+		return fmt.Errorf("discovery topic not initialized")
+	}
+
+	if err := am.discoveryTopic.Publish(am.ctx, data); err != nil {
+		return fmt.Errorf("failed to publish address book: %w", err)
+	}
+
+	am.logger.Info("Address book broadcasted")
+	return nil
 }
 
 // updateMapping updates or adds a node address mapping
@@ -89,7 +241,7 @@ func (am *AddressManager) updateMapping(nodeID, peerIDStr, moniker string) error
 	existing, exists := am.addressBook.Mappings[nodeID]
 
 	// Check if this is a meaningful update
-	if exists && existing.PeerID == peerIDStr && existing.Moniker == moniker {
+	if exists && existing.PeerID == peerIDStr {
 		// No meaningful change, just update timestamp
 		existing.Timestamp = now
 		am.logger.Debug("Updated timestamp for existing mapping",
@@ -132,8 +284,8 @@ func (am *AddressManager) updateMapping(nodeID, peerIDStr, moniker string) error
 	return nil
 }
 
-// getPeerID returns the PeerID for a given NodeID
-func (am *AddressManager) getPeerID(nodeID string) (string, bool) {
+// GetPeerID returns the PeerID for a given NodeID
+func (am *AddressManager) GetPeerID(nodeID string) (string, bool) {
 	am.mu.RLock()
 	defer am.mu.RUnlock()
 
@@ -144,8 +296,8 @@ func (am *AddressManager) getPeerID(nodeID string) (string, bool) {
 	return mapping.PeerID, true
 }
 
-// getAllMappings returns a copy of all current mappings
-func (am *AddressManager) getAllMappings() map[string]*NodeMapping {
+// GetAllMappings returns a copy of all current mappings
+func (am *AddressManager) GetAllMappings() map[string]*NodeMapping {
 	am.mu.RLock()
 	defer am.mu.RUnlock()
 
@@ -158,134 +310,60 @@ func (am *AddressManager) getAllMappings() map[string]*NodeMapping {
 	return result
 }
 
-// getAddressBook returns a copy of the current address book
-func (am *AddressManager) getAddressBook() *AddressBook {
-	am.mu.RLock()
-	defer am.mu.RUnlock()
-
+// getAddressBookCopy returns a copy of the current address book
+func (am *AddressManager) getAddressBookCopy() *AddressBook {
 	book := &AddressBook{
 		Mappings:  make(map[string]*NodeMapping),
 		Version:   am.addressBook.Version,
 		UpdatedAt: am.addressBook.UpdatedAt,
 	}
 
-	for k, v := range am.addressBook.Mappings {
-		mapping := *v
-		book.Mappings[k] = &mapping
+	for nodeID, mapping := range am.addressBook.Mappings {
+		book.Mappings[nodeID] = &NodeMapping{
+			NodeID:    mapping.NodeID,
+			PeerID:    mapping.PeerID,
+			Moniker:   mapping.Moniker,
+			Timestamp: mapping.Timestamp,
+		}
 	}
 
 	return book
 }
 
-// mergeAddressBook merges received address book with local one
-func (am *AddressManager) mergeAddressBook(remoteBook *AddressBook) error {
-	if remoteBook == nil || remoteBook.Mappings == nil {
-		return fmt.Errorf("invalid remote address book")
-	}
-
+// mergeAddressBook merges a received address book with the local one
+func (am *AddressManager) mergeAddressBook(receivedBook *AddressBook) {
 	am.mu.Lock()
 	defer am.mu.Unlock()
 
 	updated := false
-
-	for nodeID, remoteMapping := range remoteBook.Mappings {
-		if remoteMapping == nil {
-			continue
-		}
-
-		// Skip our own mapping - we know it best
+	for nodeID, receivedMapping := range receivedBook.Mappings {
+		// Skip our own mapping
 		if nodeID == am.nodeID {
 			continue
 		}
 
-		// Validate the remote mapping
-		if _, err := peer.Decode(remoteMapping.PeerID); err != nil {
-			am.logger.Warn("Invalid peer ID in remote mapping, skipping",
-				zap.String("node_id", nodeID),
-				zap.String("peer_id", remoteMapping.PeerID),
-				zap.Error(err))
-			continue
-		}
-
-		localMapping, exists := am.addressBook.Mappings[nodeID]
-
-		// Add new mapping or update if remote is newer
-		if !exists || remoteMapping.Timestamp.After(localMapping.Timestamp) {
-			// Create a copy of the remote mapping
-			newMapping := &NodeMapping{
-				NodeID:    remoteMapping.NodeID,
-				PeerID:    remoteMapping.PeerID,
-				Timestamp: remoteMapping.Timestamp,
-				Moniker:   remoteMapping.Moniker,
+		existingMapping, exists := am.addressBook.Mappings[nodeID]
+		if !exists || receivedMapping.Timestamp.After(existingMapping.Timestamp) {
+			am.addressBook.Mappings[nodeID] = &NodeMapping{
+				NodeID:    receivedMapping.NodeID,
+				PeerID:    receivedMapping.PeerID,
+				Moniker:   receivedMapping.Moniker,
+				Timestamp: receivedMapping.Timestamp,
 			}
-
-			am.addressBook.Mappings[nodeID] = newMapping
 			updated = true
-
-			if exists {
-				am.logger.Info("Updated mapping from remote address book",
-					zap.String("node_id", nodeID),
-					zap.String("old_peer_id", localMapping.PeerID),
-					zap.String("new_peer_id", remoteMapping.PeerID),
-					zap.Time("remote_timestamp", remoteMapping.Timestamp),
-					zap.Time("local_timestamp", localMapping.Timestamp))
-			} else {
-				am.logger.Info("Added new mapping from remote address book",
-					zap.String("node_id", nodeID),
-					zap.String("peer_id", remoteMapping.PeerID),
-					zap.String("moniker", remoteMapping.Moniker))
-			}
+			am.logger.Debug("Updated mapping from received address book",
+				zap.String("node_id", nodeID),
+				zap.String("peer_id", receivedMapping.PeerID),
+				zap.String("moniker", receivedMapping.Moniker))
 		}
 	}
 
 	if updated {
-		am.addressBook.Version++
 		am.addressBook.UpdatedAt = time.Now()
-
-		// Save to file
 		if err := am.saveToFile(); err != nil {
-			am.logger.Error("Failed to save merged address book to file", zap.Error(err))
+			am.logger.Error("Failed to save address book after merge", zap.Error(err))
 		}
 	}
-
-	return nil
-}
-
-// broadcastOwnMapping broadcasts this node's mapping to the network
-func (am *AddressManager) broadcastOwnMapping() error {
-	am.mu.RLock()
-	ownMapping, exists := am.addressBook.Mappings[am.nodeID]
-	am.mu.RUnlock()
-
-	if !exists {
-		return fmt.Errorf("own mapping not found")
-	}
-
-	// Create a minimal address book with just our mapping
-	book := &AddressBook{
-		Mappings: map[string]*NodeMapping{
-			am.nodeID: ownMapping,
-		},
-		Version:   1,
-		UpdatedAt: time.Now(),
-	}
-
-	if am.broadcastCallback != nil {
-		return am.broadcastCallback(book)
-	}
-
-	return nil
-}
-
-// broadcastFullAddressBook broadcasts the full address book to the network
-func (am *AddressManager) broadcastFullAddressBook() error {
-	book := am.getAddressBook()
-
-	if am.broadcastCallback != nil {
-		return am.broadcastCallback(book)
-	}
-
-	return nil
 }
 
 // loadFromFile loads address book from file
@@ -362,22 +440,38 @@ func (am *AddressManager) saveToFile() error {
 	return nil
 }
 
-// startPeriodicBroadcast starts periodic broadcasting of the address book
-func (am *AddressManager) startPeriodicBroadcast(interval time.Duration) {
-	ticker := time.NewTicker(interval)
-
+// startBroadcasting begins periodic broadcasting of the address book
+func (am *AddressManager) startBroadcasting() {
 	go func() {
-		defer ticker.Stop()
+		defer am.broadcastTicker.Stop()
 
-		for range ticker.C {
-			if err := am.broadcastFullAddressBook(); err != nil {
-				am.logger.Warn("Failed to broadcast address book periodically", zap.Error(err))
-			} else {
-				am.logger.Debug("Periodic address book broadcast completed")
+		// Broadcast immediately on start
+		if err := am.broadcastAddressBook(); err != nil {
+			am.logger.Error("Failed to broadcast address book on start", zap.Error(err))
+		}
+
+		for {
+			select {
+			case <-am.ctx.Done():
+				return
+			case <-am.stopBroadcast:
+				return
+			case <-am.broadcastTicker.C:
+				if err := am.broadcastAddressBook(); err != nil {
+					am.logger.Error("Failed to broadcast address book", zap.Error(err))
+				}
 			}
 		}
 	}()
+}
 
-	am.logger.Info("Started periodic address book broadcast",
-		zap.Duration("interval", interval))
+// stopBroadcasting stops the periodic broadcasting
+func (am *AddressManager) stopBroadcasting() {
+	am.broadcastTicker.Stop()
+	am.broadcastTicker = nil
+
+	// Signal stop to broadcasting goroutine
+	am.stopBroadcast <- struct{}{}
+
+	am.logger.Info("Stopped broadcasting address book")
 }

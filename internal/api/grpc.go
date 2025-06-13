@@ -55,9 +55,10 @@ func (s *Server) stopGRPCServer() {
 // setupGRPCServices sets up gRPC services
 func (s *Server) setupGRPCServices() {
 	tssServer := &gRPCTSSServer{
-		tssService: s.tssService,
-		network:    s.network,
-		logger:     s.logger,
+		tssService:     s.tssService,
+		network:        s.network,
+		addressManager: s.addressManager,
+		logger:         s.logger,
 	}
 
 	healthServer := &gRPCHealthServer{
@@ -74,9 +75,10 @@ func (s *Server) setupGRPCServices() {
 // gRPCTSSServer implements the TSS gRPC service
 type gRPCTSSServer struct {
 	tssv1.UnimplementedTSSServiceServer
-	tssService *tss.Service
-	network    *p2p.Network
-	logger     *zap.Logger
+	tssService     *tss.Service
+	network        *p2p.Network
+	addressManager *p2p.AddressManager
+	logger         *zap.Logger
 }
 
 // gRPCHealthServer implements the Health gRPC service
@@ -403,7 +405,12 @@ func (g *gRPCTSSServer) GetNetworkAddresses(
 	ctx context.Context,
 	req *tssv1.GetNetworkAddressesRequest,
 ) (*tssv1.GetNetworkAddressesResponse, error) {
-	mappings := g.network.GetAllNodeMappings()
+	var mappings map[string]*p2p.NodeMapping
+	if g.addressManager != nil {
+		mappings = g.addressManager.GetAllMappings()
+	} else {
+		mappings = make(map[string]*p2p.NodeMapping)
+	}
 
 	// Convert to proto NodeMapping array
 	var result []*tssv1.NodeMapping

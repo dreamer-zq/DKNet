@@ -11,8 +11,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/dreamer-zq/DKNet/internal/app"
+	"github.com/dreamer-zq/DKNet/internal/common"
 	"github.com/dreamer-zq/DKNet/internal/config"
-	"github.com/dreamer-zq/DKNet/internal/utils"
 )
 
 func main() {
@@ -22,11 +22,9 @@ func main() {
 		panic(err)
 	}
 	defer func() {
-		if syncErr := logger.Sync(); syncErr != nil {
-			// Ignore sync errors on stdout/stderr as they are common and harmless
-			// Only log if it's not a sync error on stdout/stderr
-			fmt.Fprintf(os.Stderr, "Warning: failed to sync logger: %v\n", syncErr)
-		}
+		common.LogMsgDo("failed to sync logger", func() error {
+			return logger.Sync()
+		})
 	}()
 
 	rootCmd := &cobra.Command{
@@ -68,7 +66,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 	fmt.Println("This server uses encrypted storage for TSS private keys.")
 
 	// Try environment variable first
-	password, err := utils.ReadPassword()
+	password, err := common.ReadPassword()
 	if err != nil {
 		return fmt.Errorf("failed to read password: %w", err)
 	}
