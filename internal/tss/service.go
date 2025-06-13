@@ -324,14 +324,24 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 				}
 			} else {
 				for _, to := range routing.To {
-					// Convert node ID to P2P peer ID using address manager
-					peerID, exists := s.addressManager.GetPeerID(to.Id)
+					// Phase 1: Since we now use peer ID as node ID, to.Id should already be a valid peer ID
+					// But we still check address manager for backward compatibility
+					var peerID string
+					var exists bool
+					if s.addressManager != nil {
+						peerID, exists = s.addressManager.GetPeerID(to.Id)
+					}
+
 					if !exists {
-						// TODO
-						// If we don't have the mapping, try using the node ID directly as fallback
-						s.logger.Warn("No P2P peer ID mapping found for node ID, using node ID as fallback",
-							zap.String("node_id", to.Id))
+						// In phase 1, to.Id should already be a peer ID, so use it directly
 						peerID = to.Id
+						s.logger.Debug("Using node ID directly as peer ID (phase 1 implementation)",
+							zap.String("node_id", to.Id),
+							zap.String("peer_id", peerID))
+					} else {
+						s.logger.Debug("Found peer ID mapping in address manager",
+							zap.String("node_id", to.Id),
+							zap.String("mapped_peer_id", peerID))
 					}
 
 					p2pMsg.To = []string{peerID}

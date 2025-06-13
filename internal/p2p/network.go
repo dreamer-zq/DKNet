@@ -207,6 +207,13 @@ func (n *Network) sendDirectMessage(ctx context.Context, msg *Message) error {
 	// Fill in the sender's actual PeerID
 	msg.SenderPeerID = n.host.ID().String()
 
+	// Validate all peer IDs first
+	for _, recipient := range msg.To {
+		if _, err := peer.Decode(recipient); err != nil {
+			return fmt.Errorf("invalid peer ID format: %s, error: %w", recipient, err)
+		}
+	}
+
 	data, err := msg.Compresses()
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
@@ -216,6 +223,7 @@ func (n *Network) sendDirectMessage(ctx context.Context, msg *Message) error {
 	for _, recipient := range msg.To {
 		peerID, err := peer.Decode(recipient)
 		if err != nil {
+			// This should not happen since we validated above, but keep for safety
 			n.logger.Error("Invalid peer ID", zap.String("peer_id", recipient), zap.Error(err))
 			continue
 		}
