@@ -215,7 +215,7 @@ func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, re
 	keyDataStruct := &KeyData{
 		NodeID:    s.nodeID,
 		Moniker:   s.moniker,
-		KeyData:   encryptedKeyData, // Store encrypted data
+		KeyData:   encryptedKeyData,      // Store encrypted data
 		Threshold: originalReq.Threshold, // Store the original threshold from request
 		Parties:   len(result.Ks),
 		CreatedAt: time.Now().Unix(),
@@ -239,7 +239,7 @@ func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, re
 	}
 	operation.Unlock()
 
-	s.logger.Info("Saved encrypted keygen result", 
+	s.logger.Info("Saved encrypted keygen result",
 		zap.String("key_id", keyID),
 		zap.Int("encrypted_size", len(encryptedKeyData)),
 		zap.Int("original_size", len(keyDataBytes)))

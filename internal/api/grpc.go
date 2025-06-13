@@ -419,9 +419,12 @@ func (g *gRPCHealthServer) Watch(req *healthv1.WatchRequest, stream healthv1.Hea
 }
 
 // GetNetworkAddresses implements TSSService.GetNetworkAddresses
-func (g *gRPCTSSServer) GetNetworkAddresses(ctx context.Context, req *tssv1.GetNetworkAddressesRequest) (*tssv1.GetNetworkAddressesResponse, error) {
+func (g *gRPCTSSServer) GetNetworkAddresses(
+	ctx context.Context,
+	req *tssv1.GetNetworkAddressesRequest,
+) (*tssv1.GetNetworkAddressesResponse, error) {
 	mappings := g.network.GetAllNodeMappings()
-	
+
 	// Convert to proto NodeMapping array
 	var result []*tssv1.NodeMapping
 	for _, mapping := range mappings {
@@ -432,10 +435,8 @@ func (g *gRPCTSSServer) GetNetworkAddresses(ctx context.Context, req *tssv1.GetN
 			Timestamp: timestamppb.New(mapping.Timestamp),
 		})
 	}
-	
+
 	return &tssv1.GetNetworkAddressesResponse{
 		Mappings: result,
 	}, nil
 }
-
-

@@ -260,7 +260,7 @@ func (n *Network) handleStream(stream network.Stream) {
 func (n *Network) sendDirectMessage(ctx context.Context, msg *Message) error {
 	// Fill in the sender's actual PeerID
 	msg.SenderPeerID = n.host.ID().String()
-	
+
 	data, err := msg.Marshal()
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
@@ -309,7 +309,7 @@ func (n *Network) sendDirectMessage(ctx context.Context, msg *Message) error {
 func (n *Network) broadcastMessage(ctx context.Context, msg *Message) error {
 	// Fill in the sender's actual PeerID
 	msg.SenderPeerID = n.host.ID().String()
-	
+
 	data, err := msg.Marshal()
 	if err != nil {
 		n.logger.Error("Failed to marshal broadcast message", zap.Error(err))
@@ -590,7 +590,7 @@ func (n *Network) GetAllNodeMappings() map[string]*NodeMapping {
 	if n.addressManager == nil {
 		return make(map[string]*NodeMapping)
 	}
-	
+
 	return n.addressManager.getAllMappings()
 }
 

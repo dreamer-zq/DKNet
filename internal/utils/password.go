@@ -14,8 +14,8 @@ import (
 func ReadPassword() (string, error) {
 	password, err := readPasswordFromEnv()
 	if err == nil {
-		if err := validatePassword(password); err != nil {
-			return "", err
+		if validationErr := validatePassword(password); validationErr != nil {
+			return "", validationErr
 		}
 		return password, nil
 	}
@@ -71,16 +71,16 @@ func readPassword(prompt string) (string, error) {
 	fmt.Print(prompt)
 
 	// Check if stdin is a terminal
-	if term.IsTerminal(int(syscall.Stdin)) {
+	if term.IsTerminal(syscall.Stdin) {
 		// Read password without echo
-		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+		bytePassword, err := term.ReadPassword(syscall.Stdin)
 		if err != nil {
 			return "", fmt.Errorf("failed to read password: %w", err)
 		}
 		fmt.Println() // Print newline after password input
 		password := strings.TrimSpace(string(bytePassword))
 
-		if len(password) == 0 {
+		if password == "" {
 			return "", fmt.Errorf("password cannot be empty")
 		}
 
@@ -94,7 +94,7 @@ func readPassword(prompt string) (string, error) {
 	}
 
 	password = strings.TrimSpace(password)
-	if len(password) == 0 {
+	if password == "" {
 		return "", fmt.Errorf("password cannot be empty")
 	}
 

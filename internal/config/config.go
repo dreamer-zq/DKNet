@@ -16,7 +16,7 @@ type NodeConfig struct {
 	Storage  StorageConfig  `yaml:"storage" mapstructure:"storage"`
 	TSS      TSSConfig      `yaml:"tss" mapstructure:"tss"`
 	Security SecurityConfig `yaml:"security" mapstructure:"security"`
-	
+
 	// ConfigDir is the directory containing the config file (not saved to YAML)
 	ConfigDir string `yaml:"-" mapstructure:"-"`
 }

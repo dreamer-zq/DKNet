@@ -271,8 +271,6 @@ func (s *Service) handleOperationSync(ctx context.Context, msg *p2p.Message) err
 		zap.String("from", msg.From),
 		zap.Strings("participants", baseData.Participants))
 
-
-
 	// Check if we are one of the participants
 	isParticipant := slices.Contains(baseData.Participants, s.nodeID)
 
@@ -406,8 +404,8 @@ func (s *Service) loadKeyData(ctx context.Context, keyID string) (*keygen.LocalP
 	}
 
 	var keyDataStruct KeyData
-	if err := json.Unmarshal(data, &keyDataStruct); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal key data struct: %w", err)
+	if unmarshalErr := json.Unmarshal(data, &keyDataStruct); unmarshalErr != nil {
+		return nil, fmt.Errorf("failed to unmarshal key data struct: %w", unmarshalErr)
 	}
 
 	// Decrypt the key data
@@ -484,13 +482,13 @@ func (s *Service) broadcastOperationSync(ctx context.Context, syncData Message) 
 	}
 
 	msg := &p2p.Message{
-		SessionID:    syncData.ID(),
-		Type:         "operation_sync",
-		From:         s.nodeID,
-		To:           []string{},
-		IsBroadcast:  true,
-		Data:         data, // Serialized operation sync data
-		Timestamp:    time.Now(),
+		SessionID:   syncData.ID(),
+		Type:        "operation_sync",
+		From:        s.nodeID,
+		To:          []string{},
+		IsBroadcast: true,
+		Data:        data, // Serialized operation sync data
+		Timestamp:   time.Now(),
 	}
 	return s.network.SendMessage(ctx, msg)
 }

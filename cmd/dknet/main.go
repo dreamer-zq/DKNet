@@ -66,7 +66,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 	fmt.Println("DKNet TSS Server - Secure Key Storage")
 	fmt.Println("=====================================")
 	fmt.Println("This server uses encrypted storage for TSS private keys.")
-	
+
 	// Try environment variable first
 	password, err := utils.ReadPassword()
 	if err != nil {

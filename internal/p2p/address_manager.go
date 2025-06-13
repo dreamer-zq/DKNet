@@ -211,13 +211,13 @@ func (am *AddressManager) mergeAddressBook(remoteBook *AddressBook) error {
 
 		// Add new mapping or update if remote is newer
 		if !exists || remoteMapping.Timestamp.After(localMapping.Timestamp) {
-					// Create a copy of the remote mapping
-		newMapping := &NodeMapping{
-			NodeID:    remoteMapping.NodeID,
-			PeerID:    remoteMapping.PeerID,
-			Timestamp: remoteMapping.Timestamp,
-			Moniker:   remoteMapping.Moniker,
-		}
+			// Create a copy of the remote mapping
+			newMapping := &NodeMapping{
+				NodeID:    remoteMapping.NodeID,
+				PeerID:    remoteMapping.PeerID,
+				Timestamp: remoteMapping.Timestamp,
+				Moniker:   remoteMapping.Moniker,
+			}
 
 			am.addressBook.Mappings[nodeID] = newMapping
 			updated = true

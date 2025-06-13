@@ -80,4 +80,4 @@ func (ke *KeyEncryption) Decrypt(ciphertext []byte) ([]byte, error) {
 func (ke *KeyEncryption) VerifyPassword(testCiphertext []byte) error {
 	_, err := ke.Decrypt(testCiphertext)
 	return err
-} 
+}

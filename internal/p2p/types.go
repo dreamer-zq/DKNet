@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"time"
 )
@@ -29,14 +30,14 @@ type NodeMapping struct {
 	PeerID    string    `json:"peer_id"`
 	Timestamp time.Time `json:"timestamp"`
 	// Additional node information
-	Moniker   string   `json:"moniker,omitempty"`
+	Moniker string `json:"moniker,omitempty"`
 }
 
 // AddressBook holds all known node address mappings
 type AddressBook struct {
 	Mappings  map[string]*NodeMapping `json:"mappings"` // key: NodeID
-	Version   int64                          `json:"version"`
-	UpdatedAt time.Time                      `json:"updated_at"`
+	Version   int64                   `json:"version"`
+	UpdatedAt time.Time               `json:"updated_at"`
 }
 
 // Message represents a generic message sent over the network
@@ -74,9 +75,15 @@ func (m *Message) Marshal() ([]byte, error) {
 func (m *Message) Unmarshal(data []byte) error {
 	zr, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create gzip reader: %w", err)
 	}
-	defer zr.Close()
+	defer func() {
+		if closeErr := zr.Close(); closeErr != nil {
+			// Log the error but don't override the main error
+			// This is a cleanup operation, we can't do much about close errors
+			_ = closeErr // Explicitly ignore the error
+		}
+	}()
 	raw, err := io.ReadAll(zr)
 	if err != nil {
 		return err
