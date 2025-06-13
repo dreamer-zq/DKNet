@@ -25,7 +25,7 @@ tss:
         url: "http://validation-service:8888/validate"
         timeout_seconds: 30
         headers:
-            X-Node-ID: "node3"
+            X-Node-ID: "QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi"
         insecure_skip_verify: false
 security:
     tls_enabled: false

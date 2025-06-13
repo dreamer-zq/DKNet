@@ -12,6 +12,11 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Peer IDs from cluster-info.txt (Phase 2: Using peer IDs directly as node IDs)
+NODE1_PEER_ID="QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF"
+NODE2_PEER_ID="QmQjz2j7wFScU4Rj1cP3iwisbGwdhkNXmfmUYUHmvtEXY3"
+NODE3_PEER_ID="QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi"
+
 # Function to print colored output
 print_status() {
     local status=$1
@@ -75,8 +80,8 @@ message_base64=$(echo -n "Hello World" | base64)
 test_api "http://localhost:8888/validate" '{
     "message": "'$message_base64'",
     "key_id": "0xfa3cd17afd7e5d98d02fbad669adc46e7512bbb4",
-    "participants": ["node1", "node2"],
-    "node_id": "node1",
+    "participants": ["'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'"],
+    "node_id": "'$NODE1_PEER_ID'",
     "timestamp": '$(date +%s)'
 }' "true" "Valid request"
 
@@ -85,8 +90,8 @@ malicious_base64=$(echo -n "malicious attack" | base64)
 test_api "http://localhost:8888/validate" '{
     "message": "'$malicious_base64'",
     "key_id": "0xfa3cd17afd7e5d98d02fbad669adc46e7512bbb4",
-    "participants": ["node1", "node2"],
-    "node_id": "node1",
+    "participants": ["'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'"],
+    "node_id": "'$NODE1_PEER_ID'",
     "timestamp": '$(date +%s)'
 }' "false" "Request with forbidden word"
 
@@ -94,8 +99,8 @@ test_api "http://localhost:8888/validate" '{
 test_api "http://localhost:8888/validate" '{
     "message": "'$message_base64'",
     "key_id": "0xfa3cd17afd7e5d98d02fbad669adc46e7512bbb4",
-    "participants": ["node1"],
-    "node_id": "node1",
+    "participants": ["'$NODE1_PEER_ID'"],
+    "node_id": "'$NODE1_PEER_ID'",
     "timestamp": '$(date +%s)'
 }' "false" "Request with insufficient participants"
 
@@ -104,8 +109,8 @@ empty_base64=$(echo -n "" | base64)
 test_api "http://localhost:8888/validate" '{
     "message": "'$empty_base64'",
     "key_id": "0xfa3cd17afd7e5d98d02fbad669adc46e7512bbb4",
-    "participants": ["node1", "node2"],
-    "node_id": "node1",
+    "participants": ["'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'"],
+    "node_id": "'$NODE1_PEER_ID'",
     "timestamp": '$(date +%s)'
 }' "false" "Request with empty message"
 
@@ -114,8 +119,8 @@ old_timestamp=$(($(date +%s) - 3600))  # 1 hour ago
 test_api "http://localhost:8888/validate" '{
     "message": "'$message_base64'",
     "key_id": "0xfa3cd17afd7e5d98d02fbad669adc46e7512bbb4",
-    "participants": ["node1", "node2"],
-    "node_id": "node1",
+    "participants": ["'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'"],
+    "node_id": "'$NODE1_PEER_ID'",
     "timestamp": '$old_timestamp'
 }' "false" "Request with old timestamp"
 
