@@ -1,7 +1,11 @@
 package p2p
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/json"
+	"io"
 	"time"
 )
 
@@ -47,6 +51,37 @@ type Message struct {
 
 	// P2P layer information
 	SenderPeerID string `json:"sender_peer_id,omitempty"` // actual P2P peer ID of sender
+}
+
+// Marshal serializes and compresses the message
+func (m *Message) Marshal() ([]byte, error) {
+	raw, err := json.Marshal(m)
+	if err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	if _, err := zw.Write(raw); err != nil {
+		return nil, err
+	}
+	if err := zw.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// Unmarshal decompresses and deserializes the message
+func (m *Message) Unmarshal(data []byte) error {
+	zr, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
+	defer zr.Close()
+	raw, err := io.ReadAll(zr)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(raw, m)
 }
 
 // MessageHandler defines the interface for handling received messages

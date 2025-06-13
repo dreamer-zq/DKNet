@@ -237,16 +237,14 @@ func (n *Network) handleStream(stream network.Stream) {
 		}
 	}()
 
-	// Read message
 	data, err := io.ReadAll(stream)
 	if err != nil {
 		n.logger.Error("Failed to read stream", zap.Error(err))
 		return
 	}
 
-	// Parse message
 	var msg Message
-	if err := json.Unmarshal(data, &msg); err != nil {
+	if err := msg.Unmarshal(data); err != nil {
 		n.logger.Error("Failed to unmarshal message", zap.Error(err))
 		return
 	}
@@ -265,7 +263,7 @@ func (n *Network) handleStream(stream network.Stream) {
 
 // sendDirectMessage sends a message directly to specific peers
 func (n *Network) sendDirectMessage(ctx context.Context, msg *Message) error {
-	data, err := json.Marshal(msg)
+	data, err := msg.Marshal()
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
@@ -311,14 +309,7 @@ func (n *Network) sendDirectMessage(ctx context.Context, msg *Message) error {
 
 // broadcastMessage broadcasts a message using PubSub
 func (n *Network) broadcastMessage(ctx context.Context, msg *Message) error {
-	n.logger.Info("Starting broadcast message",
-		zap.String("session_id", msg.SessionID),
-		zap.String("type", msg.Type),
-		zap.String("from", msg.From),
-		zap.String("sender_peer_id", msg.SenderPeerID),
-	)
-
-	data, err := json.Marshal(msg)
+	data, err := msg.Marshal()
 	if err != nil {
 		n.logger.Error("Failed to marshal broadcast message", zap.Error(err))
 		return fmt.Errorf("failed to marshal message: %w", err)
@@ -497,7 +488,7 @@ func (n *Network) subscribeToDiscovery(ctx context.Context) error {
 
 			// Parse the message
 			var tssMsg Message
-			if err := json.Unmarshal(msg.Data, &tssMsg); err != nil {
+			if err := tssMsg.Unmarshal(msg.Data); err != nil {
 				n.logger.Error("Failed to unmarshal broadcast message", zap.Error(err))
 				continue
 			}
