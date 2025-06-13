@@ -24,8 +24,8 @@ type App struct {
 }
 
 // New creates a new application instance
-func New(cfg *config.NodeConfig, logger *zap.Logger) (*App, error) {
-	// Initialize storage
+func New(cfg *config.NodeConfig, logger *zap.Logger, password string) (*App, error) {
+	// Initialize storage (always use plain storage, encryption is handled at TSS level)
 	var store storage.Storage
 	var err error
 
@@ -35,6 +35,7 @@ func New(cfg *config.NodeConfig, logger *zap.Logger) (*App, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to create LevelDB storage: %w", err)
 		}
+		logger.Info("Initialized LevelDB storage")
 	case "file":
 		// TODO: Implement file storage
 		return nil, fmt.Errorf("file storage not implemented yet")
@@ -61,14 +62,14 @@ func New(cfg *config.NodeConfig, logger *zap.Logger) (*App, error) {
 		return nil, fmt.Errorf("failed to create P2P network: %w", err)
 	}
 
-	// Initialize TSS service
+	// Initialize TSS service with encryption
 	tssConfig := &tss.Config{
 		NodeID:            cfg.TSS.NodeID,
 		Moniker:           cfg.TSS.Moniker,
 		ValidationService: cfg.TSS.ValidationService,
 	}
 
-	tssService, err := tss.NewService(tssConfig, store, network, logger.Named("tss"))
+	tssService, err := tss.NewService(tssConfig, store, network, logger.Named("tss"), password)
 	if err != nil {
 		if closeErr := store.Close(); closeErr != nil {
 			logger.Error("Failed to close storage during cleanup", zap.Error(closeErr))
@@ -76,8 +77,9 @@ func New(cfg *config.NodeConfig, logger *zap.Logger) (*App, error) {
 		if stopErr := network.Stop(); stopErr != nil {
 			logger.Error("Failed to stop network during cleanup", zap.Error(stopErr))
 		}
-		return nil, fmt.Errorf("failed to create TSS service: %w", err)
+		return nil, fmt.Errorf("failed to create TSS service with encryption: %w", err)
 	}
+	logger.Info("Initialized TSS service with encrypted key storage")
 
 	// Set TSS service as the message handler for P2P network
 	network.SetMessageHandler(tssService)

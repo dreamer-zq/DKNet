@@ -176,7 +176,7 @@ func (s *Service) runKeygenOperation(ctx context.Context, operation *Operation, 
 	}
 }
 
-// saveKeygenResult saves keygen result
+// saveKeygenResult saves keygen result with encryption
 func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, result *keygen.LocalPartySaveData) error {
 	// Generate public key bytes and Ethereum address in one go
 	xBytes := result.ECDSAPub.X().Bytes()
@@ -186,27 +186,36 @@ func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, re
 
 	// Generate Ethereum address using Keccak-256
 	hasher := sha3.NewLegacyKeccak256()
-	hasher.Write(pubKeyBytes)
+	_, err := hasher.Write(pubKeyBytes)
+	if err != nil {
+		return fmt.Errorf("failed to write public key bytes: %w", err)
+	}
 	hash := hasher.Sum(nil)
 	keyID := "0x" + hex.EncodeToString(hash[12:]) // Take last 20 bytes for address
 
 	// Prepare all data for storage and result
 	publicKeyHex := hex.EncodeToString(pubKeyBytes)
 
-	// Serialize key data
+	// Serialize key data (this contains the private key shares)
 	keyDataBytes, err := json.Marshal(result)
 	if err != nil {
 		return fmt.Errorf("failed to marshal key data: %w", err)
 	}
 
+	// Encrypt the sensitive key data
+	encryptedKeyData, err := s.keyEncryption.Encrypt(keyDataBytes)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt key data: %w", err)
+	}
+
 	// Get original threshold from operation request
 	originalReq := operation.Request.(*KeygenRequest)
 
-	// Store key data
+	// Store key data with encrypted KeyData field
 	keyDataStruct := &KeyData{
 		NodeID:    s.nodeID,
 		Moniker:   s.moniker,
-		KeyData:   keyDataBytes,
+		KeyData:   encryptedKeyData, // Store encrypted data
 		Threshold: originalReq.Threshold, // Store the original threshold from request
 		Parties:   len(result.Ks),
 		CreatedAt: time.Now().Unix(),
@@ -230,7 +239,10 @@ func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, re
 	}
 	operation.Unlock()
 
-	s.logger.Info("Saved keygen result", zap.String("key_id", keyID))
+	s.logger.Info("Saved encrypted keygen result", 
+		zap.String("key_id", keyID),
+		zap.Int("encrypted_size", len(encryptedKeyData)),
+		zap.Int("original_size", len(keyDataBytes)))
 
 	return nil
 }
@@ -330,8 +342,6 @@ func (s *Service) createSyncedKeygenOperation(ctx context.Context, msg *p2p.Mess
 	s.logger.Info("Started synced keygen operation",
 		zap.String("operation_id", syncData.OperationID),
 		zap.String("session_id", syncData.SessionID))
-
-
 
 	return nil
 }

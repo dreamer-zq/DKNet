@@ -14,6 +14,7 @@ import (
 	"github.com/bnb-chain/tss-lib/v2/tss"
 	"go.uber.org/zap"
 
+	"github.com/dreamer-zq/DKNet/internal/crypto"
 	"github.com/dreamer-zq/DKNet/internal/p2p"
 	"github.com/dreamer-zq/DKNet/internal/storage"
 )
@@ -24,6 +25,9 @@ type Service struct {
 	storage storage.Storage
 	network *p2p.Network
 	logger  *zap.Logger
+
+	// Key encryption for TSS keys
+	keyEncryption *crypto.KeyEncryption
 
 	// Active operations
 	operations map[string]*Operation
@@ -38,22 +42,29 @@ type Service struct {
 	validationService ValidationService
 }
 
-// NewService creates a new TSS service
-func NewService(cfg *Config, store storage.Storage, network *p2p.Network, logger *zap.Logger) (*Service, error) {
+// NewService creates a new TSS service with key encryption
+func NewService(cfg *Config, store storage.Storage, network *p2p.Network, logger *zap.Logger, encryptionPassword string) (*Service, error) {
+	// Create key encryption service
+	keyEncryption, err := crypto.NewKeyEncryption(encryptionPassword)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create key encryption: %w", err)
+	}
+
 	// Create party ID from node information
 	nodeKey := big.NewInt(0)
 	nodeKey.SetString(cfg.NodeID, 16)
 
 	partyID := tss.NewPartyID(cfg.NodeID, cfg.Moniker, nodeKey)
 	s := &Service{
-		config:         cfg,
-		storage:        store,
-		network:        network,
-		logger:         logger,
-		operations:     make(map[string]*Operation),
-		nodeID:         cfg.NodeID,
-		moniker:        cfg.Moniker,
-		partyID:        partyID,
+		config:        cfg,
+		storage:       store,
+		network:       network,
+		logger:        logger,
+		keyEncryption: keyEncryption,
+		operations:    make(map[string]*Operation),
+		nodeID:        cfg.NodeID,
+		moniker:       cfg.Moniker,
+		partyID:       partyID,
 	}
 
 	// Check if validation service is configured and enabled
@@ -387,7 +398,7 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 	}
 }
 
-// loadKeyData loads key data from storage
+// loadKeyData loads and decrypts key data from storage
 func (s *Service) loadKeyData(ctx context.Context, keyID string) (*keygen.LocalPartySaveData, error) {
 	data, err := s.storage.Load(ctx, keyID)
 	if err != nil {
@@ -399,15 +410,26 @@ func (s *Service) loadKeyData(ctx context.Context, keyID string) (*keygen.LocalP
 		return nil, fmt.Errorf("failed to unmarshal key data struct: %w", err)
 	}
 
+	// Decrypt the key data
+	decryptedKeyData, err := s.keyEncryption.Decrypt(keyDataStruct.KeyData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt key data: %w", err)
+	}
+
 	var saveData keygen.LocalPartySaveData
-	if err := json.Unmarshal(keyDataStruct.KeyData, &saveData); err != nil {
+	if err := json.Unmarshal(decryptedKeyData, &saveData); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal save data: %w", err)
 	}
+
+	s.logger.Debug("Successfully loaded and decrypted key data",
+		zap.String("key_id", keyID),
+		zap.Int("encrypted_size", len(keyDataStruct.KeyData)),
+		zap.Int("decrypted_size", len(decryptedKeyData)))
 
 	return &saveData, nil
 }
 
-// loadKeyDataStruct loads the full KeyData structure from storage
+// loadKeyDataStruct loads the full KeyData structure from storage (metadata only, KeyData remains encrypted)
 func (s *Service) loadKeyDataStruct(ctx context.Context, keyID string) (*KeyData, error) {
 	data, err := s.storage.Load(ctx, keyID)
 	if err != nil {
@@ -419,6 +441,8 @@ func (s *Service) loadKeyDataStruct(ctx context.Context, keyID string) (*KeyData
 		return nil, fmt.Errorf("failed to unmarshal key data struct: %w", err)
 	}
 
+	// Note: KeyData field remains encrypted in this function
+	// Use loadKeyData() if you need the decrypted key data
 	return &keyDataStruct, nil
 }
 
