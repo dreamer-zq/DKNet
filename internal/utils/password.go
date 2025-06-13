@@ -10,8 +10,64 @@ import (
 	"golang.org/x/term"
 )
 
-// ReadPassword reads a password from stdin without echoing
-func ReadPassword(prompt string) (string, error) {
+// ReadPassword reads a password from stdin or environment variable
+func ReadPassword() (string, error) {
+	password, err := readPasswordFromEnv()
+	if err == nil {
+		if err := validatePassword(password); err != nil {
+			return "", err
+		}
+		return password, nil
+	}
+
+	// Fallback to interactive input
+	password, err = readPasswordWithConfirmation()
+	if err != nil {
+		return "", err
+	}
+
+	if err := validatePassword(password); err != nil {
+		return "", err
+	}
+
+	return password, nil
+}
+
+// ReadPasswordFromEnv reads password from environment variable only
+func readPasswordFromEnv() (string, error) {
+	// Try environment variable
+	if password := os.Getenv("TSS_ENCRYPTION_PASSWORD"); password != "" {
+		return password, nil
+	}
+
+	return "", fmt.Errorf("TSS_ENCRYPTION_PASSWORD environment variable not set")
+}
+
+// ReadPasswordWithConfirmation reads a password and asks for confirmation
+func readPasswordWithConfirmation() (string, error) {
+	password, err := readPassword("Enter encryption password: ")
+	if err != nil {
+		return "", err
+	}
+
+	if len(password) < 8 {
+		return "", fmt.Errorf("password must be at least 8 characters long")
+	}
+
+	confirmation, err := readPassword("Confirm encryption password: ")
+	if err != nil {
+		return "", err
+	}
+
+	if password != confirmation {
+		return "", fmt.Errorf("passwords do not match")
+	}
+
+	return password, nil
+}
+
+// readPassword reads a password from stdin without echoing
+func readPassword(prompt string) (string, error) {
 	fmt.Print(prompt)
 
 	// Check if stdin is a terminal
@@ -45,31 +101,7 @@ func ReadPassword(prompt string) (string, error) {
 	return password, nil
 }
 
-// ReadPasswordWithConfirmation reads a password and asks for confirmation
-func ReadPasswordWithConfirmation() (string, error) {
-	password, err := ReadPassword("Enter encryption password: ")
-	if err != nil {
-		return "", err
-	}
-
-	if len(password) < 8 {
-		return "", fmt.Errorf("password must be at least 8 characters long")
-	}
-
-	confirmation, err := ReadPassword("Confirm encryption password: ")
-	if err != nil {
-		return "", err
-	}
-
-	if password != confirmation {
-		return "", fmt.Errorf("passwords do not match")
-	}
-
-	return password, nil
-}
-
-// ValidatePassword validates password strength
-func ValidatePassword(password string) error {
+func validatePassword(password string) error {
 	if len(password) < 8 {
 		return fmt.Errorf("password must be at least 8 characters long")
 	}

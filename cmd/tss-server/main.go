@@ -58,29 +58,17 @@ func runServer(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Prompt for encryption password
+	// Get encryption password from environment or interactive input
 	fmt.Println("DKNet TSS Server - Secure Key Storage")
 	fmt.Println("=====================================")
 	fmt.Println("This server uses encrypted storage for TSS private keys.")
-	fmt.Println("Please enter a strong password to encrypt/decrypt stored keys.")
-	fmt.Println()
-
-	password, err := utils.ReadPasswordWithConfirmation()
+	
+	// Try environment variable first
+	password, err := utils.ReadPassword()
 	if err != nil {
 		return fmt.Errorf("failed to read password: %w", err)
 	}
-
-	// Validate password strength (optional, but recommended)
-	if err := utils.ValidatePassword(password); err != nil {
-		logger.Warn("Password validation warning", zap.Error(err))
-		fmt.Printf("Warning: %v\n", err)
-		fmt.Println("Continue anyway? (y/N): ")
-		var response string
-		_, _ = fmt.Scanln(&response)
-		if response != "y" && response != "Y" {
-			return fmt.Errorf("operation cancelled")
-		}
-	}
+	fmt.Println("Using password from TSS_ENCRYPTION_PASSWORD environment variable.")
 
 	// Create context for graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())

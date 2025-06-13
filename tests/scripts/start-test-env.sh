@@ -18,6 +18,9 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 TESTS_DIR="$PROJECT_ROOT/tests"
 DOCKER_COMPOSE_FILE="$TESTS_DIR/docker/docker-compose.yml"
 
+# Default password for testing
+DEFAULT_PASSWORD="TestPassword123!"
+
 # Function to print colored output
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -51,17 +54,50 @@ check_docker_compose() {
     fi
 }
 
+# Function to set encryption password
+set_password() {
+    local password="$1"
+    if [ -z "$password" ]; then
+        print_error "Password cannot be empty"
+        exit 1
+    fi
+    
+    export TSS_ENCRYPTION_PASSWORD="$password"
+    print_success "Password set in environment variable TSS_ENCRYPTION_PASSWORD"
+    print_warning "This password will be used for the current session only."
+    print_warning "To persist across sessions, add 'export TSS_ENCRYPTION_PASSWORD=\"$password\"' to your shell profile."
+}
+
+# Function to get current password
+get_current_password() {
+    if [ -n "$TSS_ENCRYPTION_PASSWORD" ]; then
+        echo "$TSS_ENCRYPTION_PASSWORD"
+    else
+        echo "$DEFAULT_PASSWORD"
+    fi
+}
+
 # Function to start the test environment
 start_env() {
     print_status "Starting DKNet TSS test environment..."
     
+    # Set default password if not already set
+    if [ -z "$TSS_ENCRYPTION_PASSWORD" ]; then
+        export TSS_ENCRYPTION_PASSWORD="$DEFAULT_PASSWORD"
+        print_warning "Using default password: $DEFAULT_PASSWORD"
+        print_warning "To use a custom password, run: $0 set-password 'YourPassword'"
+    else
+        print_status "Using custom password from environment variable"
+    fi
+    
     cd "$PROJECT_ROOT"
     
     # Build and start services
+    print_status "Building and starting services..."
     docker-compose -f "$DOCKER_COMPOSE_FILE" up -d --build
     
     print_status "Waiting for services to be ready..."
-    sleep 10
+    sleep 15
     
     # Check service health
     print_status "Checking service health..."
@@ -89,6 +125,9 @@ start_env() {
     echo "  - TSS Node 1: http://localhost:8081"
     echo "  - TSS Node 2: http://localhost:8082"
     echo "  - TSS Node 3: http://localhost:8083"
+    echo ""
+    print_status "Encryption password: $(get_current_password)"
+    print_warning "All nodes use the same encryption password for testing purposes."
 }
 
 # Function to stop the test environment
@@ -122,6 +161,38 @@ test_validation() {
     fi
 }
 
+# Function to run TSS tests
+test_tss() {
+    print_status "Running TSS functionality tests..."
+    
+    # Check if environment is running
+    local all_healthy=true
+    for i in {1..3}; do
+        port=$((8080 + i))
+        if ! curl -s http://localhost:$port/health >/dev/null 2>&1; then
+            print_error "TSS Node $i is not healthy"
+            all_healthy=false
+        fi
+    done
+    
+    if [ "$all_healthy" = false ]; then
+        print_error "Test environment is not fully healthy. Please start it first with: $0 start"
+        exit 1
+    fi
+    
+    print_status "Testing keygen operation..."
+    # Example keygen test
+    curl -X POST http://localhost:8081/api/v1/keygen \
+        -H "Content-Type: application/json" \
+        -d '{
+            "threshold": 2,
+            "parties": 3,
+            "participants": ["node1", "node2", "node3"]
+        }' || print_warning "Keygen test may have failed"
+    
+    print_success "TSS tests completed"
+}
+
 # Function to show environment status
 show_status() {
     print_status "Checking DKNet TSS test environment status..."
@@ -148,6 +219,12 @@ show_status() {
             print_error "✗ TSS Node $i (http://localhost:$port)"
         fi
     done
+    
+    echo ""
+    print_status "Current encryption password: $(get_current_password)"
+    if [ -z "$TSS_ENCRYPTION_PASSWORD" ]; then
+        print_warning "Using default password. Set custom password with: $0 set-password 'YourPassword'"
+    fi
 }
 
 # Function to show logs
@@ -188,20 +265,33 @@ show_help() {
     echo "Usage: $0 <command> [options]"
     echo ""
     echo "Commands:"
-    echo "  start     Start the test environment"
-    echo "  stop      Stop the test environment"
-    echo "  test      Run validation tests"
-    echo "  status    Show environment status"
-    echo "  logs      Show logs for all services"
-    echo "  logs <service>  Show logs for specific service"
-    echo "  cleanup   Stop environment and cleanup resources"
-    echo "  help      Show this help message"
+    echo "  start              Start the test environment"
+    echo "  stop               Stop the test environment"
+    echo "  test               Run validation tests"
+    echo "  test-tss           Run TSS functionality tests"
+    echo "  status             Show environment status"
+    echo "  logs               Show logs for all services"
+    echo "  logs <service>     Show logs for specific service"
+    echo "  cleanup            Stop environment and cleanup resources"
+    echo "  set-password <pwd> Set encryption password for current session"
+    echo "  help               Show this help message"
+    echo ""
+    echo "Environment Variables:"
+    echo "  TSS_ENCRYPTION_PASSWORD  Set encryption password (recommended for production)"
     echo ""
     echo "Examples:"
-    echo "  $0 start                    # Start the test environment"
-    echo "  $0 test                     # Run validation tests"
-    echo "  $0 logs validation-service  # Show validation service logs"
-    echo "  $0 cleanup                  # Cleanup everything"
+    echo "  $0 start                           # Start with default password"
+    echo "  $0 set-password 'MySecurePass123!' # Set custom password"
+    echo "  $0 start                           # Start with custom password"
+    echo "  $0 test-tss                        # Run TSS functionality tests"
+    echo "  $0 logs tss-node1                  # Show node1 logs"
+    echo "  $0 cleanup                         # Cleanup everything"
+    echo ""
+    echo "Security Notes:"
+    echo "  - Default password is 'TestPassword123!' for testing only"
+    echo "  - Use TSS_ENCRYPTION_PASSWORD environment variable for custom passwords"
+    echo "  - All nodes use the same password for testing purposes"
+    echo "  - Never use default password in production environments"
 }
 
 # Main script logic
@@ -220,6 +310,9 @@ main() {
         test)
             test_validation
             ;;
+        test-tss)
+            test_tss
+            ;;
         status)
             show_status
             ;;
@@ -228,6 +321,9 @@ main() {
             ;;
         cleanup)
             cleanup_env
+            ;;
+        set-password)
+            set_password "$2"
             ;;
         help|--help|-h)
             show_help

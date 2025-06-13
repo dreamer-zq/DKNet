@@ -35,6 +35,7 @@ services:
       - tss-node1-data:/app/data
     environment:
       - TSS_CONFIG_FILE=/app/node/config.yaml
+      - TSS_ENCRYPTION_PASSWORD=${TSS_ENCRYPTION_PASSWORD:-TestPassword123!}
     networks:
       - tss-network
     restart: unless-stopped
@@ -62,6 +63,7 @@ services:
       - tss-node2-data:/app/data
     environment:
       - TSS_CONFIG_FILE=/app/node/config.yaml
+      - TSS_ENCRYPTION_PASSWORD=${TSS_ENCRYPTION_PASSWORD:-TestPassword123!}
     networks:
       - tss-network
     restart: unless-stopped
@@ -90,6 +92,7 @@ services:
       - tss-node3-data:/app/data
     environment:
       - TSS_CONFIG_FILE=/app/node/config.yaml
+      - TSS_ENCRYPTION_PASSWORD=${TSS_ENCRYPTION_PASSWORD:-TestPassword123!}
     networks:
       - tss-network
     restart: unless-stopped
