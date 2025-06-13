@@ -49,8 +49,8 @@ type Message struct {
 	Data        []byte    `json:"data"` // message payload
 	Timestamp   time.Time `json:"timestamp"`
 
-	// P2P layer information
-	SenderPeerID string `json:"sender_peer_id,omitempty"` // actual P2P peer ID of sender
+	// P2P layer information - records original sender's actual PeerID to avoid mapping confusion from forwarding
+	SenderPeerID string `json:"sender_peer_id,omitempty"` // actual P2P peer ID of original sender
 }
 
 // Marshal serializes and compresses the message

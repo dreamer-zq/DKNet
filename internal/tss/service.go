@@ -467,7 +467,6 @@ func (s *Service) broadcastOperationSync(ctx context.Context, syncData Message) 
 		IsBroadcast:  true,
 		Data:         data, // Serialized operation sync data
 		Timestamp:    time.Now(),
-		SenderPeerID: s.network.GetPeerID().String(), // Include sender's PeerID
 	}
 	return s.network.SendMessage(ctx, msg)
 }

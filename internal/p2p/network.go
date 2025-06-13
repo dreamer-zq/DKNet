@@ -263,6 +263,9 @@ func (n *Network) handleStream(stream network.Stream) {
 
 // sendDirectMessage sends a message directly to specific peers
 func (n *Network) sendDirectMessage(ctx context.Context, msg *Message) error {
+	// Fill in the sender's actual PeerID
+	msg.SenderPeerID = n.host.ID().String()
+	
 	data, err := msg.Marshal()
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
@@ -309,6 +312,9 @@ func (n *Network) sendDirectMessage(ctx context.Context, msg *Message) error {
 
 // broadcastMessage broadcasts a message using PubSub
 func (n *Network) broadcastMessage(ctx context.Context, msg *Message) error {
+	// Fill in the sender's actual PeerID
+	msg.SenderPeerID = n.host.ID().String()
+	
 	data, err := msg.Marshal()
 	if err != nil {
 		n.logger.Error("Failed to marshal broadcast message", zap.Error(err))
@@ -676,13 +682,20 @@ func (n *Network) StartAddressDiscovery(ctx context.Context) error {
 
 // extractAndUpdateSenderMapping extracts and updates the sender's address mapping at the network layer
 func (n *Network) extractAndUpdateSenderMapping(msg *Message, peerID string) {
-	// Only update mapping if we have sender peer ID information
-	if msg.SenderPeerID == "" || msg.From == "" {
+	// Prefer SenderPeerID from message body to avoid mapping confusion from P2P forwarding
+	actualSenderPeerID := msg.SenderPeerID
+	if actualSenderPeerID == "" {
+		// If no SenderPeerID in message body, use peerID from libp2p (might be forwarder)
+		actualSenderPeerID = peerID
+	}
+
+	// Only update mapping if we have actualSenderPeerID and msg.From
+	if actualSenderPeerID == "" || msg.From == "" {
 		return
 	}
 
 	// Skip our own messages
-	if msg.SenderPeerID == n.host.ID().String() {
+	if actualSenderPeerID == n.host.ID().String() {
 		return
 	}
 
@@ -690,12 +703,13 @@ func (n *Network) extractAndUpdateSenderMapping(msg *Message, peerID string) {
 	if n.addressManager != nil {
 		n.logger.Debug("Updating node mapping at network layer",
 			zap.String("sender_node_id", msg.From),
-			zap.String("sender_peer_id", msg.SenderPeerID))
+			zap.String("sender_peer_id", actualSenderPeerID),
+			zap.String("received_from_peer_id", peerID))
 
-		if err := n.addressManager.updateMapping(msg.From, msg.SenderPeerID, ""); err != nil {
+		if err := n.addressManager.updateMapping(msg.From, actualSenderPeerID, ""); err != nil {
 			n.logger.Warn("Failed to update sender's address mapping at network layer",
 				zap.String("sender_node_id", msg.From),
-				zap.String("sender_peer_id", msg.SenderPeerID),
+				zap.String("sender_peer_id", actualSenderPeerID),
 				zap.Error(err))
 		}
 	}

@@ -3,21 +3,20 @@
     "node1": {
       "node_id": "node1",
       "peer_id": "QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF",
-      "timestamp": "2025-06-13T02:06:42.935089708Z"
+      "timestamp": "2025-06-13T02:40:16.513960626Z"
     },
     "node2": {
       "node_id": "node2",
       "peer_id": "QmQjz2j7wFScU4Rj1cP3iwisbGwdhkNXmfmUYUHmvtEXY3",
-      "timestamp": "2025-06-13T01:31:38.568679762Z",
-      "moniker": "TSS Node 2"
+      "timestamp": "2025-06-13T02:40:18.624370752Z"
     },
     "node3": {
       "node_id": "node3",
       "peer_id": "QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi",
-      "timestamp": "2025-06-13T02:06:10.46298843Z",
+      "timestamp": "2025-06-13T02:39:20.108681086Z",
       "moniker": "TSS Node 3"
     }
   },
-  "version": 5,
-  "updated_at": "2025-06-13T02:06:42.935089708Z"
+  "version": 4,
+  "updated_at": "2025-06-13T02:40:18.624370752Z"
 }
