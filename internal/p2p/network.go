@@ -199,13 +199,8 @@ func (n *Network) SendMessage(ctx context.Context, msg *Message) error {
 	return n.sendDirectMessage(ctx, msg)
 }
 
-// GetPeerID returns the local peer ID
-func (n *Network) GetPeerID() peer.ID {
-	return n.host.ID()
-}
-
-// GetConnectedPeers returns the list of connected peers
-func (n *Network) GetConnectedPeers() []peer.ID {
+// getConnectedPeers returns the list of connected peers
+func (n *Network) getConnectedPeers() []peer.ID {
 	n.peerMutex.RLock()
 	defer n.peerMutex.RUnlock()
 
@@ -334,7 +329,7 @@ func (n *Network) broadcastMessage(ctx context.Context, msg *Message) error {
 	n.logger.Debug("Using existing broadcast topic", zap.String("topic", tssBroadcastTopic))
 
 	// Get current connected peers
-	connectedPeers := n.GetConnectedPeers()
+	connectedPeers := n.getConnectedPeers()
 	n.logger.Debug("Broadcasting to connected peers",
 		zap.Int("connected_peer_count", len(connectedPeers)),
 		zap.String("session_id", msg.SessionID))
@@ -410,7 +405,7 @@ func (n *Network) connectToBootstrapPeers(ctx context.Context, bootstrapPeers []
 	wg.Wait()
 
 	// Log final connection status
-	connectedPeers := n.GetConnectedPeers()
+	connectedPeers := n.getConnectedPeers()
 	n.logger.Debug("Bootstrap connection completed",
 		zap.Int("connected_peers", len(connectedPeers)),
 		zap.Int("attempted_peers", len(bootstrapPeers)))
@@ -588,16 +583,6 @@ func (n *Network) GetNodePeerID(nodeID string) (string, bool) {
 		return "", false
 	}
 	return n.addressManager.getPeerID(nodeID)
-}
-
-// UpdateNodeMapping updates a node mapping temporarily (used during TSS operations)
-func (n *Network) UpdateNodeMapping(nodeID, peerID, moniker string) error {
-	if n.addressManager == nil {
-		return fmt.Errorf("address manager not initialized")
-	}
-
-	// Update the mapping in address manager
-	return n.addressManager.updateMapping(nodeID, peerID, moniker)
 }
 
 // GetAllNodeMappings returns all node address mappings

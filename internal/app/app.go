@@ -139,7 +139,6 @@ func (a *App) Start(ctx context.Context) error {
 
 	a.logger.Info("DKNet started successfully",
 		zap.String("node_id", a.config.TSS.NodeID),
-		zap.String("p2p_peer_id", a.network.GetPeerID().String()),
 		zap.Int("http_port", a.config.Server.HTTP.Port),
 		zap.Int("grpc_port", a.config.Server.GRPC.Port))
 

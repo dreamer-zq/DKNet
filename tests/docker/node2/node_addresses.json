@@ -3,7 +3,7 @@
     "node1": {
       "node_id": "node1",
       "peer_id": "QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF",
-      "timestamp": "2025-06-13T02:40:18.013405877Z"
+      "timestamp": "2025-06-13T02:40:21.394040045Z"
     },
     "node2": {
       "node_id": "node2",
@@ -14,9 +14,9 @@
     "node3": {
       "node_id": "node3",
       "peer_id": "QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi",
-      "timestamp": "2025-06-13T02:40:18.015963794Z"
+      "timestamp": "2025-06-13T02:40:20.962809837Z"
     }
   },
-  "version": 4,
-  "updated_at": "2025-06-13T02:40:18.015963794Z"
+  "version": 5,
+  "updated_at": "2025-06-13T02:44:20.110641128Z"
 }
