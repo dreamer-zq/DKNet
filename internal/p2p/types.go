@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/libp2p/go-libp2p/core/protocol"
+
 	"github.com/dreamer-zq/DKNet/internal/common"
 )
 
@@ -15,6 +17,12 @@ const (
 	tssBroadcastTopic     = "tss-broadcast"
 	addressDiscoveryTopic = "address-discovery"
 )
+
+var typeToProtocol = map[string]protocol.ID{
+	"keygen":    tssKeygenProtocol,
+	"signing":   tssSigningProtocol,
+	"resharing": tssResharingProtocol,
+}
 
 // NodeMapping represents a mapping between NodeID and PeerID
 type NodeMapping struct {
@@ -56,13 +64,14 @@ func (m *AddressBook) Decompresses(data []byte) error {
 
 // Message represents a generic message sent over the network
 type Message struct {
-	SessionID   string    `json:"session_id"`
-	Type        string    `json:"type"` // Message type for routing
-	From        string    `json:"from"` // sender node ID
-	To          []string  `json:"to"`   // recipient node IDs (empty for broadcast)
-	IsBroadcast bool      `json:"is_broadcast"`
-	Data        []byte    `json:"data"` // message payload
-	Timestamp   time.Time `json:"timestamp"`
+	ProtocolID  protocol.ID `json:"protocol_id"`
+	SessionID   string      `json:"session_id"`
+	Type        string      `json:"type"` // Message type for routing
+	From        string      `json:"from"` // sender node ID
+	To          []string    `json:"to"`   // recipient node IDs (empty for broadcast)
+	IsBroadcast bool        `json:"is_broadcast"`
+	Data        []byte      `json:"data"` // message payload
+	Timestamp   time.Time   `json:"timestamp"`
 
 	// P2P layer information - records original sender's actual PeerID to avoid mapping confusion from forwarding
 	SenderPeerID string `json:"sender_peer_id,omitempty"` // actual P2P peer ID of original sender

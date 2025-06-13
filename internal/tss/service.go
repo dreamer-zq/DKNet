@@ -15,31 +15,24 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
-	"github.com/dreamer-zq/DKNet/internal/crypto"
 	"github.com/dreamer-zq/DKNet/internal/p2p"
+	"github.com/dreamer-zq/DKNet/internal/plugin"
 	"github.com/dreamer-zq/DKNet/internal/storage"
 )
 
 // Service provides TSS operations
 type Service struct {
-	storage        storage.Storage
-	network        *p2p.Network
-	addressManager *p2p.AddressManager
-	logger         *zap.Logger
+	logger            *zap.Logger
+	storage           storage.Storage
+	network           *p2p.Network
+	addressManager    *p2p.AddressManager
+	encryption        *plugin.KeyCipher
+	validationService plugin.ValidationService // optional
 
-	// Key encryption for TSS keys
-	encryption *crypto.KeyEncryption
-
-	// Active operations
 	operations map[string]*Operation
 	mutex      sync.RWMutex
-
-	// Node identity
-	nodeID  string
-	moniker string
-
-	// Validation service client (optional)
-	validationService ValidationService
+	nodeID     string
+	moniker    string
 }
 
 // NewService creates a new TSS service
@@ -52,7 +45,7 @@ func NewService(
 	encryptionPassword string,
 ) (*Service, error) {
 	// Initialize key encryption
-	keyEncryption, err := crypto.NewKeyEncryption(encryptionPassword)
+	keyEncryption, err := plugin.NewKeyCipher(encryptionPassword)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize key encryption: %w", err)
 	}
@@ -70,7 +63,7 @@ func NewService(
 
 	// Check if validation service is configured and enabled
 	if cfg.ValidationService != nil && cfg.ValidationService.Enabled {
-		service.validationService = NewHTTPValidationService(cfg.ValidationService, cfg.NodeID, logger)
+		service.validationService = plugin.NewHTTPValidationService(cfg.ValidationService, cfg.NodeID, logger)
 	}
 
 	// Set this service as the message handler for the network
@@ -93,7 +86,7 @@ func (s *Service) HandleMessage(ctx context.Context, msg *p2p.Message) error {
 		zap.Int("data_len", len(msg.Data)))
 
 	// Handle operation synchronization messages
-	if msg.Type == "operation_sync" {
+	if msg.Type == string(OperationSync) {
 		return s.handleOperationSync(ctx, msg)
 	}
 
@@ -228,41 +221,6 @@ func (s *Service) GetOperationData(ctx context.Context, operationID string) (*op
 	return s.loadOperation(ctx, operationID)
 }
 
-// CancelOperation cancels an operation
-func (s *Service) CancelOperation(operationID string) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	operation, exists := s.operations[operationID]
-	if !exists {
-		return fmt.Errorf("operation not found: %s", operationID)
-	}
-
-	if operation.Status == StatusCompleted || operation.Status == StatusFailed {
-		return fmt.Errorf("operation already finished: %s", operation.Status)
-	}
-
-	// Cancel the operation
-	operation.cancel()
-	operation.Status = StatusCancelled
-	now := time.Now()
-	operation.CompletedAt = &now
-
-	s.logger.Info("Canceled operation", zap.String("operation_id", operationID))
-
-	// Move canceled operation to persistent storage
-	go func() {
-		ctx := context.Background()
-		if err := s.moveCompletedOperationToStorage(ctx, operationID); err != nil {
-			s.logger.Error("Failed to move canceled operation to persistent storage",
-				zap.Error(err),
-				zap.String("operation_id", operationID))
-		}
-	}()
-
-	return nil
-}
-
 // handleOperationSync handles operation synchronization messages
 func (s *Service) handleOperationSync(ctx context.Context, msg *p2p.Message) error {
 	// Parse operation sync data from message data
@@ -367,12 +325,9 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 			} else {
 				for _, to := range routing.To {
 					// Convert node ID to P2P peer ID using address manager
-					var peerID string
-					var exists bool
-					if s.addressManager != nil {
-						peerID, exists = s.addressManager.GetPeerID(to.Id)
-					}
+					peerID, exists := s.addressManager.GetPeerID(to.Id)
 					if !exists {
+						// TODO
 						// If we don't have the mapping, try using the node ID directly as fallback
 						s.logger.Warn("No P2P peer ID mapping found for node ID, using node ID as fallback",
 							zap.String("node_id", to.Id))
@@ -495,7 +450,7 @@ func (s *Service) broadcastOperationSync(ctx context.Context, syncData Message) 
 
 	msg := &p2p.Message{
 		SessionID:   syncData.ID(),
-		Type:        "operation_sync",
+		Type:        string(OperationSync),
 		From:        s.nodeID,
 		To:          []string{},
 		IsBroadcast: true,

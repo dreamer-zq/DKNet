@@ -1,0 +1,24 @@
+{
+  "mappings": {
+    "node1": {
+      "node_id": "node1",
+      "peer_id": "QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF",
+      "timestamp": "2025-06-13T10:04:52.352272753Z",
+      "moniker": "TSS Node 1"
+    },
+    "node2": {
+      "node_id": "node2",
+      "peer_id": "QmQjz2j7wFScU4Rj1cP3iwisbGwdhkNXmfmUYUHmvtEXY3",
+      "timestamp": "2025-06-13T10:04:52.424758128Z",
+      "moniker": "TSS Node 2"
+    },
+    "node3": {
+      "node_id": "node3",
+      "peer_id": "QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi",
+      "timestamp": "2025-06-13T10:04:52.497466003Z",
+      "moniker": "TSS Node 3"
+    }
+  },
+  "version": 2,
+  "updated_at": "2025-06-13T10:05:52.50060642Z"
+}

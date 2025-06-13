@@ -53,7 +53,7 @@ type Config struct {
 // NewNetwork creates a new P2P network instance
 func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 	// Create libp2p host
-	privKey, err := loadOrGeneratePrivateKey(cfg.PrivateKeyFile, logger)
+	privKey, err := loadPrivateKey(cfg.PrivateKeyFile, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load private key: %w", err)
 	}
@@ -144,6 +144,7 @@ func (n *Network) SendMessage(ctx context.Context, msg *Message) error {
 	if msg.IsBroadcast {
 		return n.broadcastMessage(ctx, msg)
 	}
+	msg.ProtocolID = typeToProtocol[msg.Type]
 	return n.sendDirectMessage(ctx, msg)
 }
 
@@ -211,19 +212,6 @@ func (n *Network) sendDirectMessage(ctx context.Context, msg *Message) error {
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 
-	// Determine protocol based on message type
-	var protocolID protocol.ID
-	switch msg.Type {
-	case "keygen":
-		protocolID = tssKeygenProtocol
-	case "signing":
-		protocolID = tssSigningProtocol
-	case "resharing":
-		protocolID = tssResharingProtocol
-	default:
-		return fmt.Errorf("unknown message type: %s", msg.Type)
-	}
-
 	// Send to each recipient
 	for _, recipient := range msg.To {
 		peerID, err := peer.Decode(recipient)
@@ -232,7 +220,7 @@ func (n *Network) sendDirectMessage(ctx context.Context, msg *Message) error {
 			continue
 		}
 
-		stream, err := n.host.NewStream(ctx, peerID, protocolID)
+		stream, err := n.host.NewStream(ctx, peerID, msg.ProtocolID)
 		if err != nil {
 			n.logger.Error("Failed to create stream", zap.String("peer_id", recipient), zap.Error(err))
 			continue
@@ -293,8 +281,8 @@ func (n *Network) broadcastMessage(ctx context.Context, msg *Message) error {
 	return nil
 }
 
-// loadOrGeneratePrivateKey loads a private key from file or generates a new one
-func loadOrGeneratePrivateKey(keyFile string, logger *zap.Logger) (crypto.PrivKey, error) {
+// loadPrivateKey loads a private key from file
+func loadPrivateKey(keyFile string, logger *zap.Logger) (crypto.PrivKey, error) {
 	// Log the key file path
 	logger.Info("Attempting to load private key from", zap.String("key_file", keyFile))
 

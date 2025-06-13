@@ -71,8 +71,9 @@ echo
 print_status "INFO" "Testing validation service API..."
 
 # Test 1: Valid request
+message_base64=$(echo -n "Hello World" | base64)
 test_api "http://localhost:8888/validate" '{
-    "message": "48656c6c6f20576f726c64",
+    "message": "'$message_base64'",
     "key_id": "0xfa3cd17afd7e5d98d02fbad669adc46e7512bbb4",
     "participants": ["node1", "node2"],
     "node_id": "node1",
@@ -80,9 +81,9 @@ test_api "http://localhost:8888/validate" '{
 }' "true" "Valid request"
 
 # Test 2: Request with forbidden word
-malicious_hex=$(echo -n "malicious attack" | xxd -p | tr -d '\n')
+malicious_base64=$(echo -n "malicious attack" | base64)
 test_api "http://localhost:8888/validate" '{
-    "message": "'$malicious_hex'",
+    "message": "'$malicious_base64'",
     "key_id": "0xfa3cd17afd7e5d98d02fbad669adc46e7512bbb4",
     "participants": ["node1", "node2"],
     "node_id": "node1",
@@ -91,7 +92,7 @@ test_api "http://localhost:8888/validate" '{
 
 # Test 3: Request with insufficient participants
 test_api "http://localhost:8888/validate" '{
-    "message": "48656c6c6f20576f726c64",
+    "message": "'$message_base64'",
     "key_id": "0xfa3cd17afd7e5d98d02fbad669adc46e7512bbb4",
     "participants": ["node1"],
     "node_id": "node1",
@@ -99,8 +100,9 @@ test_api "http://localhost:8888/validate" '{
 }' "false" "Request with insufficient participants"
 
 # Test 4: Request with empty message
+empty_base64=$(echo -n "" | base64)
 test_api "http://localhost:8888/validate" '{
-    "message": "",
+    "message": "'$empty_base64'",
     "key_id": "0xfa3cd17afd7e5d98d02fbad669adc46e7512bbb4",
     "participants": ["node1", "node2"],
     "node_id": "node1",
@@ -110,7 +112,7 @@ test_api "http://localhost:8888/validate" '{
 # Test 5: Request with very old timestamp
 old_timestamp=$(($(date +%s) - 3600))  # 1 hour ago
 test_api "http://localhost:8888/validate" '{
-    "message": "48656c6c6f20576f726c64",
+    "message": "'$message_base64'",
     "key_id": "0xfa3cd17afd7e5d98d02fbad669adc46e7512bbb4",
     "participants": ["node1", "node2"],
     "node_id": "node1",

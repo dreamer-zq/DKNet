@@ -80,7 +80,6 @@ func (s *Server) setupHTTPRoutes(router *gin.Engine) {
 
 	// Operations
 	api.GET("/operations/:operation_id", s.getOperationHandler)
-	api.DELETE("/operations/:operation_id", s.cancelOperationHandler)
 
 	// Network and address management
 	api.GET("/network/addresses", s.getAddressesHandler)
@@ -375,21 +374,6 @@ func (s *Server) getOperationHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, resp)
-}
-
-// cancelOperationHandler handles cancel operation requests
-func (s *Server) cancelOperationHandler(c *gin.Context) {
-	operationID := c.Param("operation_id")
-
-	if err := s.tssService.CancelOperation(operationID); err != nil {
-		s.logger.Error("Failed to cancel operation", zap.String("operation_id", operationID), zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "operation canceled",
-	})
 }
 
 // getAddressesHandler handles requests for node address mappings

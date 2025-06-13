@@ -1,4 +1,4 @@
-package crypto
+package plugin
 
 import (
 	"crypto/aes"
@@ -11,13 +11,13 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
-// KeyEncryption handles encryption/decryption of TSS keys
-type KeyEncryption struct {
+// KeyCipher handles encryption/decryption of TSS keys
+type KeyCipher struct {
 	gcm cipher.AEAD
 }
 
-// NewKeyEncryption creates a new key encryption service
-func NewKeyEncryption(password string) (*KeyEncryption, error) {
+// NewKeyCipher creates a new key encryption service
+func NewKeyCipher(password string) (*KeyCipher, error) {
 	if password == "" {
 		return nil, fmt.Errorf("encryption password cannot be empty")
 	}
@@ -38,13 +38,13 @@ func NewKeyEncryption(password string) (*KeyEncryption, error) {
 		return nil, fmt.Errorf("failed to create GCM: %w", err)
 	}
 
-	return &KeyEncryption{
+	return &KeyCipher{
 		gcm: gcm,
 	}, nil
 }
 
 // Encrypt encrypts the given data
-func (ke *KeyEncryption) Encrypt(plaintext []byte) ([]byte, error) {
+func (ke *KeyCipher) Encrypt(plaintext []byte) ([]byte, error) {
 	// Generate random nonce
 	nonce := make([]byte, ke.gcm.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
@@ -57,7 +57,7 @@ func (ke *KeyEncryption) Encrypt(plaintext []byte) ([]byte, error) {
 }
 
 // Decrypt decrypts the given data
-func (ke *KeyEncryption) Decrypt(ciphertext []byte) ([]byte, error) {
+func (ke *KeyCipher) Decrypt(ciphertext []byte) ([]byte, error) {
 	// Check minimum size (nonce + at least some data)
 	nonceSize := ke.gcm.NonceSize()
 	if len(ciphertext) < nonceSize {

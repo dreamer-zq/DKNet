@@ -12,7 +12,7 @@ import (
 
 // ValidationRequest represents the request from TSS node
 type ValidationRequest struct {
-	Message      string                 `json:"message"`      // hex encoded message
+	Message      []byte                 `json:"message"`      // signed message
 	KeyID        string                 `json:"key_id"`       // key ID being used
 	Participants []string               `json:"participants"` // participant node IDs
 	NodeID       string                 `json:"node_id"`      // requesting node ID
@@ -29,23 +29,11 @@ type ValidationResponse struct {
 
 // Simple validation rules for demonstration
 func validateSigningRequest(req *ValidationRequest) *ValidationResponse {
-	// Decode the hex message to inspect content
-	messageBytes, err := hex.DecodeString(req.Message)
-	if err != nil {
-		return &ValidationResponse{
-			Approved: false,
-			Reason:   fmt.Sprintf("Invalid hex message: %v", err),
-		}
-	}
-
-	messageStr := string(messageBytes)
-	log.Printf("Validating signing request: KeyID=%s, Message=%s, NodeID=%s",
-		req.KeyID, messageStr, req.NodeID)
-
-	// Example validation rules:
+	log.Printf("Validating signing request: KeyID=%s, MessageHex=%s, NodeID=%s",
+		req.KeyID, hex.EncodeToString(req.Message), req.NodeID)
 
 	// 1. Reject empty messages
-	if len(messageBytes) == 0 {
+	if len(req.Message) == 0 {
 		return &ValidationResponse{
 			Approved: false,
 			Reason:   "Empty message not allowed",
@@ -53,7 +41,7 @@ func validateSigningRequest(req *ValidationRequest) *ValidationResponse {
 	}
 
 	// 2. Reject messages that are too long (>1KB)
-	if len(messageBytes) > 1024 {
+	if len(req.Message) > 1024 {
 		return &ValidationResponse{
 			Approved: false,
 			Reason:   "Message too long (max 1KB allowed)",
@@ -63,7 +51,7 @@ func validateSigningRequest(req *ValidationRequest) *ValidationResponse {
 	// 3. Reject messages containing forbidden words
 	forbiddenWords := []string{"malicious", "hack", "exploit"}
 	for _, word := range forbiddenWords {
-		if strings.Contains(strings.ToLower(messageStr), word) {
+		if strings.Contains(strings.ToLower(string(req.Message)), word) {
 			return &ValidationResponse{
 				Approved: false,
 				Reason:   fmt.Sprintf("Message contains forbidden word: %s", word),
@@ -120,7 +108,7 @@ func validateSigningRequest(req *ValidationRequest) *ValidationResponse {
 		Reason:   "All validation checks passed",
 		Metadata: map[string]interface{}{
 			"validated_at":   time.Now().Unix(),
-			"message_length": len(messageBytes),
+			"message_length": len(req.Message),
 		},
 	}
 }

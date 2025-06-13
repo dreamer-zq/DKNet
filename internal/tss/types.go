@@ -22,6 +22,8 @@ const (
 	OperationSigning OperationType = "signing"
 	// OperationResharing is the type for resharing operations
 	OperationResharing OperationType = "resharing"
+	// OperationSync is the type for operation broadcast
+	OperationSync OperationType = "operation_sync"
 )
 
 // Config holds TSS service configuration
