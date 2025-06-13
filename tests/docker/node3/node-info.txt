@@ -1,5 +1,34 @@
-TSS Node Information
-====================
+# DKNet TSS Node 3 Configuration
+# Generated for testing environment
+
+Node ID: node3
+Moniker: DKNet Node 3
+Role: TSS Participant
+
+# Network Configuration
+Listen Address: /ip4/0.0.0.0/tcp/4001
+API Address: localhost:8080
+gRPC Address: localhost:9090
+
+# TSS Configuration
+Threshold: 2
+Total Parties: 3
+Participants: node1,node2,node3
+
+# Validation Service
+Validation URL: http://validation-service:8888/validate
+Validation Enabled: true
+
+# Security
+Encryption: AES-256-GCM
+Password Source: Environment Variable (TSS_ENCRYPTION_PASSWORD)
+
+# Usage
+# Start this node with:
+./dknet start --config ./config.yaml
+
+# Health Check
+# curl http://localhost:8080/health
 
 Node Details:
 - Node ID: node3
@@ -23,7 +52,7 @@ Usage:
 1. Copy this entire directory to your deployment location
 2. Update bootstrap_peers in config.yaml if needed
 3. Start the node:
-   ./tss-server start --config ./config.yaml
+   ./dknet start --config ./config.yaml
 
 Share with other nodes:
 - Your multiaddr: /ip4/0.0.0.0/tcp/4001/p2p/QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi

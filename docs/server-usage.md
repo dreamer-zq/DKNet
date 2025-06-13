@@ -1,24 +1,47 @@
-# DKNet 使用指南
+# DKNet 服务器使用指南
 
-DKNet 是一个阈值签名方案服务器，提供分布式密钥生成、签名和密钥管理功能。
+本文档详细说明了 DKNet TSS 服务器的配置、部署和使用方法。
 
-## 安装和构建
+## 快速开始
 
-### 构建项目
+### 构建和安装
 
 ```bash
-# 克隆仓库
+# 克隆项目
 git clone <repository-url>
-cd tss-server
-
-# 安装依赖
-go mod tidy
-
-# 生成 protobuf 代码
-make proto-gen
+cd dknet
 
 # 构建服务器
-make build-server
+make build
+
+# 构建客户端工具
+make build-client
+```
+
+### 基本使用
+
+```bash
+# 启动服务器（使用默认配置）
+./bin/dknet
+
+# 使用指定配置文件启动
+./bin/dknet --config ./config.yaml
+
+# 查看帮助信息
+./bin/dknet --help
+```
+
+### 后台运行
+
+```bash
+# 后台运行服务器
+nohup ./bin/dknet > dknet.log 2>&1 &
+
+# 查看进程
+ps aux | grep dknet
+
+# 查看日志
+tail -f dknet.log
 ```
 
 ## 服务器配置
@@ -62,10 +85,10 @@ tss:
 
 ```bash
 # 使用默认配置启动
-./bin/tss-server
+./bin/dknet
 
 # 使用自定义配置文件
-./bin/tss-server --config ./config.yaml
+./bin/dknet --config ./config.yaml
 ```
 
 ### 开发模式
@@ -79,13 +102,13 @@ make dev-server
 
 ```bash
 # 作为后台服务运行
-nohup ./bin/tss-server > tss-server.log 2>&1 &
+nohup ./bin/dknet > dknet.log 2>&1 &
 
 # 检查服务状态
-ps aux | grep tss-server
+ps aux | grep dknet
 
 # 查看日志
-tail -f tss-server.log
+tail -f dknet.log
 ```
 
 ## API 服务
@@ -151,12 +174,12 @@ make init-local-cluster
 
 ```bash
 # 生成节点配置
-./bin/tss-server init-node \
-  --node-id "org-node-1" \
-  --moniker "Organization Node 1" \
-  --threshold 2 \
-  --parties 3 \
-  --output ./nodes
+./bin/dknet init-node \
+  --node-id node1 \
+  --listen-addr /ip4/0.0.0.0/tcp/4001 \
+  --api-addr localhost:8080 \
+  --grpc-addr localhost:9090 \
+  --output ./node1
 
 # 快速示例
 make init-node-example
@@ -189,7 +212,7 @@ curl http://localhost:8080/health
   "timestamp": "2024-06-11T13:45:30Z",
   "details": "DKNet is healthy",
   "metadata": {
-    "service": "tss-server",
+    		"service": "dknet",
     "version": "1.0.0"
   }
 }
@@ -214,7 +237,7 @@ grpcurl -plaintext localhost:9001 health.v1.HealthService/Check
 curl http://localhost:8080/operations/{operation-id}
 
 # 使用客户端工具
-./bin/tss-client operation {operation-id}
+./bin/dknet-cli operation {operation-id}
 ```
 
 ### 取消操作
@@ -224,7 +247,7 @@ curl http://localhost:8080/operations/{operation-id}
 curl -X DELETE http://localhost:8080/operations/{operation-id}
 
 # 使用客户端工具
-./bin/tss-client cancel-operation {operation-id}
+./bin/dknet-cli cancel-operation {operation-id}
 ```
 
 ## 安全配置
@@ -245,7 +268,7 @@ openssl req -new -newkey rsa:2048 -days 365 -nodes -x509 \
   -keyout server.key -out server.crt
 
 # 启动 TLS 服务器
-./bin/tss-server --config ./config.yaml
+./bin/dknet --config ./config.yaml
 ```
 
 ### 访问控制
@@ -293,23 +316,24 @@ server:
 
 ```bash
 # 使用 systemd 管理服务
-sudo cp tss-server.service /etc/systemd/system/
-sudo systemctl enable tss-server
-sudo systemctl start tss-server
+sudo cp dknet.service /etc/systemd/system/
+sudo systemctl enable dknet
+sudo systemctl start dknet
 ```
 
 示例 systemd 服务文件：
 
 ```ini
 [Unit]
-Description=DKNet
+Description=DKNet TSS Server
 After=network.target
 
 [Service]
 Type=simple
-User=tss
-WorkingDirectory=/opt/tss-server
-ExecStart=/opt/tss-server/bin/tss-server --config /opt/tss-server/config.yaml
+User=dknet
+Group=dknet
+WorkingDirectory=/opt/dknet
+ExecStart=/opt/dknet/bin/dknet --config /opt/dknet/config.yaml
 Restart=always
 RestartSec=10
 

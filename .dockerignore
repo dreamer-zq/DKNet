@@ -1,5 +1,5 @@
 # Binaries
-tss-server
+
 *.exe
 *.exe~
 *.dll
@@ -58,4 +58,12 @@ tests/
 !tests/validation-service/
 !tests/validation-service/main.go
 examples/
-docs/ 
+docs/
+
+# New additions
+dknet
+dknet-cli
+bin/
+dist/
+.env
+.env.* 

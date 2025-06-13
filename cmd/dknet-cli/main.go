@@ -29,24 +29,23 @@ var (
 	outputFormat string
 )
 
-func main() {
-	rootCmd := &cobra.Command{
-		Use:   "tss-client",
-		Short: "DKNet Client - Command line tool for TSS operations",
-		Long: `TSS Client is a command line tool for interacting with DKNet.
-It supports both HTTP and gRPC protocols for calling TSS operations
-like key generation, signing, resharing, and operation management.`,
-		PersistentPreRunE: setupConnection,
-		PersistentPostRun: cleanup,
-	}
+var rootCmd = &cobra.Command{
+	Use:   "dknet-cli",
+	Short: "DKNet CLI - Command line client for DKNet TSS operations",
+	Long: `DKNet CLI is a command line client for interacting with DKNet TSS servers.
+	
+It provides commands for key generation, signing, resharing, and other
+threshold signature scheme operations through HTTP or gRPC APIs.`,
+	PersistentPreRunE: setupConnection,
+	PersistentPostRun: cleanup,
+}
 
-	// Global flags
+func main() {
 	rootCmd.PersistentFlags().StringVarP(&serverAddr, "server", "s", "localhost:8080", "Server address (host:port)")
 	rootCmd.PersistentFlags().BoolVarP(&useGRPC, "grpc", "g", false, "Use gRPC instead of HTTP")
 	rootCmd.PersistentFlags().DurationVarP(&timeout, "timeout", "t", 30*time.Second, "Request timeout")
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "text", "Output format (text|json)")
 
-	// Add subcommands
 	rootCmd.AddCommand(
 		createKeygenCommand(),
 		createSignCommand(),

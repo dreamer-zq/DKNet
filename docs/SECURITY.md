@@ -50,7 +50,7 @@ DKNet TSS 支持两种安全的密码输入方式：
 
 ```bash
 export TSS_ENCRYPTION_PASSWORD="YourVerySecurePassword123!"
-./bin/tss-server start --config config.yaml
+./bin/dknet start --config config.yaml
 ```
 
 **优势**:
@@ -63,7 +63,7 @@ export TSS_ENCRYPTION_PASSWORD="YourVerySecurePassword123!"
 #### 2. 交互式输入（推荐用于开发）
 
 ```bash
-./bin/tss-server start --config config.yaml
+./bin/dknet start --config config.yaml
 # 系统会提示输入密码，输入时不会显示在屏幕上
 ```
 
@@ -136,11 +136,11 @@ company2024
 
 ```bash
 # 创建专用用户
-sudo useradd -r -s /bin/false -d /opt/dknet tss-user
+sudo useradd -r -s /bin/false -d /opt/dknet dknet-user
 
 # 设置目录权限
 sudo mkdir -p /opt/dknet/{bin,config,data,logs}
-sudo chown -R tss-user:tss-user /opt/dknet
+sudo chown -R dknet-user:dknet-user /opt/dknet
 sudo chmod 750 /opt/dknet
 sudo chmod 700 /opt/dknet/data
 ```
@@ -149,7 +149,7 @@ sudo chmod 700 /opt/dknet/data
 
 ```bash
 # 二进制文件
-sudo chmod 755 /opt/dknet/bin/tss-server
+sudo chmod 755 /opt/dknet/bin/dknet
 
 # 配置文件
 sudo chmod 640 /opt/dknet/config/*.yaml
@@ -198,10 +198,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=tss-user
-Group=tss-user
+User=dknet-user
+Group=dknet-user
 WorkingDirectory=/opt/dknet
-ExecStart=/opt/dknet/bin/tss-server start --config /opt/dknet/config/config.yaml
+ExecStart=/opt/dknet/bin/dknet start --config /opt/dknet/config/config.yaml
 Restart=always
 RestartSec=10
 
@@ -238,7 +238,7 @@ RUN addgroup -g 1001 tss && \
 RUN apk add --no-cache ca-certificates
 
 # 复制二进制文件
-COPY --chown=tss:tss bin/tss-server /usr/local/bin/
+COPY --chown=dknet:dknet bin/dknet /usr/local/bin/
 
 # 设置工作目录
 WORKDIR /app
@@ -253,7 +253,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 EXPOSE 8080 9090 4001
 
-CMD ["tss-server", "start", "--config", "/app/config.yaml"]
+CMD ["dknet", "start", "--config", "/app/config.yaml"]
 ```
 
 #### Docker Compose 安全配置
@@ -300,7 +300,7 @@ networks:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: tss-server
+  name: dknet-server
 spec:
   template:
     spec:
@@ -310,8 +310,8 @@ spec:
         runAsGroup: 1001
         fsGroup: 1001
       containers:
-      - name: tss-server
-        image: dknet/tss-server:latest
+      - name: dknet-server
+        image: dknet/dknet:latest
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -368,7 +368,7 @@ openssl req -new -x509 -days 365 -key ca-key.pem -sha256 -out ca.pem
 
 # 生成服务器证书
 openssl genrsa -out server-key.pem 4096
-openssl req -subj "/CN=tss-server" -sha256 -new -key server-key.pem -out server.csr
+openssl req -subj "/CN=dknet-server" -sha256 -new -key server-key.pem -out server.csr
 openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.pem -CAkey ca-key.pem -out server-cert.pem
 ```
 
@@ -412,7 +412,7 @@ aws ec2 authorize-security-group-ingress --group-id sg-xxx --protocol tcp --port
 logging:
   level: "info"
   format: "json"
-  output: "/app/logs/tss-server.log"
+  output: "/app/logs/dknet.log"
   max_size: 100  # MB
   max_backups: 10
   max_age: 30    # days
@@ -441,7 +441,7 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: 'tss-server'
+  - job_name: 'dknet-server'
     static_configs:
       - targets: ['localhost:8080']
     metrics_path: '/metrics'
@@ -525,7 +525,7 @@ fi
 1. **准备新环境**
 
    ```bash
-   # 安装 TSS 服务器
+   # 安装 DKNet 服务器
    # 配置系统用户和权限
    # 设置网络和防火墙
    ```
@@ -534,21 +534,21 @@ fi
 
    ```bash
    # 停止服务
-   sudo systemctl stop tss-server
+   sudo systemctl stop dknet
    
    # 恢复备份数据
    cd /opt/dknet/data
    sudo tar -xzf /secure/backups/tss/tss-data-20240101_020000.tar.gz
    
    # 设置权限
-   sudo chown -R tss-user:tss-user /opt/dknet/data
+   sudo chown -R dknet-user:dknet-user /opt/dknet/data
    ```
 
 3. **验证恢复**
 
    ```bash
    # 启动服务（需要原始密码）
-   sudo systemctl start tss-server
+   sudo systemctl start dknet
    
    # 验证密钥可用性
    curl -X GET http://localhost:8080/api/v1/keys

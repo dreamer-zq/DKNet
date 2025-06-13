@@ -92,7 +92,7 @@ func (s *Server) healthHandler(c *gin.Context) {
 		Timestamp: timestamppb.Now(),
 		Details:   "DKNet is healthy",
 		Metadata: map[string]string{
-			"service": "tss-server",
+			"service": "dknet",
 			"version": "1.0.0",
 		},
 	}

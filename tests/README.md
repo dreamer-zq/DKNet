@@ -128,15 +128,15 @@ export TSS_ENCRYPTION_PASSWORD="MySecurePassword123!"
 #### 方式1: 环境变量（推荐）
 
 ```bash
-export TSS_ENCRYPTION_PASSWORD="YourVerySecurePassword123!"
-./bin/tss-server start --config config.yaml
+export TSS_ENCRYPTION_PASSWORD="MySecurePassword123!"
+./bin/dknet start --config config.yaml
 ```
 
 #### 方式2: 交互式输入
 
 ```bash
 # 直接运行，系统会提示输入密码
-./bin/tss-server start --config config.yaml
+./bin/dknet start --config config.yaml
 ```
 
 ### 密码要求

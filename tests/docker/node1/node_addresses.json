@@ -3,7 +3,7 @@
     "node1": {
       "node_id": "node1",
       "peer_id": "QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF",
-      "timestamp": "2025-06-13T03:42:54.152023505Z",
+      "timestamp": "2025-06-13T04:03:54.885993005Z",
       "moniker": "TSS Node 1"
     },
     "node2": {
@@ -14,9 +14,9 @@
     "node3": {
       "node_id": "node3",
       "peer_id": "QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi",
-      "timestamp": "2025-06-13T03:44:10.522614596Z"
+      "timestamp": "2025-06-13T04:04:49.563800669Z"
     }
   },
-  "version": 7,
-  "updated_at": "2025-06-13T03:44:10.522614596Z"
+  "version": 9,
+  "updated_at": "2025-06-13T04:04:49.563800669Z"
 }

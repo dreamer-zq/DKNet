@@ -1,5 +1,5 @@
 version: v1
-name: buf.build/dreamer-zq/tss-server
+name: buf.build/dreamer-zq/dknet
 deps:
   - buf.build/googleapis/googleapis
 breaking:

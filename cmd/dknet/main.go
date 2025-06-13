@@ -30,10 +30,14 @@ func main() {
 	}()
 
 	rootCmd := &cobra.Command{
-		Use:   "tss-server",
-		Short: "TSS (Threshold Signature Scheme) Server",
-		Long: `A server providing TSS services including keygen, signing, and resharing
-with HTTP/gRPC APIs and libp2p communication between nodes.`,
+		Use:   "dknet",
+		Short: "DKNet - Distributed Key Network TSS Server",
+		Long: `DKNet is a distributed threshold signature scheme (TSS) server that enables
+secure multi-party computation for cryptographic operations.
+
+This server provides APIs for key generation, signing, and key management
+using threshold cryptography to ensure no single point of failure.`,
+		RunE: runServer,
 	}
 
 	startCmd := &cobra.Command{

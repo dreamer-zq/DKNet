@@ -101,7 +101,7 @@ Usage:
 1. Copy this entire directory to your deployment location
 2. Update bootstrap_peers in config.yaml if needed
 3. Start the node:
-   ./tss-server start --config ./config.yaml
+   ./dknet start --config ./config.yaml
 
 Share with other nodes:
 - Your multiaddr: /ip4/%s/tcp/%d/p2p/%s
@@ -162,9 +162,9 @@ Docker Usage:
 		content += fmt.Sprintf(`
 Local Usage:
 1. Start each node with its configuration:
-   ./tss-server start --config %s/node1/config.yaml
-   ./tss-server start --config %s/node2/config.yaml
-   ./tss-server start --config %s/node3/config.yaml
+   ./dknet start --config %s/node1/config.yaml
+   ./dknet start --config %s/node2/config.yaml
+   ./dknet start --config %s/node3/config.yaml
 
 2. Each node runs on different ports as configured in their config.yaml
 `, outputDir, outputDir, outputDir)

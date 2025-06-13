@@ -18,36 +18,36 @@ RUN go mod download
 COPY . .
 
 # Verify source files are present
-RUN ls -la ./cmd/tss-server/ && echo "Source files copied successfully"
+RUN ls -la ./cmd/dknet/ && echo "Source files copied successfully"
 
 # Build the binary
-RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o tss-server ./cmd/tss-server
+RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o dknet ./cmd/dknet
 
 # Verify binary was created
-RUN ls -la tss-server && echo "Binary built successfully"
+RUN ls -la dknet && echo "Binary built successfully"
 
 # Final stage
-FROM alpine:latest
+FROM alpine:3.18
 
 # Install required packages
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates wget
 
 # Create non-root user
-RUN addgroup -g 1001 tss && \
-    adduser -D -u 1001 -G tss tss
+RUN addgroup -g 1001 dknet && \
+    adduser -D -u 1001 -G dknet dknet
 
 # Set working directory
 WORKDIR /app
 
 # Copy binary from builder stage
-COPY --from=builder /app/tss-server .
+COPY --from=builder /app/dknet .
 
 # Create necessary directories
-RUN mkdir -p /app/data && \
-    chown -R tss:tss /app
+RUN mkdir -p data logs config && \
+    chown -R dknet:dknet /app
 
 # Switch to non-root user
-USER tss
+USER dknet
 
 # Expose ports
 EXPOSE 8080 9090 4001
@@ -57,5 +57,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Run the binary
-ENTRYPOINT ["./tss-server"]
-CMD ["start"] 
+ENTRYPOINT ["./dknet"]
+CMD ["start", "--config", "/app/config/config.yaml"] 

@@ -24,10 +24,17 @@ help:
 	@echo "  security-scan    - Run security scanning"
 
 # Docker configuration
-DOCKER_IMAGE_NAME ?= dknet/tss-server
+DOCKER_IMAGE_NAME ?= dknet/dknet
 DOCKER_TAG ?= latest
 DOCKER_REGISTRY ?= 
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+VERSION ?= $(shell git describe --tags --always --dirty)
+BUILD_TIME ?= $(shell date -u '+%Y-%m-%d_%H:%M:%S')
+GIT_COMMIT ?= $(shell git rev-parse HEAD)
+
+# Go build flags
+LDFLAGS = -X main.version=$(VERSION) \
+          -X main.buildTime=$(BUILD_TIME) \
+          -X main.gitCommit=$(GIT_COMMIT)
 
 # Build commands
 build: build-server build-client
@@ -35,16 +42,16 @@ build: build-server build-client
 build-server:
 	@echo "Building DKNet..."
 	@mkdir -p bin
-	go build -o bin/tss-server ./cmd/tss-server
+	go build -ldflags "$(LDFLAGS)" -o bin/dknet ./cmd/dknet
 
 build-client:
 	@echo "Building TSS client..."
 	@mkdir -p bin
-	go build -o bin/tss-client ./cmd/tss-client
+	go build -ldflags "$(LDFLAGS)" -o bin/dknet-cli ./cmd/dknet-cli
 
 run: build-server
 	@echo "Starting DKNet..."
-	./bin/tss-server
+	./bin/dknet
 
 test:
 	@echo "Running tests..."

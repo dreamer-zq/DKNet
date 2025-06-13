@@ -53,8 +53,8 @@ jobs:
           ## Installation
           ```bash
           # Download binary
-          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/tss-server-linux-amd64
-          chmod +x tss-server-linux-amd64
+          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/dknet-linux-amd64
+          chmod +x dknet-linux-amd64
           
           # Or use Docker
           docker pull ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get_version.outputs.version }}
@@ -100,21 +100,21 @@ jobs:
         CGO_ENABLED: 0
       run: |
         mkdir -p dist
-        binary_name="tss-server-${{ matrix.goos }}-${{ matrix.goarch }}"
+        binary_name="dknet-${{ matrix.goos }}-${{ matrix.goarch }}"
         if [ "${{ matrix.goos }}" = "windows" ]; then
           binary_name="${binary_name}.exe"
         fi
-        go build -ldflags="-s -w -X main.version=${{ needs.create-release.outputs.version }}" \
-          -o "dist/${binary_name}" ./cmd/tss-server
+        go build -ldflags "-s -w" \
+          -o "dist/${binary_name}" ./cmd/dknet
 
-    - name: Upload binary to release
+    - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./dist/tss-server-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
-        asset_name: tss-server-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
+        upload_url: ${{ needs.create_release.outputs.upload_url }}
+        asset_path: ./dist/dknet-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
+        asset_name: dknet-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
         asset_content_type: application/octet-stream
 
   # Build and push Docker images

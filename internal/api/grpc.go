@@ -385,7 +385,7 @@ func (g *gRPCHealthServer) Check(ctx context.Context, req *healthv1.CheckRequest
 		Timestamp: timestamppb.Now(),
 		Details:   "DKNet is healthy",
 		Metadata: map[string]string{
-			"service": "tss-server",
+			"service": "dknet",
 			"version": "1.0.0",
 		},
 	}, nil
@@ -406,7 +406,7 @@ func (g *gRPCHealthServer) Watch(req *healthv1.WatchRequest, stream healthv1.Hea
 				Timestamp: timestamppb.Now(),
 				Details:   "DKNet is healthy",
 				Metadata: map[string]string{
-					"service": "tss-server",
+					"service": "dknet",
 					"version": "1.0.0",
 				},
 			}
@@ -437,3 +437,5 @@ func (g *gRPCTSSServer) GetNetworkAddresses(ctx context.Context, req *tssv1.GetN
 		Mappings: result,
 	}, nil
 }
+
+
