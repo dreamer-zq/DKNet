@@ -23,8 +23,6 @@ const (
 	TSSService_StartSigning_FullMethodName        = "/tss.v1.TSSService/StartSigning"
 	TSSService_StartResharing_FullMethodName      = "/tss.v1.TSSService/StartResharing"
 	TSSService_GetOperation_FullMethodName        = "/tss.v1.TSSService/GetOperation"
-	TSSService_CancelOperation_FullMethodName     = "/tss.v1.TSSService/CancelOperation"
-	TSSService_ListOperations_FullMethodName      = "/tss.v1.TSSService/ListOperations"
 	TSSService_GetNetworkAddresses_FullMethodName = "/tss.v1.TSSService/GetNetworkAddresses"
 )
 
@@ -42,10 +40,6 @@ type TSSServiceClient interface {
 	StartResharing(ctx context.Context, in *StartResharingRequest, opts ...grpc.CallOption) (*StartResharingResponse, error)
 	// GetOperation gets the status and result of an operation
 	GetOperation(ctx context.Context, in *GetOperationRequest, opts ...grpc.CallOption) (*GetOperationResponse, error)
-	// CancelOperation cancels a running operation
-	CancelOperation(ctx context.Context, in *CancelOperationRequest, opts ...grpc.CallOption) (*CancelOperationResponse, error)
-	// ListOperations lists all operations with optional filtering
-	ListOperations(ctx context.Context, in *ListOperationsRequest, opts ...grpc.CallOption) (*ListOperationsResponse, error)
 	// GetNetworkAddresses gets all known node address mappings
 	GetNetworkAddresses(ctx context.Context, in *GetNetworkAddressesRequest, opts ...grpc.CallOption) (*GetNetworkAddressesResponse, error)
 }
@@ -98,26 +92,6 @@ func (c *tSSServiceClient) GetOperation(ctx context.Context, in *GetOperationReq
 	return out, nil
 }
 
-func (c *tSSServiceClient) CancelOperation(ctx context.Context, in *CancelOperationRequest, opts ...grpc.CallOption) (*CancelOperationResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CancelOperationResponse)
-	err := c.cc.Invoke(ctx, TSSService_CancelOperation_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *tSSServiceClient) ListOperations(ctx context.Context, in *ListOperationsRequest, opts ...grpc.CallOption) (*ListOperationsResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListOperationsResponse)
-	err := c.cc.Invoke(ctx, TSSService_ListOperations_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *tSSServiceClient) GetNetworkAddresses(ctx context.Context, in *GetNetworkAddressesRequest, opts ...grpc.CallOption) (*GetNetworkAddressesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetNetworkAddressesResponse)
@@ -142,10 +116,6 @@ type TSSServiceServer interface {
 	StartResharing(context.Context, *StartResharingRequest) (*StartResharingResponse, error)
 	// GetOperation gets the status and result of an operation
 	GetOperation(context.Context, *GetOperationRequest) (*GetOperationResponse, error)
-	// CancelOperation cancels a running operation
-	CancelOperation(context.Context, *CancelOperationRequest) (*CancelOperationResponse, error)
-	// ListOperations lists all operations with optional filtering
-	ListOperations(context.Context, *ListOperationsRequest) (*ListOperationsResponse, error)
 	// GetNetworkAddresses gets all known node address mappings
 	GetNetworkAddresses(context.Context, *GetNetworkAddressesRequest) (*GetNetworkAddressesResponse, error)
 	mustEmbedUnimplementedTSSServiceServer()
@@ -169,12 +139,6 @@ func (UnimplementedTSSServiceServer) StartResharing(context.Context, *StartResha
 }
 func (UnimplementedTSSServiceServer) GetOperation(context.Context, *GetOperationRequest) (*GetOperationResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOperation not implemented")
-}
-func (UnimplementedTSSServiceServer) CancelOperation(context.Context, *CancelOperationRequest) (*CancelOperationResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CancelOperation not implemented")
-}
-func (UnimplementedTSSServiceServer) ListOperations(context.Context, *ListOperationsRequest) (*ListOperationsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListOperations not implemented")
 }
 func (UnimplementedTSSServiceServer) GetNetworkAddresses(context.Context, *GetNetworkAddressesRequest) (*GetNetworkAddressesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNetworkAddresses not implemented")
@@ -272,42 +236,6 @@ func _TSSService_GetOperation_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _TSSService_CancelOperation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CancelOperationRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TSSServiceServer).CancelOperation(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: TSSService_CancelOperation_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TSSServiceServer).CancelOperation(ctx, req.(*CancelOperationRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _TSSService_ListOperations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListOperationsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TSSServiceServer).ListOperations(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: TSSService_ListOperations_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TSSServiceServer).ListOperations(ctx, req.(*ListOperationsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _TSSService_GetNetworkAddresses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetNetworkAddressesRequest)
 	if err := dec(in); err != nil {
@@ -348,14 +276,6 @@ var TSSService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetOperation",
 			Handler:    _TSSService_GetOperation_Handler,
-		},
-		{
-			MethodName: "CancelOperation",
-			Handler:    _TSSService_CancelOperation_Handler,
-		},
-		{
-			MethodName: "ListOperations",
-			Handler:    _TSSService_ListOperations_Handler,
 		},
 		{
 			MethodName: "GetNetworkAddresses",

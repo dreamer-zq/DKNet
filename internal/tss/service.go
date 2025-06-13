@@ -12,6 +12,7 @@ import (
 
 	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
 	"github.com/bnb-chain/tss-lib/v2/tss"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/dreamer-zq/DKNet/internal/crypto"
@@ -184,7 +185,7 @@ func (s *Service) GetOperation(operationID string) (*Operation, bool) {
 }
 
 // GetOperationData returns operation data by ID, checking both memory and persistent storage
-func (s *Service) GetOperationData(ctx context.Context, operationID string) (*OperationData, error) {
+func (s *Service) GetOperationData(ctx context.Context, operationID string) (*operationData, error) {
 	// First check active operations in memory
 	s.mutex.RLock()
 	op, exists := s.operations[operationID]
@@ -192,7 +193,7 @@ func (s *Service) GetOperationData(ctx context.Context, operationID string) (*Op
 
 	if exists {
 		// Convert active operation to OperationData
-		opData := &OperationData{
+		opData := &operationData{
 			ID:           op.ID,
 			Type:         op.Type,
 			SessionID:    op.SessionID,
@@ -403,7 +404,7 @@ func (s *Service) loadKeyData(ctx context.Context, keyID string) (*keygen.LocalP
 		return nil, fmt.Errorf("failed to load key data: %w", err)
 	}
 
-	var keyDataStruct KeyData
+	var keyDataStruct keyData
 	if unmarshalErr := json.Unmarshal(data, &keyDataStruct); unmarshalErr != nil {
 		return nil, fmt.Errorf("failed to unmarshal key data struct: %w", unmarshalErr)
 	}
@@ -428,13 +429,13 @@ func (s *Service) loadKeyData(ctx context.Context, keyID string) (*keygen.LocalP
 }
 
 // loadKeyDataStruct loads the full KeyData structure from storage (metadata only, KeyData remains encrypted)
-func (s *Service) loadKeyDataStruct(ctx context.Context, keyID string) (*KeyData, error) {
+func (s *Service) loadKeyDataStruct(ctx context.Context, keyID string) (*keyData, error) {
 	data, err := s.storage.Load(ctx, keyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load key data: %w", err)
 	}
 
-	var keyDataStruct KeyData
+	var keyDataStruct keyData
 	if err := json.Unmarshal(data, &keyDataStruct); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal key data struct: %w", err)
 	}
@@ -496,7 +497,7 @@ func (s *Service) broadcastOperationSync(ctx context.Context, syncData Message) 
 // saveOperation saves an operation to persistent storage
 func (s *Service) saveOperation(ctx context.Context, operation *Operation) error {
 	// Convert Operation to OperationData for persistence
-	opData := &OperationData{
+	opData := &operationData{
 		ID:           operation.ID,
 		Type:         operation.Type,
 		SessionID:    operation.SessionID,
@@ -534,14 +535,14 @@ func (s *Service) saveOperation(ctx context.Context, operation *Operation) error
 }
 
 // loadOperation loads an operation from persistent storage
-func (s *Service) loadOperation(ctx context.Context, operationID string) (*OperationData, error) {
+func (s *Service) loadOperation(ctx context.Context, operationID string) (*operationData, error) {
 	key := fmt.Sprintf("operation:%s", operationID)
 	data, err := s.storage.Load(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load operation data: %w", err)
 	}
 
-	var opData OperationData
+	var opData operationData
 	if err := json.Unmarshal(data, &opData); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal operation data: %w", err)
 	}
@@ -634,4 +635,58 @@ func (s *Service) handleOperationFailure(ctx context.Context, operation *Operati
 				zap.String("operation_id", operation.ID))
 		}
 	}()
+}
+
+// checkIdempotency checks if an operation with the given ID already exists
+// Returns the existing operation if found, nil if not found, and an error if there's an issue
+func (s *Service) checkIdempotency(ctx context.Context, operationID string) (*Operation, error) {
+	if operationID == "" {
+		return nil, nil // No operation ID provided, proceed with new operation
+	}
+
+	// Check if operation already exists in memory
+	s.mutex.RLock()
+	if existingOp, exists := s.operations[operationID]; exists {
+		s.mutex.RUnlock()
+		s.logger.Info("Operation already exists in memory",
+			zap.String("operation_id", operationID),
+			zap.String("status", string(existingOp.Status)))
+		return existingOp, nil
+	}
+	s.mutex.RUnlock()
+
+	// Check if operation exists in persistent storage
+	opData, err := s.loadOperation(ctx, operationID)
+	if err != nil {
+		return nil, err
+	}
+
+	s.logger.Info("Operation found in persistent storage",
+		zap.String("operation_id", operationID),
+		zap.String("status", string(opData.Status)))
+
+	// Convert OperationData to Operation for consistency
+	// Note: This is a read-only operation since it's completed
+	operation := &Operation{
+		ID:          opData.ID,
+		Type:        opData.Type,
+		SessionID:   opData.SessionID,
+		Status:      opData.Status,
+		CreatedAt:   opData.CreatedAt,
+		CompletedAt: opData.CompletedAt,
+		Request:     opData.Request,
+		Result:      opData.Result,
+	}
+	if opData.Error != "" {
+		operation.Error = fmt.Errorf("%s", opData.Error)
+	}
+	return operation, nil
+}
+
+// generateOrUseOperationID generates a new operation ID if not provided, or returns the provided one
+func (s *Service) generateOrUseOperationID(providedID string) string {
+	if providedID != "" {
+		return providedID
+	}
+	return uuid.New().String()
 }

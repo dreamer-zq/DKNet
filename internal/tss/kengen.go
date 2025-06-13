@@ -19,8 +19,18 @@ import (
 
 // StartKeygen starts a new keygen operation
 func (s *Service) StartKeygen(ctx context.Context, req *KeygenRequest) (*Operation, error) {
-	// Create operation
-	operationID := uuid.New().String()
+	// Check for existing operation (idempotency)
+	existingOp, err := s.checkIdempotency(ctx, req.OperationID)
+	if err != nil {
+		return nil, err
+	}
+
+	if existingOp != nil {
+		return existingOp, nil
+	}
+
+	// Generate or use provided operation ID
+	operationID := s.generateOrUseOperationID(req.OperationID)
 	sessionID := uuid.New().String()
 
 	// Create participant list
@@ -212,7 +222,7 @@ func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, re
 	originalReq := operation.Request.(*KeygenRequest)
 
 	// Store key data with encrypted KeyData field
-	keyDataStruct := &KeyData{
+	keyDataStruct := &keyData{
 		NodeID:    s.nodeID,
 		Moniker:   s.moniker,
 		KeyData:   encryptedKeyData,      // Store encrypted data

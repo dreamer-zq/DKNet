@@ -14,14 +14,24 @@ import (
 
 // StartResharing starts a new resharing operation
 func (s *Service) StartResharing(ctx context.Context, req *ResharingRequest) (*Operation, error) {
+	// Check for existing operation (idempotency)
+	existingOp, err := s.checkIdempotency(ctx, req.OperationID)
+	if err != nil {
+		return nil, err
+	}
+
+	if existingOp != nil {
+		return existingOp, nil
+	}
+
 	// Load key data
 	keyData, err := s.loadKeyData(ctx, req.KeyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load key data: %w", err)
 	}
 
-	// Create operation
-	operationID := uuid.New().String()
+	// Generate or use provided operation ID
+	operationID := s.generateOrUseOperationID(req.OperationID)
 	sessionID := uuid.New().String()
 
 	// Create participant lists

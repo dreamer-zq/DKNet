@@ -19,8 +19,18 @@ import (
 
 // StartSigning starts a new signing operation
 func (s *Service) StartSigning(ctx context.Context, req *SigningRequest) (*Operation, error) {
+	// Check for existing operation (idempotency)
+	existingOp, err := s.checkIdempotency(ctx, req.OperationID)
+	if err != nil {
+		return nil, err
+	}
+
+	if existingOp != nil {
+		return existingOp, nil
+	}
+
 	// Validate signing request with external validation service (if configured)
-	if err := s.validateSigningRequest(ctx, req); err != nil {
+	if err = s.validateSigningRequest(ctx, req); err != nil {
 		s.logger.Error("Signing request validation failed",
 			zap.Error(err),
 			zap.String("key_id", req.KeyID))
@@ -39,8 +49,8 @@ func (s *Service) StartSigning(ctx context.Context, req *SigningRequest) (*Opera
 		return nil, fmt.Errorf("failed to load key metadata: %w", err)
 	}
 
-	// Create operation
-	operationID := uuid.New().String()
+	// Generate or use provided operation ID
+	operationID := s.generateOrUseOperationID(req.OperationID)
 	sessionID := uuid.New().String()
 
 	// Create participant list

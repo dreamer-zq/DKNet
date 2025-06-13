@@ -92,6 +92,7 @@ const (
 
 // KeygenRequest represents a keygen request
 type KeygenRequest struct {
+	OperationID  string   `json:"operation_id,omitempty"` // Optional operation ID for idempotency
 	Threshold    int      `json:"threshold"`
 	Parties      int      `json:"parties"`
 	Participants []string `json:"participants"` // peer IDs
@@ -105,6 +106,7 @@ type KeygenResult struct {
 
 // SigningRequest represents a signing request
 type SigningRequest struct {
+	OperationID  string   `json:"operation_id,omitempty"` // Optional operation ID for idempotency
 	Message      []byte   `json:"message"`
 	KeyID        string   `json:"key_id"`
 	Participants []string `json:"participants"` // peer IDs
@@ -119,6 +121,7 @@ type SigningResult struct {
 
 // ResharingRequest represents a resharing request
 type ResharingRequest struct {
+	OperationID     string   `json:"operation_id,omitempty"` // Optional operation ID for idempotency
 	KeyID           string   `json:"key_id"`
 	NewThreshold    int      `json:"new_threshold"`
 	NewParties      int      `json:"new_parties"`
@@ -169,8 +172,8 @@ type ResharingSyncData struct {
 	KeyID           string   `json:"key_id"`
 }
 
-// OperationData represents operation data for persistence
-type OperationData struct {
+// operationData represents operation data for persistence
+type operationData struct {
 	ID           string          `json:"id"`
 	Type         OperationType   `json:"type"`
 	SessionID    string          `json:"session_id"`
@@ -184,17 +187,17 @@ type OperationData struct {
 }
 
 // IsCompleted returns true if the operation has completed (success, failure, or cancellation)
-func (o *OperationData) IsCompleted() bool {
+func (o *operationData) IsCompleted() bool {
 	return o.Status == StatusCompleted || o.Status == StatusFailed || o.Status == StatusCancelled
 }
 
 // IsActive returns true if the operation is still active (pending or in progress)
-func (o *OperationData) IsActive() bool {
+func (o *operationData) IsActive() bool {
 	return o.Status == StatusPending || o.Status == StatusInProgress
 }
 
-// KeyData represents the TSS key data that needs to be stored
-type KeyData struct {
+// keyData represents the TSS key data that needs to be stored
+type keyData struct {
 	NodeID    string `json:"node_id"`
 	Moniker   string `json:"moniker"`
 	KeyData   []byte `json:"key_data"`

@@ -137,12 +137,14 @@ func (OperationType) EnumDescriptor() ([]byte, []int) {
 // StartKeygenRequest represents a key generation request
 type StartKeygenRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional operation ID provided by client for idempotency
+	OperationId string `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
 	// Number of parties required to sign (threshold)
-	Threshold int32 `protobuf:"varint,1,opt,name=threshold,proto3" json:"threshold,omitempty"`
+	Threshold int32 `protobuf:"varint,2,opt,name=threshold,proto3" json:"threshold,omitempty"`
 	// Total number of parties involved
-	Parties int32 `protobuf:"varint,2,opt,name=parties,proto3" json:"parties,omitempty"`
+	Parties int32 `protobuf:"varint,3,opt,name=parties,proto3" json:"parties,omitempty"`
 	// List of participant peer IDs
-	Participants  []string `protobuf:"bytes,3,rep,name=participants,proto3" json:"participants,omitempty"`
+	Participants  []string `protobuf:"bytes,4,rep,name=participants,proto3" json:"participants,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -175,6 +177,13 @@ func (x *StartKeygenRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use StartKeygenRequest.ProtoReflect.Descriptor instead.
 func (*StartKeygenRequest) Descriptor() ([]byte, []int) {
 	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *StartKeygenRequest) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
 }
 
 func (x *StartKeygenRequest) GetThreshold() int32 {
@@ -320,12 +329,14 @@ func (x *KeygenResult) GetKeyId() string {
 // StartSigningRequest represents a signing request
 type StartSigningRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional operation ID provided by client for idempotency
+	OperationId string `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
 	// Message to be signed (bytes)
-	Message []byte `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	Message []byte `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	// Key ID to use for signing
-	KeyId string `protobuf:"bytes,2,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
+	KeyId string `protobuf:"bytes,3,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
 	// List of participant peer IDs
-	Participants  []string `protobuf:"bytes,3,rep,name=participants,proto3" json:"participants,omitempty"`
+	Participants  []string `protobuf:"bytes,4,rep,name=participants,proto3" json:"participants,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -358,6 +369,13 @@ func (x *StartSigningRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use StartSigningRequest.ProtoReflect.Descriptor instead.
 func (*StartSigningRequest) Descriptor() ([]byte, []int) {
 	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *StartSigningRequest) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
 }
 
 func (x *StartSigningRequest) GetMessage() []byte {
@@ -512,16 +530,18 @@ func (x *SigningResult) GetS() string {
 // StartResharingRequest represents a resharing request
 type StartResharingRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional operation ID provided by client for idempotency
+	OperationId string `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
 	// Key ID to reshare
-	KeyId string `protobuf:"bytes,1,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
+	KeyId string `protobuf:"bytes,2,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
 	// New threshold value
-	NewThreshold int32 `protobuf:"varint,2,opt,name=new_threshold,json=newThreshold,proto3" json:"new_threshold,omitempty"`
+	NewThreshold int32 `protobuf:"varint,3,opt,name=new_threshold,json=newThreshold,proto3" json:"new_threshold,omitempty"`
 	// New total number of parties
-	NewParties int32 `protobuf:"varint,3,opt,name=new_parties,json=newParties,proto3" json:"new_parties,omitempty"`
+	NewParties int32 `protobuf:"varint,4,opt,name=new_parties,json=newParties,proto3" json:"new_parties,omitempty"`
 	// List of old participant peer IDs
-	OldParticipants []string `protobuf:"bytes,4,rep,name=old_participants,json=oldParticipants,proto3" json:"old_participants,omitempty"`
+	OldParticipants []string `protobuf:"bytes,5,rep,name=old_participants,json=oldParticipants,proto3" json:"old_participants,omitempty"`
 	// List of new participant peer IDs
-	NewParticipants []string `protobuf:"bytes,5,rep,name=new_participants,json=newParticipants,proto3" json:"new_participants,omitempty"`
+	NewParticipants []string `protobuf:"bytes,6,rep,name=new_participants,json=newParticipants,proto3" json:"new_participants,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -554,6 +574,13 @@ func (x *StartResharingRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use StartResharingRequest.ProtoReflect.Descriptor instead.
 func (*StartResharingRequest) Descriptor() ([]byte, []int) {
 	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *StartResharingRequest) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
 }
 
 func (x *StartResharingRequest) GetKeyId() string {
@@ -938,235 +965,6 @@ func (*GetOperationResponse_SigningRequest) isGetOperationResponse_Request() {}
 
 func (*GetOperationResponse_ResharingRequest) isGetOperationResponse_Request() {}
 
-// CancelOperationRequest represents a request to cancel an operation
-type CancelOperationRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Operation ID to cancel
-	OperationId   string `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CancelOperationRequest) Reset() {
-	*x = CancelOperationRequest{}
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[10]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CancelOperationRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CancelOperationRequest) ProtoMessage() {}
-
-func (x *CancelOperationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[10]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CancelOperationRequest.ProtoReflect.Descriptor instead.
-func (*CancelOperationRequest) Descriptor() ([]byte, []int) {
-	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *CancelOperationRequest) GetOperationId() string {
-	if x != nil {
-		return x.OperationId
-	}
-	return ""
-}
-
-// CancelOperationResponse represents the response to cancel operation request
-type CancelOperationResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Confirmation message
-	Message       string `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CancelOperationResponse) Reset() {
-	*x = CancelOperationResponse{}
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CancelOperationResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CancelOperationResponse) ProtoMessage() {}
-
-func (x *CancelOperationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CancelOperationResponse.ProtoReflect.Descriptor instead.
-func (*CancelOperationResponse) Descriptor() ([]byte, []int) {
-	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *CancelOperationResponse) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-// ListOperationsRequest represents a request to list operations
-type ListOperationsRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Optional filter by operation type
-	TypeFilter *OperationType `protobuf:"varint,1,opt,name=type_filter,json=typeFilter,proto3,enum=tss.v1.OperationType,oneof" json:"type_filter,omitempty"`
-	// Optional filter by status
-	StatusFilter *OperationStatus `protobuf:"varint,2,opt,name=status_filter,json=statusFilter,proto3,enum=tss.v1.OperationStatus,oneof" json:"status_filter,omitempty"`
-	// Page size for pagination (default: 50, max: 100)
-	PageSize int32 `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	// Page token for pagination
-	PageToken     string `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListOperationsRequest) Reset() {
-	*x = ListOperationsRequest{}
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListOperationsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListOperationsRequest) ProtoMessage() {}
-
-func (x *ListOperationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListOperationsRequest.ProtoReflect.Descriptor instead.
-func (*ListOperationsRequest) Descriptor() ([]byte, []int) {
-	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *ListOperationsRequest) GetTypeFilter() OperationType {
-	if x != nil && x.TypeFilter != nil {
-		return *x.TypeFilter
-	}
-	return OperationType_OPERATION_TYPE_UNSPECIFIED
-}
-
-func (x *ListOperationsRequest) GetStatusFilter() OperationStatus {
-	if x != nil && x.StatusFilter != nil {
-		return *x.StatusFilter
-	}
-	return OperationStatus_OPERATION_STATUS_UNSPECIFIED
-}
-
-func (x *ListOperationsRequest) GetPageSize() int32 {
-	if x != nil {
-		return x.PageSize
-	}
-	return 0
-}
-
-func (x *ListOperationsRequest) GetPageToken() string {
-	if x != nil {
-		return x.PageToken
-	}
-	return ""
-}
-
-// ListOperationsResponse represents the response containing operation list
-type ListOperationsResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// List of operations
-	Operations []*GetOperationResponse `protobuf:"bytes,1,rep,name=operations,proto3" json:"operations,omitempty"`
-	// Token for next page (empty if no more pages)
-	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	// Total count of operations matching the filter
-	TotalCount    int64 `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListOperationsResponse) Reset() {
-	*x = ListOperationsResponse{}
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListOperationsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListOperationsResponse) ProtoMessage() {}
-
-func (x *ListOperationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListOperationsResponse.ProtoReflect.Descriptor instead.
-func (*ListOperationsResponse) Descriptor() ([]byte, []int) {
-	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *ListOperationsResponse) GetOperations() []*GetOperationResponse {
-	if x != nil {
-		return x.Operations
-	}
-	return nil
-}
-
-func (x *ListOperationsResponse) GetNextPageToken() string {
-	if x != nil {
-		return x.NextPageToken
-	}
-	return ""
-}
-
-func (x *ListOperationsResponse) GetTotalCount() int64 {
-	if x != nil {
-		return x.TotalCount
-	}
-	return 0
-}
-
 // NodeMapping represents a node's address mapping information
 type NodeMapping struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1184,7 +982,7 @@ type NodeMapping struct {
 
 func (x *NodeMapping) Reset() {
 	*x = NodeMapping{}
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[14]
+	mi := &file_proto_tss_v1_tss_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1196,7 +994,7 @@ func (x *NodeMapping) String() string {
 func (*NodeMapping) ProtoMessage() {}
 
 func (x *NodeMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[14]
+	mi := &file_proto_tss_v1_tss_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1209,7 +1007,7 @@ func (x *NodeMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeMapping.ProtoReflect.Descriptor instead.
 func (*NodeMapping) Descriptor() ([]byte, []int) {
-	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{14}
+	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *NodeMapping) GetNodeId() string {
@@ -1249,7 +1047,7 @@ type GetNetworkAddressesRequest struct {
 
 func (x *GetNetworkAddressesRequest) Reset() {
 	*x = GetNetworkAddressesRequest{}
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[15]
+	mi := &file_proto_tss_v1_tss_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1261,7 +1059,7 @@ func (x *GetNetworkAddressesRequest) String() string {
 func (*GetNetworkAddressesRequest) ProtoMessage() {}
 
 func (x *GetNetworkAddressesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[15]
+	mi := &file_proto_tss_v1_tss_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1274,7 +1072,7 @@ func (x *GetNetworkAddressesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNetworkAddressesRequest.ProtoReflect.Descriptor instead.
 func (*GetNetworkAddressesRequest) Descriptor() ([]byte, []int) {
-	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{15}
+	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{11}
 }
 
 // GetNetworkAddressesResponse represents the response containing network addresses
@@ -1288,7 +1086,7 @@ type GetNetworkAddressesResponse struct {
 
 func (x *GetNetworkAddressesResponse) Reset() {
 	*x = GetNetworkAddressesResponse{}
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[16]
+	mi := &file_proto_tss_v1_tss_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1300,7 +1098,7 @@ func (x *GetNetworkAddressesResponse) String() string {
 func (*GetNetworkAddressesResponse) ProtoMessage() {}
 
 func (x *GetNetworkAddressesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[16]
+	mi := &file_proto_tss_v1_tss_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1313,7 +1111,7 @@ func (x *GetNetworkAddressesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNetworkAddressesResponse.ProtoReflect.Descriptor instead.
 func (*GetNetworkAddressesResponse) Descriptor() ([]byte, []int) {
-	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{16}
+	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetNetworkAddressesResponse) GetMappings() []*NodeMapping {
@@ -1327,11 +1125,12 @@ var File_proto_tss_v1_tss_proto protoreflect.FileDescriptor
 
 const file_proto_tss_v1_tss_proto_rawDesc = "" +
 	"\n" +
-	"\x16proto/tss/v1/tss.proto\x12\x06tss.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"p\n" +
-	"\x12StartKeygenRequest\x12\x1c\n" +
-	"\tthreshold\x18\x01 \x01(\x05R\tthreshold\x12\x18\n" +
-	"\aparties\x18\x02 \x01(\x05R\aparties\x12\"\n" +
-	"\fparticipants\x18\x03 \x03(\tR\fparticipants\"\xa4\x01\n" +
+	"\x16proto/tss/v1/tss.proto\x12\x06tss.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x93\x01\n" +
+	"\x12StartKeygenRequest\x12!\n" +
+	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x1c\n" +
+	"\tthreshold\x18\x02 \x01(\x05R\tthreshold\x12\x18\n" +
+	"\aparties\x18\x03 \x01(\x05R\aparties\x12\"\n" +
+	"\fparticipants\x18\x04 \x03(\tR\fparticipants\"\xa4\x01\n" +
 	"\x13StartKeygenResponse\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12/\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x17.tss.v1.OperationStatusR\x06status\x129\n" +
@@ -1340,11 +1139,12 @@ const file_proto_tss_v1_tss_proto_rawDesc = "" +
 	"\fKeygenResult\x12\x1d\n" +
 	"\n" +
 	"public_key\x18\x01 \x01(\tR\tpublicKey\x12\x15\n" +
-	"\x06key_id\x18\x02 \x01(\tR\x05keyId\"j\n" +
-	"\x13StartSigningRequest\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\fR\amessage\x12\x15\n" +
-	"\x06key_id\x18\x02 \x01(\tR\x05keyId\x12\"\n" +
-	"\fparticipants\x18\x03 \x03(\tR\fparticipants\"\xa5\x01\n" +
+	"\x06key_id\x18\x02 \x01(\tR\x05keyId\"\x8d\x01\n" +
+	"\x13StartSigningRequest\x12!\n" +
+	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\fR\amessage\x12\x15\n" +
+	"\x06key_id\x18\x03 \x01(\tR\x05keyId\x12\"\n" +
+	"\fparticipants\x18\x04 \x03(\tR\fparticipants\"\xa5\x01\n" +
 	"\x14StartSigningResponse\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12/\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x17.tss.v1.OperationStatusR\x06status\x129\n" +
@@ -1353,14 +1153,15 @@ const file_proto_tss_v1_tss_proto_rawDesc = "" +
 	"\rSigningResult\x12\x1c\n" +
 	"\tsignature\x18\x01 \x01(\tR\tsignature\x12\f\n" +
 	"\x01r\x18\x02 \x01(\tR\x01r\x12\f\n" +
-	"\x01s\x18\x03 \x01(\tR\x01s\"\xca\x01\n" +
-	"\x15StartResharingRequest\x12\x15\n" +
-	"\x06key_id\x18\x01 \x01(\tR\x05keyId\x12#\n" +
-	"\rnew_threshold\x18\x02 \x01(\x05R\fnewThreshold\x12\x1f\n" +
-	"\vnew_parties\x18\x03 \x01(\x05R\n" +
+	"\x01s\x18\x03 \x01(\tR\x01s\"\xed\x01\n" +
+	"\x15StartResharingRequest\x12!\n" +
+	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x15\n" +
+	"\x06key_id\x18\x02 \x01(\tR\x05keyId\x12#\n" +
+	"\rnew_threshold\x18\x03 \x01(\x05R\fnewThreshold\x12\x1f\n" +
+	"\vnew_parties\x18\x04 \x01(\x05R\n" +
 	"newParties\x12)\n" +
-	"\x10old_participants\x18\x04 \x03(\tR\x0foldParticipants\x12)\n" +
-	"\x10new_participants\x18\x05 \x03(\tR\x0fnewParticipants\"\xa7\x01\n" +
+	"\x10old_participants\x18\x05 \x03(\tR\x0foldParticipants\x12)\n" +
+	"\x10new_participants\x18\x06 \x03(\tR\x0fnewParticipants\"\xa7\x01\n" +
 	"\x16StartResharingResponse\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12/\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x17.tss.v1.OperationStatusR\x06status\x129\n" +
@@ -1389,27 +1190,7 @@ const file_proto_tss_v1_tss_proto_rawDesc = "" +
 	"\x06resultB\t\n" +
 	"\arequestB\x0f\n" +
 	"\r_completed_atB\b\n" +
-	"\x06_error\";\n" +
-	"\x16CancelOperationRequest\x12!\n" +
-	"\foperation_id\x18\x01 \x01(\tR\voperationId\"3\n" +
-	"\x17CancelOperationResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"\xf5\x01\n" +
-	"\x15ListOperationsRequest\x12;\n" +
-	"\vtype_filter\x18\x01 \x01(\x0e2\x15.tss.v1.OperationTypeH\x00R\n" +
-	"typeFilter\x88\x01\x01\x12A\n" +
-	"\rstatus_filter\x18\x02 \x01(\x0e2\x17.tss.v1.OperationStatusH\x01R\fstatusFilter\x88\x01\x01\x12\x1b\n" +
-	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\x12\x1d\n" +
-	"\n" +
-	"page_token\x18\x04 \x01(\tR\tpageTokenB\x0e\n" +
-	"\f_type_filterB\x10\n" +
-	"\x0e_status_filter\"\x9f\x01\n" +
-	"\x16ListOperationsResponse\x12<\n" +
-	"\n" +
-	"operations\x18\x01 \x03(\v2\x1c.tss.v1.GetOperationResponseR\n" +
-	"operations\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
-	"\vtotal_count\x18\x03 \x01(\x03R\n" +
-	"totalCount\"\x93\x01\n" +
+	"\x06_error\"\x93\x01\n" +
 	"\vNodeMapping\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x17\n" +
 	"\apeer_id\x18\x02 \x01(\tR\x06peerId\x12\x18\n" +
@@ -1429,15 +1210,13 @@ const file_proto_tss_v1_tss_proto_rawDesc = "" +
 	"\x1aOPERATION_TYPE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15OPERATION_TYPE_KEYGEN\x10\x01\x12\x1a\n" +
 	"\x16OPERATION_TYPE_SIGNING\x10\x02\x12\x1c\n" +
-	"\x18OPERATION_TYPE_RESHARING\x10\x032\xc0\x04\n" +
+	"\x18OPERATION_TYPE_RESHARING\x10\x032\x9b\x03\n" +
 	"\n" +
 	"TSSService\x12F\n" +
 	"\vStartKeygen\x12\x1a.tss.v1.StartKeygenRequest\x1a\x1b.tss.v1.StartKeygenResponse\x12I\n" +
 	"\fStartSigning\x12\x1b.tss.v1.StartSigningRequest\x1a\x1c.tss.v1.StartSigningResponse\x12O\n" +
 	"\x0eStartResharing\x12\x1d.tss.v1.StartResharingRequest\x1a\x1e.tss.v1.StartResharingResponse\x12I\n" +
-	"\fGetOperation\x12\x1b.tss.v1.GetOperationRequest\x1a\x1c.tss.v1.GetOperationResponse\x12R\n" +
-	"\x0fCancelOperation\x12\x1e.tss.v1.CancelOperationRequest\x1a\x1f.tss.v1.CancelOperationResponse\x12O\n" +
-	"\x0eListOperations\x12\x1d.tss.v1.ListOperationsRequest\x1a\x1e.tss.v1.ListOperationsResponse\x12^\n" +
+	"\fGetOperation\x12\x1b.tss.v1.GetOperationRequest\x1a\x1c.tss.v1.GetOperationResponse\x12^\n" +
 	"\x13GetNetworkAddresses\x12\".tss.v1.GetNetworkAddressesRequest\x1a#.tss.v1.GetNetworkAddressesResponseB0Z.github.com/dreamer-zq/DKNet/proto/tss/v1;tssv1b\x06proto3"
 
 var (
@@ -1453,7 +1232,7 @@ func file_proto_tss_v1_tss_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_tss_v1_tss_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_tss_v1_tss_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_proto_tss_v1_tss_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_proto_tss_v1_tss_proto_goTypes = []any{
 	(OperationStatus)(0),                // 0: tss.v1.OperationStatus
 	(OperationType)(0),                  // 1: tss.v1.OperationType
@@ -1467,56 +1246,45 @@ var file_proto_tss_v1_tss_proto_goTypes = []any{
 	(*StartResharingResponse)(nil),      // 9: tss.v1.StartResharingResponse
 	(*GetOperationRequest)(nil),         // 10: tss.v1.GetOperationRequest
 	(*GetOperationResponse)(nil),        // 11: tss.v1.GetOperationResponse
-	(*CancelOperationRequest)(nil),      // 12: tss.v1.CancelOperationRequest
-	(*CancelOperationResponse)(nil),     // 13: tss.v1.CancelOperationResponse
-	(*ListOperationsRequest)(nil),       // 14: tss.v1.ListOperationsRequest
-	(*ListOperationsResponse)(nil),      // 15: tss.v1.ListOperationsResponse
-	(*NodeMapping)(nil),                 // 16: tss.v1.NodeMapping
-	(*GetNetworkAddressesRequest)(nil),  // 17: tss.v1.GetNetworkAddressesRequest
-	(*GetNetworkAddressesResponse)(nil), // 18: tss.v1.GetNetworkAddressesResponse
-	(*timestamppb.Timestamp)(nil),       // 19: google.protobuf.Timestamp
+	(*NodeMapping)(nil),                 // 12: tss.v1.NodeMapping
+	(*GetNetworkAddressesRequest)(nil),  // 13: tss.v1.GetNetworkAddressesRequest
+	(*GetNetworkAddressesResponse)(nil), // 14: tss.v1.GetNetworkAddressesResponse
+	(*timestamppb.Timestamp)(nil),       // 15: google.protobuf.Timestamp
 }
 var file_proto_tss_v1_tss_proto_depIdxs = []int32{
 	0,  // 0: tss.v1.StartKeygenResponse.status:type_name -> tss.v1.OperationStatus
-	19, // 1: tss.v1.StartKeygenResponse.created_at:type_name -> google.protobuf.Timestamp
+	15, // 1: tss.v1.StartKeygenResponse.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: tss.v1.StartSigningResponse.status:type_name -> tss.v1.OperationStatus
-	19, // 3: tss.v1.StartSigningResponse.created_at:type_name -> google.protobuf.Timestamp
+	15, // 3: tss.v1.StartSigningResponse.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 4: tss.v1.StartResharingResponse.status:type_name -> tss.v1.OperationStatus
-	19, // 5: tss.v1.StartResharingResponse.created_at:type_name -> google.protobuf.Timestamp
+	15, // 5: tss.v1.StartResharingResponse.created_at:type_name -> google.protobuf.Timestamp
 	1,  // 6: tss.v1.GetOperationResponse.type:type_name -> tss.v1.OperationType
 	0,  // 7: tss.v1.GetOperationResponse.status:type_name -> tss.v1.OperationStatus
-	19, // 8: tss.v1.GetOperationResponse.created_at:type_name -> google.protobuf.Timestamp
-	19, // 9: tss.v1.GetOperationResponse.completed_at:type_name -> google.protobuf.Timestamp
+	15, // 8: tss.v1.GetOperationResponse.created_at:type_name -> google.protobuf.Timestamp
+	15, // 9: tss.v1.GetOperationResponse.completed_at:type_name -> google.protobuf.Timestamp
 	4,  // 10: tss.v1.GetOperationResponse.keygen_result:type_name -> tss.v1.KeygenResult
 	7,  // 11: tss.v1.GetOperationResponse.signing_result:type_name -> tss.v1.SigningResult
 	4,  // 12: tss.v1.GetOperationResponse.resharing_result:type_name -> tss.v1.KeygenResult
 	2,  // 13: tss.v1.GetOperationResponse.keygen_request:type_name -> tss.v1.StartKeygenRequest
 	5,  // 14: tss.v1.GetOperationResponse.signing_request:type_name -> tss.v1.StartSigningRequest
 	8,  // 15: tss.v1.GetOperationResponse.resharing_request:type_name -> tss.v1.StartResharingRequest
-	1,  // 16: tss.v1.ListOperationsRequest.type_filter:type_name -> tss.v1.OperationType
-	0,  // 17: tss.v1.ListOperationsRequest.status_filter:type_name -> tss.v1.OperationStatus
-	11, // 18: tss.v1.ListOperationsResponse.operations:type_name -> tss.v1.GetOperationResponse
-	19, // 19: tss.v1.NodeMapping.timestamp:type_name -> google.protobuf.Timestamp
-	16, // 20: tss.v1.GetNetworkAddressesResponse.mappings:type_name -> tss.v1.NodeMapping
-	2,  // 21: tss.v1.TSSService.StartKeygen:input_type -> tss.v1.StartKeygenRequest
-	5,  // 22: tss.v1.TSSService.StartSigning:input_type -> tss.v1.StartSigningRequest
-	8,  // 23: tss.v1.TSSService.StartResharing:input_type -> tss.v1.StartResharingRequest
-	10, // 24: tss.v1.TSSService.GetOperation:input_type -> tss.v1.GetOperationRequest
-	12, // 25: tss.v1.TSSService.CancelOperation:input_type -> tss.v1.CancelOperationRequest
-	14, // 26: tss.v1.TSSService.ListOperations:input_type -> tss.v1.ListOperationsRequest
-	17, // 27: tss.v1.TSSService.GetNetworkAddresses:input_type -> tss.v1.GetNetworkAddressesRequest
-	3,  // 28: tss.v1.TSSService.StartKeygen:output_type -> tss.v1.StartKeygenResponse
-	6,  // 29: tss.v1.TSSService.StartSigning:output_type -> tss.v1.StartSigningResponse
-	9,  // 30: tss.v1.TSSService.StartResharing:output_type -> tss.v1.StartResharingResponse
-	11, // 31: tss.v1.TSSService.GetOperation:output_type -> tss.v1.GetOperationResponse
-	13, // 32: tss.v1.TSSService.CancelOperation:output_type -> tss.v1.CancelOperationResponse
-	15, // 33: tss.v1.TSSService.ListOperations:output_type -> tss.v1.ListOperationsResponse
-	18, // 34: tss.v1.TSSService.GetNetworkAddresses:output_type -> tss.v1.GetNetworkAddressesResponse
-	28, // [28:35] is the sub-list for method output_type
-	21, // [21:28] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	15, // 16: tss.v1.NodeMapping.timestamp:type_name -> google.protobuf.Timestamp
+	12, // 17: tss.v1.GetNetworkAddressesResponse.mappings:type_name -> tss.v1.NodeMapping
+	2,  // 18: tss.v1.TSSService.StartKeygen:input_type -> tss.v1.StartKeygenRequest
+	5,  // 19: tss.v1.TSSService.StartSigning:input_type -> tss.v1.StartSigningRequest
+	8,  // 20: tss.v1.TSSService.StartResharing:input_type -> tss.v1.StartResharingRequest
+	10, // 21: tss.v1.TSSService.GetOperation:input_type -> tss.v1.GetOperationRequest
+	13, // 22: tss.v1.TSSService.GetNetworkAddresses:input_type -> tss.v1.GetNetworkAddressesRequest
+	3,  // 23: tss.v1.TSSService.StartKeygen:output_type -> tss.v1.StartKeygenResponse
+	6,  // 24: tss.v1.TSSService.StartSigning:output_type -> tss.v1.StartSigningResponse
+	9,  // 25: tss.v1.TSSService.StartResharing:output_type -> tss.v1.StartResharingResponse
+	11, // 26: tss.v1.TSSService.GetOperation:output_type -> tss.v1.GetOperationResponse
+	14, // 27: tss.v1.TSSService.GetNetworkAddresses:output_type -> tss.v1.GetNetworkAddressesResponse
+	23, // [23:28] is the sub-list for method output_type
+	18, // [18:23] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_proto_tss_v1_tss_proto_init() }
@@ -1532,14 +1300,13 @@ func file_proto_tss_v1_tss_proto_init() {
 		(*GetOperationResponse_SigningRequest)(nil),
 		(*GetOperationResponse_ResharingRequest)(nil),
 	}
-	file_proto_tss_v1_tss_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_tss_v1_tss_proto_rawDesc), len(file_proto_tss_v1_tss_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   17,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

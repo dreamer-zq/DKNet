@@ -89,6 +89,7 @@ type gRPCHealthServer struct {
 func (g *gRPCTSSServer) StartKeygen(ctx context.Context, req *tssv1.StartKeygenRequest) (*tssv1.StartKeygenResponse, error) {
 	// Convert proto request to internal request
 	tssReq := &tss.KeygenRequest{
+		OperationID:  req.OperationId,
 		Threshold:    int(req.Threshold),
 		Parties:      int(req.Parties),
 		Participants: req.Participants,
@@ -113,6 +114,7 @@ func (g *gRPCTSSServer) StartKeygen(ctx context.Context, req *tssv1.StartKeygenR
 func (g *gRPCTSSServer) StartSigning(ctx context.Context, req *tssv1.StartSigningRequest) (*tssv1.StartSigningResponse, error) {
 	// Convert proto request to internal request
 	tssReq := &tss.SigningRequest{
+		OperationID:  req.OperationId,
 		Message:      req.Message,
 		KeyID:        req.KeyId,
 		Participants: req.Participants,
@@ -137,6 +139,7 @@ func (g *gRPCTSSServer) StartSigning(ctx context.Context, req *tssv1.StartSignin
 func (g *gRPCTSSServer) StartResharing(ctx context.Context, req *tssv1.StartResharingRequest) (*tssv1.StartResharingResponse, error) {
 	// Convert proto request to internal request
 	tssReq := &tss.ResharingRequest{
+		OperationID:     req.OperationId,
 		KeyID:           req.KeyId,
 		NewThreshold:    int(req.NewThreshold),
 		NewParties:      int(req.NewParties),
@@ -353,29 +356,6 @@ func (g *gRPCTSSServer) GetOperation(ctx context.Context, req *tssv1.GetOperatio
 	}
 
 	return response, nil
-}
-
-// CancelOperation implements TSSService.CancelOperation
-func (g *gRPCTSSServer) CancelOperation(ctx context.Context, req *tssv1.CancelOperationRequest) (*tssv1.CancelOperationResponse, error) {
-	if err := g.tssService.CancelOperation(req.OperationId); err != nil {
-		g.logger.Error("Failed to cancel operation", zap.String("operation_id", req.OperationId), zap.Error(err))
-		return nil, status.Errorf(codes.Internal, "failed to cancel operation: %v", err)
-	}
-
-	return &tssv1.CancelOperationResponse{
-		Message: "operation canceled",
-	}, nil
-}
-
-// ListOperations implements TSSService.ListOperations
-func (g *gRPCTSSServer) ListOperations(ctx context.Context, req *tssv1.ListOperationsRequest) (*tssv1.ListOperationsResponse, error) {
-	// For now, return a simplified response
-	// In a complete implementation, you would need to add a GetAllOperations method to the TSS service
-	// or iterate through persistent storage
-	return &tssv1.ListOperationsResponse{
-		Operations: []*tssv1.GetOperationResponse{},
-		TotalCount: 0,
-	}, nil
 }
 
 // Check implements HealthService.Check
