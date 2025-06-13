@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/dreamer-zq/DKNet/internal/p2p"
 	"github.com/dreamer-zq/DKNet/internal/tss"
 	healthv1 "github.com/dreamer-zq/DKNet/proto/health/v1"
 	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
@@ -378,25 +377,11 @@ func (s *Server) getOperationHandler(c *gin.Context) {
 
 // getAddressesHandler handles requests for node address mappings
 func (s *Server) getAddressesHandler(c *gin.Context) {
-	var mappings map[string]*p2p.NodeMapping
-	if s.addressManager != nil {
-		mappings = s.addressManager.GetAllMappings()
-	} else {
-		mappings = make(map[string]*p2p.NodeMapping)
-	}
-
-	// Convert to array of proto NodeMapping
-	var result []*tssv1.NodeMapping
-	for _, mapping := range mappings {
-		result = append(result, &tssv1.NodeMapping{
-			NodeId:    mapping.NodeID,
-			PeerId:    mapping.PeerID,
-			Moniker:   mapping.Moniker,
-			Timestamp: timestamppb.New(mapping.Timestamp),
-		})
-	}
+	// Phase 2: No longer using address manager, return empty mappings
+	// In the future, this API might be deprecated or return peer information differently
+	s.logger.Debug("getAddressesHandler called, returning empty mappings (Phase 2)")
 
 	c.JSON(http.StatusOK, tssv1.GetNetworkAddressesResponse{
-		Mappings: result,
+		Mappings: []*tssv1.NodeMapping{},
 	})
 }

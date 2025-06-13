@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -41,13 +40,6 @@ type Config struct {
 	BootstrapPeers []string
 	PrivateKeyFile string
 	MaxPeers       int
-	DataDir        string // Directory for storing node address mappings
-	NodeID         string // This node's NodeID for TSS
-	Moniker        string // Human-readable node name
-
-	// Address book broadcasting configuration
-	EnableAddressBookBroadcast   bool          `json:"enable_address_book_broadcast"`   // Enable periodic address book broadcasting
-	AddressBookBroadcastInterval time.Duration `json:"address_book_broadcast_interval"` // Interval for broadcasting address book
 }
 
 // NewNetwork creates a new P2P network instance

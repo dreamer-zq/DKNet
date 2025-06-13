@@ -25,7 +25,6 @@ type Service struct {
 	logger            *zap.Logger
 	storage           storage.Storage
 	network           *p2p.Network
-	addressManager    *p2p.AddressManager
 	encryption        *plugin.KeyCipher
 	validationService plugin.ValidationService // optional
 
@@ -40,7 +39,7 @@ func NewService(
 	cfg *Config,
 	store storage.Storage,
 	network *p2p.Network,
-	addressManager *p2p.AddressManager,
+	addressManager *p2p.AddressManager, // Kept for backward compatibility, but ignored
 	logger *zap.Logger,
 	encryptionPassword string,
 ) (*Service, error) {
@@ -51,14 +50,13 @@ func NewService(
 	}
 
 	service := &Service{
-		storage:        store,
-		network:        network,
-		addressManager: addressManager,
-		logger:         logger,
-		encryption:     keyEncryption,
-		operations:     make(map[string]*Operation),
-		nodeID:         cfg.NodeID,
-		moniker:        cfg.Moniker,
+		storage:    store,
+		network:    network,
+		logger:     logger,
+		encryption: keyEncryption,
+		operations: make(map[string]*Operation),
+		nodeID:     cfg.NodeID,
+		moniker:    cfg.Moniker,
 	}
 
 	// Check if validation service is configured and enabled
@@ -324,25 +322,11 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 				}
 			} else {
 				for _, to := range routing.To {
-					// Phase 1: Since we now use peer ID as node ID, to.Id should already be a valid peer ID
-					// But we still check address manager for backward compatibility
-					var peerID string
-					var exists bool
-					if s.addressManager != nil {
-						peerID, exists = s.addressManager.GetPeerID(to.Id)
-					}
-
-					if !exists {
-						// In phase 1, to.Id should already be a peer ID, so use it directly
-						peerID = to.Id
-						s.logger.Debug("Using node ID directly as peer ID (phase 1 implementation)",
-							zap.String("node_id", to.Id),
-							zap.String("peer_id", peerID))
-					} else {
-						s.logger.Debug("Found peer ID mapping in address manager",
-							zap.String("node_id", to.Id),
-							zap.String("mapped_peer_id", peerID))
-					}
+					// Phase 2: Direct use of peer ID as node ID, no address manager needed
+					peerID := to.Id
+					s.logger.Debug("Using node ID directly as peer ID (phase 2 implementation)",
+						zap.String("node_id", to.Id),
+						zap.String("peer_id", peerID))
 
 					p2pMsg.To = []string{peerID}
 					s.logger.Info("Sending direct message",
