@@ -604,9 +604,9 @@ func (n *Network) UpdateNodeMapping(nodeID, peerID, moniker string) error {
 }
 
 // GetAllNodeMappings returns all node address mappings
-func (n *Network) GetAllNodeMappings() map[string]*NodeAddressMapping {
+func (n *Network) GetAllNodeMappings() map[string]*NodeMapping {
 	if n.addressManager == nil {
-		return make(map[string]*NodeAddressMapping)
+		return make(map[string]*NodeMapping)
 	}
 	
 	return n.addressManager.getAllMappings()

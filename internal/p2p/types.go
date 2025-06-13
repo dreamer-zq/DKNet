@@ -19,8 +19,8 @@ const (
 	addressBroadcastInterval = 5 * time.Minute // Interval for broadcasting address book
 )
 
-// NodeAddressMapping represents a mapping between NodeID and PeerID
-type NodeAddressMapping struct {
+// NodeMapping represents a mapping between NodeID and PeerID
+type NodeMapping struct {
 	NodeID    string    `json:"node_id"`
 	PeerID    string    `json:"peer_id"`
 	Timestamp time.Time `json:"timestamp"`
@@ -30,7 +30,7 @@ type NodeAddressMapping struct {
 
 // AddressBook holds all known node address mappings
 type AddressBook struct {
-	Mappings  map[string]*NodeAddressMapping `json:"mappings"` // key: NodeID
+	Mappings  map[string]*NodeMapping `json:"mappings"` // key: NodeID
 	Version   int64                          `json:"version"`
 	UpdatedAt time.Time                      `json:"updated_at"`
 }

@@ -37,7 +37,7 @@ func NewAddressManager(dataDir, nodeID string, peerID peer.ID, moniker string, l
 
 	am := &AddressManager{
 		addressBook: &AddressBook{
-			Mappings:  make(map[string]*NodeAddressMapping),
+			Mappings:  make(map[string]*NodeMapping),
 			Version:   1,
 			UpdatedAt: time.Now(),
 		},
@@ -99,7 +99,7 @@ func (am *AddressManager) updateMapping(nodeID, peerIDStr, moniker string) error
 	}
 
 	// Create or update mapping
-	mapping := &NodeAddressMapping{
+	mapping := &NodeMapping{
 		NodeID:    nodeID,
 		PeerID:    peerIDStr,
 		Timestamp: now,
@@ -145,11 +145,11 @@ func (am *AddressManager) getPeerID(nodeID string) (string, bool) {
 }
 
 // getAllMappings returns a copy of all current mappings
-func (am *AddressManager) getAllMappings() map[string]*NodeAddressMapping {
+func (am *AddressManager) getAllMappings() map[string]*NodeMapping {
 	am.mu.RLock()
 	defer am.mu.RUnlock()
 
-	result := make(map[string]*NodeAddressMapping)
+	result := make(map[string]*NodeMapping)
 	for k, v := range am.addressBook.Mappings {
 		// Create a copy to avoid race conditions
 		mapping := *v
@@ -164,7 +164,7 @@ func (am *AddressManager) getAddressBook() *AddressBook {
 	defer am.mu.RUnlock()
 
 	book := &AddressBook{
-		Mappings:  make(map[string]*NodeAddressMapping),
+		Mappings:  make(map[string]*NodeMapping),
 		Version:   am.addressBook.Version,
 		UpdatedAt: am.addressBook.UpdatedAt,
 	}
@@ -212,7 +212,7 @@ func (am *AddressManager) mergeAddressBook(remoteBook *AddressBook) error {
 		// Add new mapping or update if remote is newer
 		if !exists || remoteMapping.Timestamp.After(localMapping.Timestamp) {
 					// Create a copy of the remote mapping
-		newMapping := &NodeAddressMapping{
+		newMapping := &NodeMapping{
 			NodeID:    remoteMapping.NodeID,
 			PeerID:    remoteMapping.PeerID,
 			Timestamp: remoteMapping.Timestamp,
@@ -263,7 +263,7 @@ func (am *AddressManager) broadcastOwnMapping() error {
 
 	// Create a minimal address book with just our mapping
 	book := &AddressBook{
-		Mappings: map[string]*NodeAddressMapping{
+		Mappings: map[string]*NodeMapping{
 			am.nodeID: ownMapping,
 		},
 		Version:   1,
@@ -304,7 +304,7 @@ func (am *AddressManager) loadFromFile() error {
 	}
 
 	// Validate loaded mappings
-	validMappings := make(map[string]*NodeAddressMapping)
+	validMappings := make(map[string]*NodeMapping)
 	for nodeID, mapping := range book.Mappings {
 		if mapping == nil {
 			continue
