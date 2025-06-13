@@ -41,7 +41,6 @@ type Operation struct {
 	Party        tss.Party
 	OutCh        chan tss.Message
 	EndCh        chan interface{}
-	ErrCh        chan *tss.Error
 	Status       OperationStatus
 	CreatedAt    time.Time
 	CompletedAt  *time.Time

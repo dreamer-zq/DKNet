@@ -22,14 +22,13 @@ import (
 
 // Service provides TSS operations
 type Service struct {
-	config         *Config
 	storage        storage.Storage
 	network        *p2p.Network
 	addressManager *p2p.AddressManager
 	logger         *zap.Logger
 
 	// Key encryption for TSS keys
-	keyEncryption *crypto.KeyEncryption
+	encryption *crypto.KeyEncryption
 
 	// Active operations
 	operations map[string]*Operation
@@ -38,7 +37,6 @@ type Service struct {
 	// Node identity
 	nodeID  string
 	moniker string
-	partyID *tss.PartyID
 
 	// Validation service client (optional)
 	validationService ValidationService
@@ -59,21 +57,15 @@ func NewService(
 		return nil, fmt.Errorf("failed to initialize key encryption: %w", err)
 	}
 
-	// Create party ID for this node
-	partyKey := big.NewInt(1) // Use 1 as the key for this node
-	partyID := tss.NewPartyID(cfg.NodeID, cfg.Moniker, partyKey)
-
 	service := &Service{
-		config:         cfg,
 		storage:        store,
 		network:        network,
 		addressManager: addressManager,
 		logger:         logger,
-		keyEncryption:  keyEncryption,
+		encryption:     keyEncryption,
 		operations:     make(map[string]*Operation),
 		nodeID:         cfg.NodeID,
 		moniker:        cfg.Moniker,
-		partyID:        partyID,
 	}
 
 	// Check if validation service is configured and enabled
@@ -429,7 +421,7 @@ func (s *Service) loadKeyData(ctx context.Context, keyID string) (*keygen.LocalP
 	}
 
 	// Decrypt the key data
-	decryptedKeyData, err := s.keyEncryption.Decrypt(keyDataStruct.KeyData)
+	decryptedKeyData, err := s.encryption.Decrypt(keyDataStruct.KeyData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt key data: %w", err)
 	}

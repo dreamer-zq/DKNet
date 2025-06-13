@@ -75,9 +75,3 @@ func (ke *KeyEncryption) Decrypt(ciphertext []byte) ([]byte, error) {
 
 	return plaintext, nil
 }
-
-// VerifyPassword verifies if the password can decrypt a test payload
-func (ke *KeyEncryption) VerifyPassword(testCiphertext []byte) error {
-	_, err := ke.Decrypt(testCiphertext)
-	return err
-}

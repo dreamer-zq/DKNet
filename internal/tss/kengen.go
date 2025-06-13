@@ -213,7 +213,7 @@ func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, re
 	}
 
 	// Encrypt the sensitive key data
-	encryptedKeyData, err := s.keyEncryption.Encrypt(keyDataBytes)
+	encryptedKeyData, err := s.encryption.Encrypt(keyDataBytes)
 	if err != nil {
 		return fmt.Errorf("failed to encrypt key data: %w", err)
 	}
