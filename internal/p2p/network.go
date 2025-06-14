@@ -32,6 +32,9 @@ type Network struct {
 
 	// Connected peers tracking
 	connectedPeers map[peer.ID]bool
+	
+	// Gossip routing for point-to-point messages
+	gossipRouter *GossipRouter
 }
 
 // Config holds P2P network configuration
@@ -77,6 +80,9 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 
 	// Set up protocol handlers
 	n.setupProtocolHandlers()
+	
+	// Initialize gossip router
+	n.gossipRouter = NewGossipRouter(n, logger.Named("gossip"))
 
 	return n, nil
 }
@@ -119,6 +125,11 @@ func (n *Network) Start(ctx context.Context, bootstrapPeers []string) error {
 
 // Stop stops the P2P network
 func (n *Network) Stop() error {
+	// Stop gossip router
+	if n.gossipRouter != nil {
+		n.gossipRouter.Stop()
+	}
+	
 	if err := n.host.Close(); err != nil {
 		return fmt.Errorf("failed to close host: %w", err)
 	}
@@ -140,16 +151,15 @@ func (n *Network) SendMessage(ctx context.Context, msg *Message) error {
 	return n.sendDirectMessage(ctx, msg)
 }
 
+// SendMessageWithGossip sends a message using gossip routing as fallback
+func (n *Network) SendMessageWithGossip(ctx context.Context, msg *Message) error {
+	return n.gossipRouter.SendWithGossip(ctx, msg)
+}
+
 // getConnectedPeers returns the list of connected peers
 func (n *Network) getConnectedPeers() []peer.ID {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-
-	var peers []peer.ID
-	for peerID := range n.connectedPeers {
-		peers = append(peers, peerID)
-	}
-	return peers
+	// Get connected peers directly from libp2p host
+	return n.host.Network().Peers()
 }
 
 // setupProtocolHandlers sets up handlers for TSS protocols
@@ -158,6 +168,7 @@ func (n *Network) setupProtocolHandlers() {
 		tssKeygenProtocol,
 		tssSigningProtocol,
 		tssResharingProtocol,
+		tssGossipProtocol,
 	}
 
 	for _, p := range protocols {
@@ -185,7 +196,15 @@ func (n *Network) handleStream(stream network.Stream) {
 		return
 	}
 
-	// Handle message at business layer
+	// Handle gossip routing messages
+	if msg.Type == "gossip_route" {
+		if err := n.gossipRouter.HandleRoutedMessage(context.Background(), &msg); err != nil {
+			n.logger.Error("Failed to handle gossip routed message", zap.Error(err))
+		}
+		return
+	}
+
+	// Handle regular messages at business layer
 	if n.messageHandler != nil {
 		ctx := context.Background()
 		if err := n.messageHandler.HandleMessage(ctx, &msg); err != nil {

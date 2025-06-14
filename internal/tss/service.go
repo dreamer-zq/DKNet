@@ -321,31 +321,27 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 						zap.String("operation_id", operation.ID))
 				}
 			} else {
+				// Use gossip routing for point-to-point messages
+				var targetPeers []string
 				for _, to := range routing.To {
-					// Phase 2: Direct use of peer ID as node ID, no address manager needed
-					peerID := to.Id
-					s.logger.Debug("Using node ID directly as peer ID (phase 2 implementation)",
-						zap.String("node_id", to.Id),
-						zap.String("peer_id", peerID))
-
-					p2pMsg.To = []string{peerID}
-					s.logger.Info("Sending direct message",
+					targetPeers = append(targetPeers, to.Id)
+				}
+				p2pMsg.To = targetPeers
+				
+				s.logger.Info("Sending point-to-point message with gossip routing",
+					zap.String("operation_id", operation.ID),
+					zap.String("session_id", operation.SessionID),
+					zap.Strings("targets", targetPeers))
+				
+				if err := s.network.SendMessageWithGossip(ctx, p2pMsg); err != nil {
+					s.logger.Error("Failed to send message with gossip routing",
+						zap.Error(err),
 						zap.String("operation_id", operation.ID),
-						zap.String("to_node_id", to.Id),
-						zap.String("to_peer_id", peerID),
-						zap.String("session_id", operation.SessionID))
-					if err := s.network.SendMessage(ctx, p2pMsg); err != nil {
-						s.logger.Error("Failed to send message",
-							zap.String("to_node_id", to.Id),
-							zap.String("to_peer_id", peerID),
-							zap.Error(err),
-							zap.String("operation_id", operation.ID))
-					} else {
-						s.logger.Info("Direct message sent successfully",
-							zap.String("operation_id", operation.ID),
-							zap.String("to_node_id", to.Id),
-							zap.String("to_peer_id", peerID))
-					}
+						zap.Strings("targets", targetPeers))
+				} else {
+					s.logger.Info("Point-to-point message sent successfully with gossip routing",
+						zap.String("operation_id", operation.ID),
+						zap.Strings("targets", targetPeers))
 				}
 			}
 		case <-ctx.Done():
