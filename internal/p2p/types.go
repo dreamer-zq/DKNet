@@ -62,3 +62,31 @@ func (m *Message) Decompresses(data []byte) error {
 type MessageHandler interface {
 	HandleMessage(ctx context.Context, msg *Message) error
 }
+
+// RoutedMessage wraps a message with routing information
+type RoutedMessage struct {
+	*Message
+	OriginalSender string   `json:"original_sender"`
+	FinalTarget    string   `json:"final_target"`
+	Path           []string `json:"path"`
+	TTL            int      `json:"ttl"`
+	MessageID      string   `json:"message_id"`
+}
+
+// Compresses serializes and compresses the routed message
+func (rm *RoutedMessage) Compresses() ([]byte, error) {
+	raw, err := json.Marshal(rm)
+	if err != nil {
+		return nil, err
+	}
+	return common.Gzip(raw)
+}
+
+// Decompresses decompresses and deserializes the routed message
+func (rm *RoutedMessage) Decompresses(data []byte) error {
+	decompressed, err := common.UnGzip(data)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(decompressed, rm)
+}

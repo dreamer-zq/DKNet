@@ -212,7 +212,7 @@ curl http://localhost:8080/health
   "timestamp": "2024-06-11T13:45:30Z",
   "details": "DKNet is healthy",
   "metadata": {
-    		"service": "dknet",
+    "service": "dknet",
     "version": "1.0.0"
   }
 }
