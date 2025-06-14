@@ -51,7 +51,6 @@ func main() {
 		createSignCommand(),
 		createReshareCommand(),
 		createGetOperationCommand(),
-		createNetworkInfoCommand(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
@@ -258,46 +257,7 @@ func createGetOperationCommand() *cobra.Command {
 	return cmd
 }
 
-// createNetworkInfoCommand creates the network-info command
-func createNetworkInfoCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "network-info",
-		Short: "Get all node address mappings",
-		Long:  "Query and display all known nodeID-peerID-moniker mappings in the network.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := context.WithTimeout(context.Background(), timeout)
-			defer cancel()
 
-			if useGRPC {
-				return getNetworkAddressesGRPC(ctx)
-			}
-			return getNetworkAddressesHTTP(ctx)
-		},
-	}
-	return cmd
-}
-
-// getNetworkAddressesGRPC queries node mappings via gRPC
-func getNetworkAddressesGRPC(ctx context.Context) error {
-	resp, err := tssClient.GetNetworkAddresses(ctx, &tssv1.GetNetworkAddressesRequest{})
-	if err != nil {
-		return fmt.Errorf("failed to get network addresses (gRPC): %w", err)
-	}
-	return outputNetworkAddresses(resp)
-}
-
-// getNetworkAddressesHTTP queries node mappings via HTTP
-func getNetworkAddressesHTTP(ctx context.Context) error {
-	respBytes, err := makeHTTPRequest(ctx, "GET", "/api/v1/network/addresses", nil)
-	if err != nil {
-		return fmt.Errorf("failed to get network addresses (HTTP): %w", err)
-	}
-	var resp tssv1.GetNetworkAddressesResponse
-	if err := json.Unmarshal(respBytes, &resp); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-	return outputNetworkAddresses(&resp)
-}
 
 // gRPC implementations
 func keygenGRPC(ctx context.Context, threshold, parties int, participants []string) error {

@@ -69,7 +69,7 @@ func New(cfg *config.NodeConfig, logger *zap.Logger, password string) (*App, err
 		NodeID:            peerID, // Use peer ID as node ID
 		Moniker:           cfg.TSS.Moniker,
 		ValidationService: cfg.TSS.ValidationService,
-	}, store, network, nil, logger.Named("tss"), password)
+	}, store, network, logger.Named("tss"), password)
 	if err != nil {
 		common.LogDo(func() error {
 			return store.Close()
@@ -94,7 +94,7 @@ func New(cfg *config.NodeConfig, logger *zap.Logger, password string) (*App, err
 			Host: cfg.Server.GRPC.Host,
 			Port: cfg.Server.GRPC.Port,
 		},
-	}, tssService, network, nil, logger.Named("api"))
+	}, tssService, network, logger.Named("api"))
 	if err != nil {
 		if closeErr := store.Close(); closeErr != nil {
 			logger.Error("Failed to close storage during cleanup", zap.Error(closeErr))

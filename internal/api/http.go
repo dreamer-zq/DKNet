@@ -80,8 +80,7 @@ func (s *Server) setupHTTPRoutes(router *gin.Engine) {
 	// Operations
 	api.GET("/operations/:operation_id", s.getOperationHandler)
 
-	// Network and address management
-	api.GET("/network/addresses", s.getAddressesHandler)
+
 }
 
 // healthHandler handles health check requests
@@ -375,13 +374,4 @@ func (s *Server) getOperationHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-// getAddressesHandler handles requests for node address mappings
-func (s *Server) getAddressesHandler(c *gin.Context) {
-	// Phase 2: No longer using address manager, return empty mappings
-	// In the future, this API might be deprecated or return peer information differently
-	s.logger.Debug("getAddressesHandler called, returning empty mappings (Phase 2)")
 
-	c.JSON(http.StatusOK, tssv1.GetNetworkAddressesResponse{
-		Mappings: []*tssv1.NodeMapping{},
-	})
-}

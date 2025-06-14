@@ -398,16 +398,4 @@ func (g *gRPCHealthServer) Watch(req *healthv1.WatchRequest, stream healthv1.Hea
 	}
 }
 
-// GetNetworkAddresses implements TSSService.GetNetworkAddresses
-func (g *gRPCTSSServer) GetNetworkAddresses(
-	ctx context.Context,
-	req *tssv1.GetNetworkAddressesRequest,
-) (*tssv1.GetNetworkAddressesResponse, error) {
-	// Phase 2: No longer using address manager, return empty mappings
-	// In the future, this API might be deprecated or return peer information differently
-	g.logger.Debug("GetNetworkAddresses called, returning empty mappings (Phase 2)")
 
-	return &tssv1.GetNetworkAddressesResponse{
-		Mappings: []*tssv1.NodeMapping{},
-	}, nil
-}

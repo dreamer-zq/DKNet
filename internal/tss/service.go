@@ -39,7 +39,6 @@ func NewService(
 	cfg *Config,
 	store storage.Storage,
 	network *p2p.Network,
-	addressManager *p2p.AddressManager, // Kept for backward compatibility, but ignored
 	logger *zap.Logger,
 	encryptionPassword string,
 ) (*Service, error) {

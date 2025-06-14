@@ -28,7 +28,6 @@ func NewServer(
 	cfg *Config,
 	tssService *tss.Service,
 	network *p2p.Network,
-	addressManager *p2p.AddressManager, // Kept for backward compatibility, but ignored
 	logger *zap.Logger,
 ) (*Server, error) {
 	return &Server{
