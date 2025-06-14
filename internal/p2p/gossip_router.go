@@ -30,11 +30,11 @@ const (
 type GossipRouter struct {
 	network *Network
 	logger  *zap.Logger
-	
+
 	// Message tracking to prevent loops
 	seenMessages map[string]time.Time
 	seenMu       sync.RWMutex
-	
+
 	// Configuration
 	maxTTL        int
 	cleanupTicker *time.Ticker
@@ -111,16 +111,17 @@ func (gr *GossipRouter) sendViaGossip(ctx context.Context, msg *Message, target 
 
 	// Check if target is directly connected before creating routed message
 	for _, peerID := range connectedPeers {
-		if peerID.String() == target {
-			// Direct connection found! Send directly without gossip overhead
-			gr.logger.Info("Found direct connection to target, sending directly",
-				zap.String("target", target))
-
-			directMsg := *msg
-			directMsg.To = []string{target}
-			gr.setProtocolID(&directMsg)
-			return gr.network.sendDirectMessage(ctx, &directMsg)
+		if peerID.String() != target {
+			continue
 		}
+		// Direct connection found! Send directly without gossip overhead
+		gr.logger.Info("Found direct connection to target, sending directly",
+			zap.String("target", target))
+
+		directMsg := *msg
+		directMsg.To = []string{target}
+		gr.setProtocolID(&directMsg)
+		return gr.network.sendDirectMessage(ctx, &directMsg)
 	}
 
 	// Target not directly connected, use gossip routing

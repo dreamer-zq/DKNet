@@ -202,5 +202,3 @@ func outputGetOperationResponse(resp *tssv1.GetOperationResponse) error {
 
 	return nil
 }
-
-

@@ -79,8 +79,6 @@ func (s *Server) setupHTTPRoutes(router *gin.Engine) {
 
 	// Operations
 	api.GET("/operations/:operation_id", s.getOperationHandler)
-
-
 }
 
 // healthHandler handles health check requests
@@ -373,5 +371,3 @@ func (s *Server) getOperationHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, resp)
 }
-
-

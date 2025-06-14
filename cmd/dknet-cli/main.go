@@ -257,8 +257,6 @@ func createGetOperationCommand() *cobra.Command {
 	return cmd
 }
 
-
-
 // gRPC implementations
 func keygenGRPC(ctx context.Context, threshold, parties int, participants []string) error {
 	req := &tssv1.StartKeygenRequest{

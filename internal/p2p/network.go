@@ -32,7 +32,7 @@ type Network struct {
 
 	// Connected peers tracking
 	connectedPeers map[peer.ID]bool
-	
+
 	// Gossip routing for point-to-point messages
 	gossipRouter *GossipRouter
 }
@@ -80,7 +80,7 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 
 	// Set up protocol handlers
 	n.setupProtocolHandlers()
-	
+
 	// Initialize gossip router
 	n.gossipRouter = NewGossipRouter(n, logger.Named("gossip"))
 
@@ -129,7 +129,7 @@ func (n *Network) Stop() error {
 	if n.gossipRouter != nil {
 		n.gossipRouter.Stop()
 	}
-	
+
 	if err := n.host.Close(); err != nil {
 		return fmt.Errorf("failed to close host: %w", err)
 	}

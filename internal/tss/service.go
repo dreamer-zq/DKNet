@@ -326,12 +326,12 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 					targetPeers = append(targetPeers, to.Id)
 				}
 				p2pMsg.To = targetPeers
-				
+
 				s.logger.Info("Sending point-to-point message with gossip routing",
 					zap.String("operation_id", operation.ID),
 					zap.String("session_id", operation.SessionID),
 					zap.Strings("targets", targetPeers))
-				
+
 				if err := s.network.SendMessageWithGossip(ctx, p2pMsg); err != nil {
 					s.logger.Error("Failed to send message with gossip routing",
 						zap.Error(err),

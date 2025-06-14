@@ -128,8 +128,6 @@ func Load(configFile string) (*NodeConfig, error) {
 		return nil, fmt.Errorf("error unmarshaling config: %w", err)
 	}
 
-
-
 	// Set the config directory
 	config.ConfigDir = configDir
 
@@ -154,7 +152,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("p2p.bootstrap_peers", []string{})
 	v.SetDefault("p2p.private_key_file", "./data/p2p_key")
 	v.SetDefault("p2p.max_peers", 50)
-
 
 	// Storage defaults
 	v.SetDefault("storage.type", "leveldb")

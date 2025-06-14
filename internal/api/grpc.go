@@ -397,5 +397,3 @@ func (g *gRPCHealthServer) Watch(req *healthv1.WatchRequest, stream healthv1.Hea
 		}
 	}
 }
-
-
