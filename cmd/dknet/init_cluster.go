@@ -108,8 +108,8 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 			httpPort = 8080 + i - 1
 			grpcPort = 9090 + i - 1
 		}
-		if err := generateAndSaveNodeConfig(nodeID, fmt.Sprintf("TSS Node %d", i), bootstrapPeers,
-			httpPort, grpcPort, getNodeP2PPort(i, dockerMode), getNodeListenAddr(dockerMode), configFile, dockerMode); err != nil {
+		if err := generateAndSaveNodeConfig(fmt.Sprintf("TSS Node %d", i), bootstrapPeers,
+			getNodeListenAddr(dockerMode), getNodeP2PPort(i, dockerMode), httpPort, grpcPort, configFile); err != nil {
 			return fmt.Errorf("failed to save config for %s: %w", nodeID, err)
 		}
 

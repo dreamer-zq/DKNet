@@ -95,9 +95,8 @@ func runShowNode(cmd *cobra.Command, args []string) error {
 
 	// Prepare node information
 	nodeInfo := NodeDisplayInfo{
-		NodeID:         cfg.TSS.NodeID,
-		Moniker:        cfg.TSS.Moniker,
 		PeerID:         peerID.String(),
+		Moniker:        cfg.TSS.Moniker,
 		Multiaddr:      multiaddr,
 		ListenAddr:     listenAddr,
 		Port:           port,
@@ -115,9 +114,8 @@ func runShowNode(cmd *cobra.Command, args []string) error {
 }
 
 type NodeDisplayInfo struct {
-	NodeID         string   `json:"node_id"`
-	Moniker        string   `json:"moniker"`
 	PeerID         string   `json:"peer_id"`
+	Moniker        string   `json:"moniker"`
 	Multiaddr      string   `json:"multiaddr"`
 	ListenAddr     string   `json:"listen_addr"`
 	Port           int      `json:"port"`
@@ -162,23 +160,20 @@ func loadPeerIDFromKeyFile(keyFile string) (peer.ID, error) {
 func buildDisplayMultiaddr(cfg *config.NodeConfig, listenAddr string, port int, peerID string) string {
 	// If listen address is 0.0.0.0 (Docker mode), try to infer the correct IP
 	if listenAddr == defaultBindIP {
-		// Look for Docker network IP in bootstrap peers
-		nodeID := cfg.TSS.NodeID
-
 		// Try to extract our IP from a pattern in bootstrap peers
 		// Docker nodes typically have IPs like 172.20.0.2, 172.20.0.3, etc.
-		if dockerIP := inferDockerIPFromNodeID(nodeID); dockerIP != "" {
+		if dockerIP := inferDockerIPFromPeerID(peerID); dockerIP != "" {
 			return fmt.Sprintf("/ip4/%s/tcp/%d/p2p/%s", dockerIP, port, peerID)
 		}
 
 		// If we can't infer Docker IP, check if we have bootstrap peers to get network pattern
 		if len(cfg.P2P.BootstrapPeers) > 0 {
-			if dockerIP := inferDockerIPFromBootstrapPeers(cfg.P2P.BootstrapPeers, nodeID); dockerIP != "" {
+			if dockerIP := inferDockerIPFromBootstrapPeers(cfg.P2P.BootstrapPeers, peerID); dockerIP != "" {
 				return fmt.Sprintf("/ip4/%s/tcp/%d/p2p/%s", dockerIP, port, peerID)
 			}
 		}
 
-		// Fallback: use Docker network base + node number guess
+		// Fallback: use Docker network base + default IP
 		return fmt.Sprintf("/ip4/172.20.0.2/tcp/%d/p2p/%s", port, peerID)
 	}
 
@@ -186,10 +181,10 @@ func buildDisplayMultiaddr(cfg *config.NodeConfig, listenAddr string, port int, 
 	return fmt.Sprintf("/ip4/%s/tcp/%d/p2p/%s", listenAddr, port, peerID)
 }
 
-func inferDockerIPFromNodeID(nodeID string) string {
-	// Try to extract node number from nodeID like "node1", "node2", etc.
-	if strings.HasPrefix(nodeID, "node") && len(nodeID) > 4 {
-		nodeNumStr := nodeID[4:]
+func inferDockerIPFromPeerID(peerID string) string {
+	// Try to extract node number from peerID like "node1", "node2", etc.
+	if strings.HasPrefix(peerID, "node") && len(peerID) > 4 {
+		nodeNumStr := peerID[4:]
 		var nodeNum int
 		if n, err := fmt.Sscanf(nodeNumStr, "%d", &nodeNum); n == 1 && err == nil {
 			return fmt.Sprintf("172.20.0.%d", nodeNum+1) // node1 -> 172.20.0.2, node2 -> 172.20.0.3, etc.
@@ -198,12 +193,12 @@ func inferDockerIPFromNodeID(nodeID string) string {
 	return ""
 }
 
-func inferDockerIPFromBootstrapPeers(bootstrapPeers []string, nodeID string) string {
+func inferDockerIPFromBootstrapPeers(bootstrapPeers []string, peerID string) string {
 	// Extract network pattern from bootstrap peers
 	// If we see IPs like 172.20.0.3, 172.20.0.4, we can infer that node1 is 172.20.0.2
 	nodeNum := 0
-	if strings.HasPrefix(nodeID, "node") && len(nodeID) > 4 {
-		if _, err := fmt.Sscanf(nodeID[4:], "%d", &nodeNum); err != nil {
+	if strings.HasPrefix(peerID, "node") && len(peerID) > 4 {
+		if _, err := fmt.Sscanf(peerID[4:], "%d", &nodeNum); err != nil {
 			// If parsing fails, return empty string
 			return ""
 		}
@@ -236,9 +231,8 @@ func outputText(info *NodeDisplayInfo) error {
 ====================
 
 Node Details:
-  Node ID:    %s
-  Moniker:    %s
   Peer ID:    %s
+  Moniker:    %s
   Multiaddr:  %s
 
 Network Configuration:
@@ -247,7 +241,7 @@ Network Configuration:
   gRPC Port:      %d
 
 Bootstrap Peers:
-`, info.NodeID, info.Moniker, info.PeerID, info.Multiaddr,
+`, info.PeerID, info.Moniker, info.Multiaddr,
 		info.ListenAddr, info.Port, info.HTTPPort, info.GRPCPort)
 
 	if len(info.BootstrapPeers) == 0 {

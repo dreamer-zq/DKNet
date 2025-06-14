@@ -59,7 +59,6 @@ type StorageConfig struct {
 
 // TSSConfig holds TSS protocol configuration
 type TSSConfig struct {
-	NodeID  string `yaml:"node_id" mapstructure:"node_id"`
 	Moniker string `yaml:"moniker" mapstructure:"moniker"`
 	// Validation service configuration (optional)
 	ValidationService *ValidationServiceConfig `yaml:"validation_service,omitempty" mapstructure:"validation_service"`
@@ -169,7 +168,6 @@ func setDefaults(v *viper.Viper) {
 
 	// TSS defaults
 	hostname, _ := os.Hostname()
-	v.SetDefault("tss.node_id", hostname)
 	v.SetDefault("tss.moniker", hostname)
 
 	// Validation service defaults
@@ -185,8 +183,8 @@ func setDefaults(v *viper.Viper) {
 
 // validateConfig validates the configuration
 func validateConfig(config *NodeConfig) error {
-	if config.TSS.NodeID == "" {
-		return fmt.Errorf("node_id cannot be empty")
+	if config.TSS.Moniker == "" {
+		return fmt.Errorf("moniker cannot be empty")
 	}
 
 	if config.Storage.Type != "file" && config.Storage.Type != "leveldb" {

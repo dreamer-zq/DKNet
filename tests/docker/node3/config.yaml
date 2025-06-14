@@ -18,15 +18,14 @@ storage:
     path: ./data
     options: {}
 tss:
-    node_id: node3
-    moniker: TSS Node 3
+    moniker: "TSS Node 3"
     validation_service:
         enabled: true
         url: "http://validation-service:8888/validate"
         timeout_seconds: 30
         headers:
-            X-Node-ID: "QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi"
-        insecure_skip_verify: false
+            "X-Node-ID": "QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi"
+        insecure_skip_verify: true
 security:
     tls_enabled: false
     cert_file: ""
