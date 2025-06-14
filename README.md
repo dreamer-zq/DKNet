@@ -53,11 +53,12 @@ DKNet/
 │   ├── api/               # API 层 (HTTP/gRPC)
 │   ├── app/               # 应用程序层
 │   ├── config/            # 配置管理
+│   ├── common/            # 工具函数
 │   ├── crypto/            # 加密相关
 │   ├── p2p/               # P2P 网络
 │   ├── storage/           # 存储层
 │   ├── tss/               # TSS 核心逻辑
-│   └── utils/             # 工具函数
+│   └── plugin/            # 插件
 ├── proto/                 # Protocol Buffers 定义
 ├── tests/                 # 测试和验证
 ├── docs/                  # 文档
