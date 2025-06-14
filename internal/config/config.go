@@ -45,9 +45,6 @@ type P2PConfig struct {
 	BootstrapPeers []string `yaml:"bootstrap_peers" mapstructure:"bootstrap_peers"`
 	PrivateKeyFile string   `yaml:"private_key_file" mapstructure:"private_key_file"`
 	MaxPeers       int      `yaml:"max_peers" mapstructure:"max_peers"`
-
-	// Address book broadcasting configuration
-	AddressBookBroadcastInterval string `yaml:"address_book_broadcast_interval" mapstructure:"address_book_broadcast_interval"`
 }
 
 // StorageConfig holds storage configuration
@@ -59,7 +56,6 @@ type StorageConfig struct {
 
 // TSSConfig holds TSS protocol configuration
 type TSSConfig struct {
-	NodeID  string `yaml:"node_id" mapstructure:"node_id"`
 	Moniker string `yaml:"moniker" mapstructure:"moniker"`
 	// Validation service configuration (optional)
 	ValidationService *ValidationServiceConfig `yaml:"validation_service,omitempty" mapstructure:"validation_service"`
@@ -132,11 +128,6 @@ func Load(configFile string) (*NodeConfig, error) {
 		return nil, fmt.Errorf("error unmarshaling config: %w", err)
 	}
 
-	// Set default address book broadcast interval if not specified
-	if config.P2P.AddressBookBroadcastInterval == "" {
-		config.P2P.AddressBookBroadcastInterval = "5m"
-	}
-
 	// Set the config directory
 	config.ConfigDir = configDir
 
@@ -161,7 +152,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("p2p.bootstrap_peers", []string{})
 	v.SetDefault("p2p.private_key_file", "./data/p2p_key")
 	v.SetDefault("p2p.max_peers", 50)
-	v.SetDefault("p2p.address_book_broadcast_interval", "1m")
 
 	// Storage defaults
 	v.SetDefault("storage.type", "leveldb")
@@ -169,7 +159,6 @@ func setDefaults(v *viper.Viper) {
 
 	// TSS defaults
 	hostname, _ := os.Hostname()
-	v.SetDefault("tss.node_id", hostname)
 	v.SetDefault("tss.moniker", hostname)
 
 	// Validation service defaults
@@ -185,8 +174,8 @@ func setDefaults(v *viper.Viper) {
 
 // validateConfig validates the configuration
 func validateConfig(config *NodeConfig) error {
-	if config.TSS.NodeID == "" {
-		return fmt.Errorf("node_id cannot be empty")
+	if config.TSS.Moniker == "" {
+		return fmt.Errorf("moniker cannot be empty")
 	}
 
 	if config.Storage.Type != "file" && config.Storage.Type != "leveldb" {

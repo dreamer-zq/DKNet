@@ -25,7 +25,6 @@ type Service struct {
 	logger            *zap.Logger
 	storage           storage.Storage
 	network           *p2p.Network
-	addressManager    *p2p.AddressManager
 	encryption        *plugin.KeyCipher
 	validationService plugin.ValidationService // optional
 
@@ -40,7 +39,6 @@ func NewService(
 	cfg *Config,
 	store storage.Storage,
 	network *p2p.Network,
-	addressManager *p2p.AddressManager,
 	logger *zap.Logger,
 	encryptionPassword string,
 ) (*Service, error) {
@@ -51,14 +49,13 @@ func NewService(
 	}
 
 	service := &Service{
-		storage:        store,
-		network:        network,
-		addressManager: addressManager,
-		logger:         logger,
-		encryption:     keyEncryption,
-		operations:     make(map[string]*Operation),
-		nodeID:         cfg.NodeID,
-		moniker:        cfg.Moniker,
+		storage:    store,
+		network:    network,
+		logger:     logger,
+		encryption: keyEncryption,
+		operations: make(map[string]*Operation),
+		nodeID:     cfg.NodeID,
+		moniker:    cfg.Moniker,
 	}
 
 	// Check if validation service is configured and enabled
@@ -323,35 +320,27 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 						zap.String("operation_id", operation.ID))
 				}
 			} else {
+				// Use gossip routing for point-to-point messages
+				var targetPeers []string
 				for _, to := range routing.To {
-					// Convert node ID to P2P peer ID using address manager
-					peerID, exists := s.addressManager.GetPeerID(to.Id)
-					if !exists {
-						// TODO
-						// If we don't have the mapping, try using the node ID directly as fallback
-						s.logger.Warn("No P2P peer ID mapping found for node ID, using node ID as fallback",
-							zap.String("node_id", to.Id))
-						peerID = to.Id
-					}
+					targetPeers = append(targetPeers, to.Id)
+				}
+				p2pMsg.To = targetPeers
 
-					p2pMsg.To = []string{peerID}
-					s.logger.Info("Sending direct message",
+				s.logger.Info("Sending point-to-point message with gossip routing",
+					zap.String("operation_id", operation.ID),
+					zap.String("session_id", operation.SessionID),
+					zap.Strings("targets", targetPeers))
+
+				if err := s.network.SendMessageWithGossip(ctx, p2pMsg); err != nil {
+					s.logger.Error("Failed to send message with gossip routing",
+						zap.Error(err),
 						zap.String("operation_id", operation.ID),
-						zap.String("to_node_id", to.Id),
-						zap.String("to_peer_id", peerID),
-						zap.String("session_id", operation.SessionID))
-					if err := s.network.SendMessage(ctx, p2pMsg); err != nil {
-						s.logger.Error("Failed to send message",
-							zap.String("to_node_id", to.Id),
-							zap.String("to_peer_id", peerID),
-							zap.Error(err),
-							zap.String("operation_id", operation.ID))
-					} else {
-						s.logger.Info("Direct message sent successfully",
-							zap.String("operation_id", operation.ID),
-							zap.String("to_node_id", to.Id),
-							zap.String("to_peer_id", peerID))
-					}
+						zap.Strings("targets", targetPeers))
+				} else {
+					s.logger.Info("Point-to-point message sent successfully with gossip routing",
+						zap.String("operation_id", operation.ID),
+						zap.Strings("targets", targetPeers))
 				}
 			}
 		case <-ctx.Done():

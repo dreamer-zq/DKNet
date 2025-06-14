@@ -14,11 +14,10 @@ import (
 
 // Server provides HTTP and gRPC APIs for TSS operations
 type Server struct {
-	config         *Config
-	tssService     *tss.Service
-	network        *p2p.Network
-	addressManager *p2p.AddressManager
-	logger         *zap.Logger
+	config     *Config
+	tssService *tss.Service
+	network    *p2p.Network
+	logger     *zap.Logger
 
 	httpServer *http.Server
 	grpcServer *grpc.Server
@@ -29,15 +28,13 @@ func NewServer(
 	cfg *Config,
 	tssService *tss.Service,
 	network *p2p.Network,
-	addressManager *p2p.AddressManager,
 	logger *zap.Logger,
 ) (*Server, error) {
 	return &Server{
-		config:         cfg,
-		tssService:     tssService,
-		network:        network,
-		addressManager: addressManager,
-		logger:         logger,
+		config:     cfg,
+		tssService: tssService,
+		network:    network,
+		logger:     logger,
 	}, nil
 }
 

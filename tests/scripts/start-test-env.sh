@@ -165,6 +165,11 @@ test_validation() {
 test_tss() {
     print_status "Running TSS functionality tests..."
     
+    # Peer IDs from cluster-info.txt (Phase 2: Using peer IDs directly as node IDs)
+    local NODE1_PEER_ID="QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF"
+    local NODE2_PEER_ID="QmQjz2j7wFScU4Rj1cP3iwisbGwdhkNXmfmUYUHmvtEXY3"
+    local NODE3_PEER_ID="QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi"
+    
     # Check if environment is running
     local all_healthy=true
     for i in {1..3}; do
@@ -181,13 +186,13 @@ test_tss() {
     fi
     
     print_status "Testing keygen operation..."
-    # Example keygen test
+    # Example keygen test with peer IDs
     curl -X POST http://localhost:8081/api/v1/keygen \
         -H "Content-Type: application/json" \
         -d '{
             "threshold": 2,
             "parties": 3,
-            "participants": ["node1", "node2", "node3"]
+            "participants": ["'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"]
         }' || print_warning "Keygen test may have failed"
     
     print_success "TSS tests completed"

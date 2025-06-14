@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/dreamer-zq/DKNet/internal/p2p"
 	"github.com/dreamer-zq/DKNet/internal/tss"
 	healthv1 "github.com/dreamer-zq/DKNet/proto/health/v1"
 	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
@@ -80,9 +79,6 @@ func (s *Server) setupHTTPRoutes(router *gin.Engine) {
 
 	// Operations
 	api.GET("/operations/:operation_id", s.getOperationHandler)
-
-	// Network and address management
-	api.GET("/network/addresses", s.getAddressesHandler)
 }
 
 // healthHandler handles health check requests
@@ -374,29 +370,4 @@ func (s *Server) getOperationHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, resp)
-}
-
-// getAddressesHandler handles requests for node address mappings
-func (s *Server) getAddressesHandler(c *gin.Context) {
-	var mappings map[string]*p2p.NodeMapping
-	if s.addressManager != nil {
-		mappings = s.addressManager.GetAllMappings()
-	} else {
-		mappings = make(map[string]*p2p.NodeMapping)
-	}
-
-	// Convert to array of proto NodeMapping
-	var result []*tssv1.NodeMapping
-	for _, mapping := range mappings {
-		result = append(result, &tssv1.NodeMapping{
-			NodeId:    mapping.NodeID,
-			PeerId:    mapping.PeerID,
-			Moniker:   mapping.Moniker,
-			Timestamp: timestamppb.New(mapping.Timestamp),
-		})
-	}
-
-	c.JSON(http.StatusOK, tssv1.GetNetworkAddressesResponse{
-		Mappings: result,
-	})
 }

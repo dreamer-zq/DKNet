@@ -9,7 +9,6 @@ p2p:
     listen_addrs:
         - /ip4/0.0.0.0/tcp/4001
     bootstrap_peers:
-        - /ip4/172.20.0.3/tcp/4001/p2p/QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF
         - /ip4/172.20.0.4/tcp/4001/p2p/QmQjz2j7wFScU4Rj1cP3iwisbGwdhkNXmfmUYUHmvtEXY3
     private_key_file: ./node/node_key
     max_peers: 50
@@ -18,15 +17,14 @@ storage:
     path: ./data
     options: {}
 tss:
-    node_id: node3
-    moniker: TSS Node 3
+    moniker: "TSS Node 3"
     validation_service:
         enabled: true
         url: "http://validation-service:8888/validate"
         timeout_seconds: 30
         headers:
-            X-Node-ID: "node3"
-        insecure_skip_verify: false
+            "X-Node-ID": "QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi"
+        insecure_skip_verify: true
 security:
     tls_enabled: false
     cert_file: ""

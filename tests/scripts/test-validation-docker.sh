@@ -1,33 +1,46 @@
 #!/bin/bash
 
-# Test script for DKNet Validation Service in Docker environment
-set -e
+# DKNet TSS Validation Service Test Script (Docker Environment)
+# This script tests the validation service integration with TSS operations
 
-echo "=== DKNet Validation Service Docker Test ==="
-echo
+set -e
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-DOCKER_COMPOSE_FILE="$PROJECT_ROOT/tests/docker/docker-compose.yml"
+TESTS_DIR="$PROJECT_ROOT/tests"
+DOCKER_COMPOSE_FILE="$TESTS_DIR/docker/docker-compose.yml"
+
+# Peer IDs from cluster-info.txt (Phase 2: Using peer IDs directly as node IDs)
+NODE1_PEER_ID="QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF"
+NODE2_PEER_ID="QmQjz2j7wFScU4Rj1cP3iwisbGwdhkNXmfmUYUHmvtEXY3"
+NODE3_PEER_ID="QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi"
 
 # Function to print colored output
 print_status() {
-    local status=$1
+    local level=$1
     local message=$2
-    if [ "$status" = "SUCCESS" ]; then
-        echo -e "${GREEN}✅ $message${NC}"
-    elif [ "$status" = "ERROR" ]; then
-        echo -e "${RED}❌ $message${NC}"
-    elif [ "$status" = "INFO" ]; then
-        echo -e "${YELLOW}ℹ️  $message${NC}"
-    fi
+    case $level in
+        "INFO")
+            echo -e "${BLUE}[INFO]${NC} $message"
+            ;;
+        "SUCCESS")
+            echo -e "${GREEN}[SUCCESS]${NC} $message"
+            ;;
+        "WARNING")
+            echo -e "${YELLOW}[WARNING]${NC} $message"
+            ;;
+        "ERROR")
+            echo -e "${RED}[ERROR]${NC} $message"
+            ;;
+    esac
 }
 
 # Function to wait for service to be ready
@@ -114,8 +127,8 @@ hello_world_base64=$(echo -n "Hello World" | base64)
 test_api "http://localhost:8888/validate" '{
     "message": "'$hello_world_base64'",
     "key_id": "0xfa3cd17afd7e5d98d02fbad669adc46e7512bbb4",
-    "participants": ["node1", "node2"],
-    "node_id": "node1",
+    "participants": ["'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'"],
+    "node_id": "'$NODE1_PEER_ID'",
     "timestamp": '$(date +%s)'
 }' "true" "Valid request"
 
@@ -124,8 +137,8 @@ malicious_base64=$(echo -n "malicious attack" | base64)
 test_api "http://localhost:8888/validate" '{
     "message": "'$malicious_base64'",
     "key_id": "0xfa3cd17afd7e5d98d02fbad669adc46e7512bbb4",
-    "participants": ["node1", "node2"],
-    "node_id": "node1",
+    "participants": ["'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'"],
+    "node_id": "'$NODE1_PEER_ID'",
     "timestamp": '$(date +%s)'
 }' "false" "Request with forbidden word"
 
@@ -133,8 +146,8 @@ test_api "http://localhost:8888/validate" '{
 test_api "http://localhost:8888/validate" '{
     "message": "'$hello_world_base64'",
     "key_id": "0xfa3cd17afd7e5d98d02fbad669adc46e7512bbb4",
-    "participants": ["node1"],
-    "node_id": "node1",
+    "participants": ["'$NODE1_PEER_ID'"],
+    "node_id": "'$NODE1_PEER_ID'",
     "timestamp": '$(date +%s)'
 }' "false" "Request with insufficient participants"
 
@@ -149,7 +162,7 @@ keygen_response=$(curl -s -X POST http://localhost:8081/api/v1/keygen \
     -d '{
         "threshold": 1,
         "parties": 3,
-        "participants": ["node1", "node2", "node3"]
+        "participants": ["'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"]
     }')
 
 operation_id=$(echo "$keygen_response" | jq -r '.operation_id')
@@ -204,7 +217,7 @@ signing_response=$(curl -s -X POST http://localhost:8081/api/v1/sign \
     -d '{
         "message": "'$hello_world_base64'",
         "key_id": "'$key_id'",
-        "participants": ["node1", "node2"]
+        "participants": ["'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'"]
     }')
 
 signing_operation_id=$(echo "$signing_response" | jq -r '.operation_id')
@@ -222,7 +235,7 @@ invalid_signing_response=$(curl -s -X POST http://localhost:8081/api/v1/sign \
     -d '{
         "message": "'$malicious_base64'",
         "key_id": "'$key_id'",
-        "participants": ["node1", "node2"]
+        "participants": ["'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'"]
     }')
 
 # This should fail due to validation

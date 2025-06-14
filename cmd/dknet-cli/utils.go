@@ -202,23 +202,3 @@ func outputGetOperationResponse(resp *tssv1.GetOperationResponse) error {
 
 	return nil
 }
-
-// outputNetworkAddresses pretty-prints the node mappings
-func outputNetworkAddresses(resp *tssv1.GetNetworkAddressesResponse) error {
-	if outputFormat == outputFormatJSON {
-		return outputJSON(resp)
-	}
-	if len(resp.Mappings) == 0 {
-		fmt.Println("No node mappings found.")
-		return nil
-	}
-	fmt.Printf("%-12s %-48s %-20s %-30s\n", "NodeID", "PeerID", "Moniker", "Timestamp")
-	for _, m := range resp.Mappings {
-		ts := ""
-		if m.Timestamp != nil {
-			ts = m.Timestamp.AsTime().Format(time.RFC3339)
-		}
-		fmt.Printf("%-12s %-48s %-20s %-30s\n", m.NodeId, m.PeerId, m.Moniker, ts)
-	}
-	return nil
-}

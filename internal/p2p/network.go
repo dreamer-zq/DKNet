@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -33,6 +32,9 @@ type Network struct {
 
 	// Connected peers tracking
 	connectedPeers map[peer.ID]bool
+
+	// Gossip routing for point-to-point messages
+	gossipRouter *GossipRouter
 }
 
 // Config holds P2P network configuration
@@ -41,13 +43,6 @@ type Config struct {
 	BootstrapPeers []string
 	PrivateKeyFile string
 	MaxPeers       int
-	DataDir        string // Directory for storing node address mappings
-	NodeID         string // This node's NodeID for TSS
-	Moniker        string // Human-readable node name
-
-	// Address book broadcasting configuration
-	EnableAddressBookBroadcast   bool          `json:"enable_address_book_broadcast"`   // Enable periodic address book broadcasting
-	AddressBookBroadcastInterval time.Duration `json:"address_book_broadcast_interval"` // Interval for broadcasting address book
 }
 
 // NewNetwork creates a new P2P network instance
@@ -85,6 +80,9 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 
 	// Set up protocol handlers
 	n.setupProtocolHandlers()
+
+	// Initialize gossip router
+	n.gossipRouter = NewGossipRouter(n, logger.Named("gossip"))
 
 	return n, nil
 }
@@ -127,6 +125,11 @@ func (n *Network) Start(ctx context.Context, bootstrapPeers []string) error {
 
 // Stop stops the P2P network
 func (n *Network) Stop() error {
+	// Stop gossip router
+	if n.gossipRouter != nil {
+		n.gossipRouter.Stop()
+	}
+
 	if err := n.host.Close(); err != nil {
 		return fmt.Errorf("failed to close host: %w", err)
 	}
@@ -148,16 +151,15 @@ func (n *Network) SendMessage(ctx context.Context, msg *Message) error {
 	return n.sendDirectMessage(ctx, msg)
 }
 
+// SendMessageWithGossip sends a message using gossip routing as fallback
+func (n *Network) SendMessageWithGossip(ctx context.Context, msg *Message) error {
+	return n.gossipRouter.SendWithGossip(ctx, msg)
+}
+
 // getConnectedPeers returns the list of connected peers
 func (n *Network) getConnectedPeers() []peer.ID {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-
-	var peers []peer.ID
-	for peerID := range n.connectedPeers {
-		peers = append(peers, peerID)
-	}
-	return peers
+	// Get connected peers directly from libp2p host
+	return n.host.Network().Peers()
 }
 
 // setupProtocolHandlers sets up handlers for TSS protocols
@@ -166,6 +168,7 @@ func (n *Network) setupProtocolHandlers() {
 		tssKeygenProtocol,
 		tssSigningProtocol,
 		tssResharingProtocol,
+		tssGossipProtocol,
 	}
 
 	for _, p := range protocols {
@@ -193,7 +196,15 @@ func (n *Network) handleStream(stream network.Stream) {
 		return
 	}
 
-	// Handle message at business layer
+	// Handle gossip routing messages
+	if msg.Type == "gossip_route" {
+		if err := n.gossipRouter.HandleRoutedMessage(context.Background(), &msg); err != nil {
+			n.logger.Error("Failed to handle gossip routed message", zap.Error(err))
+		}
+		return
+	}
+
+	// Handle regular messages at business layer
 	if n.messageHandler != nil {
 		ctx := context.Background()
 		if err := n.messageHandler.HandleMessage(ctx, &msg); err != nil {
@@ -207,6 +218,13 @@ func (n *Network) sendDirectMessage(ctx context.Context, msg *Message) error {
 	// Fill in the sender's actual PeerID
 	msg.SenderPeerID = n.host.ID().String()
 
+	// Validate all peer IDs first
+	for _, recipient := range msg.To {
+		if _, err := peer.Decode(recipient); err != nil {
+			return fmt.Errorf("invalid peer ID format: %s, error: %w", recipient, err)
+		}
+	}
+
 	data, err := msg.Compresses()
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
@@ -216,6 +234,7 @@ func (n *Network) sendDirectMessage(ctx context.Context, msg *Message) error {
 	for _, recipient := range msg.To {
 		peerID, err := peer.Decode(recipient)
 		if err != nil {
+			// This should not happen since we validated above, but keep for safety
 			n.logger.Error("Invalid peer ID", zap.String("peer_id", recipient), zap.Error(err))
 			continue
 		}

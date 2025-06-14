@@ -11,55 +11,18 @@ import (
 )
 
 const (
-	tssKeygenProtocol     = "/tss/keygen/1.0.0"
-	tssSigningProtocol    = "/tss/signing/1.0.0"
-	tssResharingProtocol  = "/tss/resharing/1.0.0"
-	tssBroadcastTopic     = "tss-broadcast"
-	addressDiscoveryTopic = "address-discovery"
+	tssKeygenProtocol    = "/tss/keygen/1.0.0"
+	tssSigningProtocol   = "/tss/signing/1.0.0"
+	tssResharingProtocol = "/tss/resharing/1.0.0"
+	tssGossipProtocol    = "/tss/gossip/1.0.0"
+	tssBroadcastTopic    = "tss-broadcast"
 )
 
 var typeToProtocol = map[string]protocol.ID{
-	"keygen":    tssKeygenProtocol,
-	"signing":   tssSigningProtocol,
-	"resharing": tssResharingProtocol,
-}
-
-// NodeMapping represents a mapping between NodeID and PeerID
-type NodeMapping struct {
-	NodeID    string    `json:"node_id"`
-	PeerID    string    `json:"peer_id"`
-	Timestamp time.Time `json:"timestamp"`
-	// Additional node information
-	Moniker string `json:"moniker,omitempty"`
-}
-
-// AddressBook holds all known node address mappings
-type AddressBook struct {
-	Mappings  map[string]*NodeMapping `json:"mappings"` // key: NodeID
-	Version   int64                   `json:"version"`
-	UpdatedAt time.Time               `json:"updated_at"`
-}
-
-// Compresses compresses and serializes the address book
-func (m *AddressBook) Compresses() ([]byte, error) {
-	raw, err := json.Marshal(m)
-	if err != nil {
-		return nil, err
-	}
-	compressed, err := common.Gzip(raw)
-	if err != nil {
-		return nil, err
-	}
-	return compressed, nil
-}
-
-// Decompresses decompresses and deserializes the address book
-func (m *AddressBook) Decompresses(data []byte) error {
-	decompressed, err := common.UnGzip(data)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(decompressed, m)
+	"keygen":       tssKeygenProtocol,
+	"signing":      tssSigningProtocol,
+	"resharing":    tssResharingProtocol,
+	"gossip_route": tssGossipProtocol,
 }
 
 // Message represents a generic message sent over the network
@@ -98,4 +61,32 @@ func (m *Message) Decompresses(data []byte) error {
 // MessageHandler defines the interface for handling received messages
 type MessageHandler interface {
 	HandleMessage(ctx context.Context, msg *Message) error
+}
+
+// RoutedMessage wraps a message with routing information
+type RoutedMessage struct {
+	*Message
+	OriginalSender string   `json:"original_sender"`
+	FinalTarget    string   `json:"final_target"`
+	Path           []string `json:"path"`
+	TTL            int      `json:"ttl"`
+	MessageID      string   `json:"message_id"`
+}
+
+// Compresses serializes and compresses the routed message
+func (rm *RoutedMessage) Compresses() ([]byte, error) {
+	raw, err := json.Marshal(rm)
+	if err != nil {
+		return nil, err
+	}
+	return common.Gzip(raw)
+}
+
+// Decompresses decompresses and deserializes the routed message
+func (rm *RoutedMessage) Decompresses(data []byte) error {
+	decompressed, err := common.UnGzip(data)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(decompressed, rm)
 }

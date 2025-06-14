@@ -12,44 +12,42 @@ import (
 
 // generateAndSaveNodeConfig generates node configuration and saves it to file
 func generateAndSaveNodeConfig(
-	nodeID, moniker string,
+	moniker string,
 	bootstrapPeers []string,
-	httpPort, grpcPort, p2pPort int,
-	listenAddr, configFile string,
-	dockerMode bool,
+	listenAddr string,
+	p2pPort int,
+	httpPort int,
+	grpcPort int,
+	configPath string,
 ) error {
-	cfg := &config.NodeConfig{}
-
-	// Server configuration
-	cfg.Server.HTTP.Host = defaultBindIP
-	cfg.Server.HTTP.Port = httpPort
-	cfg.Server.GRPC.Host = defaultBindIP
-	cfg.Server.GRPC.Port = grpcPort
-
-	// P2P configuration
-	cfg.P2P.ListenAddrs = []string{fmt.Sprintf("/ip4/%s/tcp/%d", listenAddr, p2pPort)}
-	cfg.P2P.BootstrapPeers = bootstrapPeers
-	cfg.P2P.MaxPeers = 50
-	// In Docker mode, the key file is mounted at ./node/node_key
-	if dockerMode {
-		cfg.P2P.PrivateKeyFile = "./node/node_key"
-	} else {
-		cfg.P2P.PrivateKeyFile = "./node_key"
+	cfg := &config.NodeConfig{
+		Server: config.ServerConfig{
+			HTTP: config.HTTPConfig{
+				Host: "0.0.0.0",
+				Port: httpPort,
+			},
+			GRPC: config.GRPCConfig{
+				Host: "0.0.0.0",
+				Port: grpcPort,
+			},
+		},
+		P2P: config.P2PConfig{
+			ListenAddrs:    []string{fmt.Sprintf("/ip4/%s/tcp/%d", listenAddr, p2pPort)},
+			BootstrapPeers: bootstrapPeers,
+			PrivateKeyFile: "./node_key",
+			MaxPeers:       50,
+		},
+		Storage: config.StorageConfig{
+			Type: "leveldb",
+			Path: "./data/storage",
+		},
+		TSS: config.TSSConfig{
+			Moniker: moniker,
+		},
+		Security: config.SecurityConfig{
+			TLSEnabled: false,
+		},
 	}
-
-	// Storage configuration - each node stores data in its own directory
-	cfg.Storage.Type = "leveldb"
-	cfg.Storage.Path = "./data"
-	cfg.Storage.Options = make(map[string]string)
-
-	// TSS configuration
-	cfg.TSS.NodeID = nodeID
-	cfg.TSS.Moniker = moniker
-
-	// Security configuration
-	cfg.Security.TLSEnabled = false
-	cfg.Security.CertFile = ""
-	cfg.Security.KeyFile = ""
 
 	// Save config to file
 	data, err := yaml.Marshal(cfg)
@@ -57,7 +55,7 @@ func generateAndSaveNodeConfig(
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	return os.WriteFile(configFile, data, 0644)
+	return os.WriteFile(configPath, data, 0644)
 }
 
 // generateNodeInfo creates a node information file

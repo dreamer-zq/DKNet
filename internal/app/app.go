@@ -16,13 +16,12 @@ import (
 
 // App represents the main application
 type App struct {
-	config         *config.NodeConfig
-	logger         *zap.Logger
-	network        *p2p.Network
-	addressManager *p2p.AddressManager
-	tssService     *tss.Service
-	storage        storage.Storage
-	api            *api.Server
+	config     *config.NodeConfig
+	logger     *zap.Logger
+	network    *p2p.Network
+	tssService *tss.Service
+	storage    storage.Storage
+	api        *api.Server
 }
 
 // New creates a new application instance
@@ -51,9 +50,6 @@ func New(cfg *config.NodeConfig, logger *zap.Logger, password string) (*App, err
 		BootstrapPeers: cfg.P2P.BootstrapPeers,
 		PrivateKeyFile: cfg.P2P.PrivateKeyFile,
 		MaxPeers:       cfg.P2P.MaxPeers,
-		DataDir:        cfg.ConfigDir, // Use config directory for data
-		NodeID:         cfg.TSS.NodeID,
-		Moniker:        cfg.TSS.Moniker,
 	}, logger.Named("p2p"))
 	if err != nil {
 		common.LogMsgDo("failed to create P2P network", func() error {
@@ -62,25 +58,18 @@ func New(cfg *config.NodeConfig, logger *zap.Logger, password string) (*App, err
 		return nil, fmt.Errorf("failed to create P2P network: %w", err)
 	}
 
-	// Create address manager if NodeID is provided
-	addressManager, err := p2p.NewAddressManager(
-		cfg.ConfigDir, // Use config directory for address book
-		cfg.TSS.NodeID,
-		network.GetHostID(),
-		cfg.TSS.Moniker,
-		cfg.P2P.AddressBookBroadcastInterval,
-		network, // Pass network as transport
-		logger.Named("address-manager"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create address manager: %w", err)
-	}
+	// Use peer ID as node ID for TSS service
+	peerID := network.GetHostID().String()
+	logger.Info("Using peer ID as TSS node ID",
+		zap.String("peer_id", peerID),
+		zap.String("moniker", cfg.TSS.Moniker))
 
 	// Initialize TSS service with encryption
 	tssService, err := tss.NewService(&tss.Config{
-		NodeID:            cfg.TSS.NodeID,
+		NodeID:            peerID, // Use peer ID as node ID
 		Moniker:           cfg.TSS.Moniker,
 		ValidationService: cfg.TSS.ValidationService,
-	}, store, network, addressManager, logger.Named("tss"), password)
+	}, store, network, logger.Named("tss"), password)
 	if err != nil {
 		common.LogDo(func() error {
 			return store.Close()
@@ -105,7 +94,7 @@ func New(cfg *config.NodeConfig, logger *zap.Logger, password string) (*App, err
 			Host: cfg.Server.GRPC.Host,
 			Port: cfg.Server.GRPC.Port,
 		},
-	}, tssService, network, addressManager, logger.Named("api"))
+	}, tssService, network, logger.Named("api"))
 	if err != nil {
 		if closeErr := store.Close(); closeErr != nil {
 			logger.Error("Failed to close storage during cleanup", zap.Error(closeErr))
@@ -117,13 +106,12 @@ func New(cfg *config.NodeConfig, logger *zap.Logger, password string) (*App, err
 	}
 
 	return &App{
-		config:         cfg,
-		logger:         logger,
-		storage:        store,
-		network:        network,
-		addressManager: addressManager,
-		tssService:     tssService,
-		api:            apiServer,
+		config:     cfg,
+		logger:     logger,
+		storage:    store,
+		network:    network,
+		tssService: tssService,
+		api:        apiServer,
 	}, nil
 }
 
@@ -134,12 +122,6 @@ func (a *App) Start(ctx context.Context) error {
 	// Start P2P network
 	if err := a.network.Start(ctx, a.config.P2P.BootstrapPeers); err != nil {
 		return fmt.Errorf("failed to start P2P network: %w", err)
-	}
-
-	// Start address manager
-	if err := a.addressManager.Start(); err != nil {
-		a.logger.Error("Failed to start address manager", zap.Error(err))
-		return err
 	}
 
 	// Start API server
@@ -159,10 +141,6 @@ func (a *App) Stop() error {
 	a.logger.Info("Stopping DKNet application")
 
 	var errs []error
-
-	// Stop address manager if available
-	a.addressManager.Stop()
-	a.logger.Info("Address manager stopped")
 
 	// Stop API server
 	if err := a.api.Stop(); err != nil {
