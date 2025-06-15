@@ -7,8 +7,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/dreamer-zq/DKNet/internal/config"
-	"github.com/dreamer-zq/DKNet/internal/security"
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -17,6 +15,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.uber.org/zap"
+
+	"github.com/dreamer-zq/DKNet/internal/config"
+	"github.com/dreamer-zq/DKNet/internal/security"
 )
 
 // Network handles P2P networking for TSS operations
@@ -37,7 +38,7 @@ type Network struct {
 
 	// Gossip routing for point-to-point messages
 	gossipRouter *GossipRouter
-	
+
 	// Access control
 	accessController security.AccessController
 }
@@ -48,7 +49,7 @@ type Config struct {
 	BootstrapPeers []string
 	PrivateKeyFile string
 	MaxPeers       int
-	
+
 	// Access control configuration
 	AccessControl *config.AccessControlConfig
 }
@@ -78,19 +79,13 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		return nil, fmt.Errorf("failed to create pubsub: %w", err)
 	}
 
-	// Initialize access controller if configuration is provided
-	var accessController security.AccessController
-	if cfg.AccessControl != nil {
-		accessController = security.NewController(cfg.AccessControl, logger.Named("access_control"))
-	}
-
 	n := &Network{
 		host:             h,
 		pubsub:           ps,
 		logger:           logger,
 		topics:           make(map[string]*pubsub.Topic),
 		connectedPeers:   make(map[peer.ID]bool),
-		accessController: accessController,
+		accessController: security.NewController(cfg.AccessControl, logger.Named("access_control")),
 	}
 
 	// Set up protocol handlers
@@ -201,9 +196,9 @@ func (n *Network) handleStream(stream network.Stream) {
 
 	// Get the remote peer ID
 	remotePeerID := stream.Conn().RemotePeer()
-	
+
 	// Access control check
-	if n.accessController != nil && !n.accessController.IsAuthorized(remotePeerID.String()) {
+	if !n.accessController.IsAuthorized(remotePeerID.String()) {
 		n.logger.Warn("Rejected stream from unauthorized peer",
 			zap.String("peer_id", remotePeerID.String()),
 			zap.String("protocol", string(stream.Protocol())))
