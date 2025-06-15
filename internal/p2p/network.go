@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/dreamer-zq/DKNet/internal/security"
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -35,6 +36,9 @@ type Network struct {
 
 	// Gossip routing for point-to-point messages
 	gossipRouter *GossipRouter
+	
+	// Access control
+	accessController security.AccessController
 }
 
 // Config holds P2P network configuration
@@ -46,7 +50,7 @@ type Config struct {
 }
 
 // NewNetwork creates a new P2P network instance
-func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
+func NewNetwork(cfg *Config, accessController security.AccessController, logger *zap.Logger) (*Network, error) {
 	// Create libp2p host
 	privKey, err := loadPrivateKey(cfg.PrivateKeyFile, logger)
 	if err != nil {
@@ -71,11 +75,12 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 	}
 
 	n := &Network{
-		host:           h,
-		pubsub:         ps,
-		logger:         logger,
-		topics:         make(map[string]*pubsub.Topic),
-		connectedPeers: make(map[peer.ID]bool),
+		host:             h,
+		pubsub:           ps,
+		logger:           logger,
+		topics:           make(map[string]*pubsub.Topic),
+		connectedPeers:   make(map[peer.ID]bool),
+		accessController: accessController,
 	}
 
 	// Set up protocol handlers
@@ -183,6 +188,17 @@ func (n *Network) handleStream(stream network.Stream) {
 			n.logger.Warn("Failed to close incoming stream", zap.Error(err))
 		}
 	}()
+
+	// Get the remote peer ID
+	remotePeerID := stream.Conn().RemotePeer()
+	
+	// Access control check
+	if n.accessController != nil && !n.accessController.IsAuthorized(remotePeerID.String()) {
+		n.logger.Warn("Rejected stream from unauthorized peer",
+			zap.String("peer_id", remotePeerID.String()),
+			zap.String("protocol", string(stream.Protocol())))
+		return
+	}
 
 	data, err := io.ReadAll(stream)
 	if err != nil {

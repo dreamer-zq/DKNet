@@ -1,0 +1,42 @@
+server:
+  http:
+    host: "0.0.0.0"
+    port: 8080
+  grpc:
+    host: "0.0.0.0"
+    port: 9090
+
+p2p:
+  listen_addrs:
+    - "/ip4/0.0.0.0/tcp/4001"
+  bootstrap_peers:
+    - "/ip4/127.0.0.1/tcp/4002/p2p/12D3KooWBhZKGWdvx7YdCUFqAE6CbU6GGLw3n7p9R1v8qN2XY3Zh"
+    - "/ip4/127.0.0.1/tcp/4003/p2p/12D3KooWCaE3LGUvJbxFweaQ7p8xR2nZ5Kv6Y9Mw3X4Bv7Nj2L8Q"
+  private_key_file: "./node_key"
+  max_peers: 50
+
+storage:
+  type: "leveldb"
+  path: "./data/storage"
+
+tss:
+  moniker: "TSS Node with Access Control"
+
+security:
+  tls_enabled: false
+  cert_file: ""
+  key_file: ""
+  
+  # Access control configuration
+  access_control:
+    # Enable access control
+    enabled: true
+    
+    # List of allowed peer IDs (whitelist)
+    # Only these peers can establish P2P connections and send messages
+    allowed_peers:
+      - "12D3KooWBhZKGWdvx7YdCUFqAE6CbU6GGLw3n7p9R1v8qN2XY3Zh"
+      - "12D3KooWCaE3LGUvJbxFweaQ7p8xR2nZ5Kv6Y9Mw3X4Bv7Nj2L8Q"
+      - "12D3KooWDfH9LPQr3nK5z6Y8Mv7JtR4Xq9Bw2E6Fg3Lp5Nm1Zv7S"
+      # Add more peer IDs as needed
+      # - "12D3KooW..." 
