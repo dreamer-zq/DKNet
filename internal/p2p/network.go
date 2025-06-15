@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -41,6 +42,9 @@ type Network struct {
 
 	// Access control
 	accessController security.AccessController
+	
+	// Session encryption
+	sessionEncryption security.SessionEncryptionInterface
 }
 
 // Config holds P2P network configuration
@@ -52,6 +56,9 @@ type Config struct {
 
 	// Access control configuration
 	AccessControl *config.AccessControlConfig
+	
+	// Session encryption configuration
+	SessionEncryption *config.SessionEncryptionConfig
 }
 
 // NewNetwork creates a new P2P network instance
@@ -79,13 +86,30 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		return nil, fmt.Errorf("failed to create pubsub: %w", err)
 	}
 
+	// Initialize session encryption if enabled
+	var sessionEncryption security.SessionEncryptionInterface
+	if cfg.SessionEncryption != nil && cfg.SessionEncryption.Enabled {
+		if cfg.SessionEncryption.SeedKey == "" {
+			return nil, fmt.Errorf("session encryption enabled but seed key is empty")
+		}
+		
+		seedKey, err := hex.DecodeString(cfg.SessionEncryption.SeedKey)
+		if err != nil {
+			return nil, fmt.Errorf("invalid session encryption seed key: %w", err)
+		}
+		
+		sessionEncryption = security.NewSessionEncryption(seedKey)
+		logger.Info("Session encryption enabled")
+	}
+
 	n := &Network{
-		host:             h,
-		pubsub:           ps,
-		logger:           logger,
-		topics:           make(map[string]*pubsub.Topic),
-		connectedPeers:   make(map[peer.ID]bool),
-		accessController: security.NewController(cfg.AccessControl, logger.Named("access_control")),
+		host:              h,
+		pubsub:            ps,
+		logger:            logger,
+		topics:            make(map[string]*pubsub.Topic),
+		connectedPeers:    make(map[peer.ID]bool),
+		accessController:  security.NewController(cfg.AccessControl, logger.Named("access_control")),
+		sessionEncryption: sessionEncryption,
 	}
 
 	// Set up protocol handlers
@@ -154,10 +178,51 @@ func (n *Network) SetMessageHandler(handler MessageHandler) {
 
 // SendMessage sends a message to specific peers or broadcasts it
 func (n *Network) SendMessage(ctx context.Context, msg *Message) error {
+	// Apply session encryption if configured and session ID is provided
+	if n.sessionEncryption != nil && msg.SessionID != "" && !msg.Encrypted {
+		encryptedData, err := n.sessionEncryption.EncryptData(msg.SessionID, msg.Data)
+		if err != nil {
+			n.logger.Error("Failed to encrypt message data", 
+				zap.String("session_id", msg.SessionID), 
+				zap.Error(err))
+			return fmt.Errorf("failed to encrypt message data: %w", err)
+		}
+		
+		msg.Data = encryptedData
+		msg.Encrypted = true
+		
+		n.logger.Debug("Message encrypted", 
+			zap.String("session_id", msg.SessionID),
+			zap.String("type", msg.Type))
+	}
+
 	if msg.IsBroadcast {
 		return n.broadcastMessage(ctx, msg)
 	}
 	msg.ProtocolID = typeToProtocol[msg.Type]
+	return n.sendDirectMessage(ctx, msg)
+}
+
+// sendEncryptedMessage encrypts and sends a message - for internal use by gossip router
+func (n *Network) sendEncryptedMessage(ctx context.Context, msg *Message) error {
+	// Apply session encryption if configured and session ID is provided
+	if n.sessionEncryption != nil && msg.SessionID != "" && !msg.Encrypted {
+		encryptedData, err := n.sessionEncryption.EncryptData(msg.SessionID, msg.Data)
+		if err != nil {
+			n.logger.Error("Failed to encrypt message data", 
+				zap.String("session_id", msg.SessionID), 
+				zap.Error(err))
+			return fmt.Errorf("failed to encrypt message data: %w", err)
+		}
+		
+		msg.Data = encryptedData
+		msg.Encrypted = true
+		
+		n.logger.Debug("Gossip message encrypted", 
+			zap.String("session_id", msg.SessionID),
+			zap.String("type", msg.Type))
+	}
+
 	return n.sendDirectMessage(ctx, msg)
 }
 
@@ -215,6 +280,25 @@ func (n *Network) handleStream(stream network.Stream) {
 	if err := msg.Decompresses(data); err != nil {
 		n.logger.Error("Failed to unmarshal message", zap.Error(err))
 		return
+	}
+
+	// Apply session decryption if message is encrypted
+	if n.sessionEncryption != nil && msg.Encrypted && msg.SessionID != "" {
+		decryptedData, err := n.sessionEncryption.DecryptData(msg.SessionID, msg.Data)
+		if err != nil {
+			n.logger.Error("Failed to decrypt message data",
+				zap.String("session_id", msg.SessionID),
+				zap.String("peer_id", remotePeerID.String()),
+				zap.Error(err))
+			return
+		}
+		
+		msg.Data = decryptedData
+		msg.Encrypted = false
+		
+		n.logger.Debug("Message decrypted",
+			zap.String("session_id", msg.SessionID),
+			zap.String("type", msg.Type))
 	}
 
 	// Handle gossip routing messages
@@ -428,6 +512,19 @@ func (n *Network) subscribeToBroadcast(ctx context.Context) error {
 			if err := tssMsg.Decompresses(msg.Data); err != nil {
 				n.logger.Error("Failed to unmarshal broadcast message", zap.Error(err))
 				continue
+			}
+
+			// Check if message is encrypted and decrypt if needed
+			if tssMsg.Encrypted && n.sessionEncryption != nil {
+				decryptedData, err := n.sessionEncryption.DecryptData(tssMsg.SessionID, tssMsg.Data)
+				if err != nil {
+					n.logger.Error("Failed to decrypt broadcast message", 
+						zap.Error(err), 
+						zap.String("session_id", tssMsg.SessionID))
+					continue
+				}
+				tssMsg.Data = decryptedData
+				tssMsg.Encrypted = false // Mark as decrypted
 			}
 
 			n.logger.Info("Parsed broadcast TSS message",

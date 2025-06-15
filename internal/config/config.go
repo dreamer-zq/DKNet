@@ -90,12 +90,21 @@ type SecurityConfig struct {
 
 	// Access control configuration
 	AccessControl AccessControlConfig `yaml:"access_control" mapstructure:"access_control"`
+	
+	// Session encryption configuration
+	SessionEncryption SessionEncryptionConfig `yaml:"session_encryption" mapstructure:"session_encryption"`
 }
 
 // AccessControlConfig holds access control configuration
 type AccessControlConfig struct {
 	Enabled      bool     `yaml:"enabled" mapstructure:"enabled"`
 	AllowedPeers []string `yaml:"allowed_peers" mapstructure:"allowed_peers"`
+}
+
+// SessionEncryptionConfig holds session encryption configuration
+type SessionEncryptionConfig struct {
+	Enabled bool   `yaml:"enabled" mapstructure:"enabled"`
+	SeedKey string `yaml:"seed_key" mapstructure:"seed_key"`
 }
 
 // Load loads configuration from file or environment variables
@@ -180,6 +189,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("security.key_file", "")
 	v.SetDefault("security.access_control.enabled", false)
 	v.SetDefault("security.access_control.allowed_peers", []string{})
+	v.SetDefault("security.session_encryption.enabled", false)
+	v.SetDefault("security.session_encryption.seed_key", "")
 }
 
 // validateConfig validates the configuration
