@@ -87,7 +87,7 @@ type SecurityConfig struct {
 	TLSEnabled bool   `yaml:"tls_enabled" mapstructure:"tls_enabled"`
 	CertFile   string `yaml:"cert_file" mapstructure:"cert_file"`
 	KeyFile    string `yaml:"key_file" mapstructure:"key_file"`
-	
+
 	// Access control configuration
 	AccessControl AccessControlConfig `yaml:"access_control" mapstructure:"access_control"`
 }

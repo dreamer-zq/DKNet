@@ -10,10 +10,10 @@ import (
 type AccessController interface {
 	// IsAuthorized checks if a peerID is authorized to connect
 	IsAuthorized(peerID string) bool
-	
+
 	// GetAuthorizedPeers returns all authorized peer IDs (for debugging)
 	GetAuthorizedPeers() []string
-	
+
 	// IsEnabled returns whether access control is enabled
 	IsEnabled() bool
 }
@@ -26,26 +26,26 @@ type Controller struct {
 }
 
 // NewController creates a new access controller
-func NewController(config *config.AccessControlConfig, logger *zap.Logger) *Controller {
+func NewController(cfg *config.AccessControlConfig, logger *zap.Logger) *Controller {
 	controller := &Controller{
-		config:       config,
+		config:       cfg,
 		allowedPeers: make(map[string]bool),
 		logger:       logger,
 	}
-	
+
 	// Build fast lookup map
-	for _, peerID := range config.AllowedPeers {
+	for _, peerID := range cfg.AllowedPeers {
 		controller.allowedPeers[peerID] = true
 	}
-	
-	if config.Enabled {
+
+	if cfg.Enabled {
 		logger.Info("Access control enabled",
-			zap.Int("allowed_peers_count", len(config.AllowedPeers)),
-			zap.Strings("allowed_peers", config.AllowedPeers))
+			zap.Int("allowed_peers_count", len(cfg.AllowedPeers)),
+			zap.Strings("allowed_peers", cfg.AllowedPeers))
 	} else {
 		logger.Info("Access control disabled")
 	}
-	
+
 	return controller
 }
 
@@ -65,4 +65,4 @@ func (c *Controller) GetAuthorizedPeers() []string {
 // IsEnabled returns whether access control is enabled
 func (c *Controller) IsEnabled() bool {
 	return c.config.Enabled
-} 
+}
