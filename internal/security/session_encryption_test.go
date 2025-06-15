@@ -16,7 +16,7 @@ func TestSessionEncryption(t *testing.T) {
 	sessionID := "test-session-123"
 	
 	// Test encryption
-	encryptedData, err := sessionEncryption.EncryptData(sessionID, originalData)
+	encryptedData, err := sessionEncryption.Encrypt(sessionID, originalData)
 	if err != nil {
 		t.Fatalf("Failed to encrypt data: %v", err)
 	}
@@ -27,7 +27,7 @@ func TestSessionEncryption(t *testing.T) {
 	}
 	
 	// Test decryption
-	decryptedData, err := sessionEncryption.DecryptData(sessionID, encryptedData)
+	decryptedData, err := sessionEncryption.Decrypt(sessionID, encryptedData)
 	if err != nil {
 		t.Fatalf("Failed to decrypt data: %v", err)
 	}
@@ -48,13 +48,13 @@ func TestSessionEncryptionWithDifferentSessions(t *testing.T) {
 	sessionID2 := "session-2"
 	
 	// Encrypt with session 1
-	encrypted1, err := sessionEncryption.EncryptData(sessionID1, originalData)
+	encrypted1, err := sessionEncryption.Encrypt(sessionID1, originalData)
 	if err != nil {
 		t.Fatalf("Failed to encrypt with session 1: %v", err)
 	}
 	
 	// Encrypt with session 2
-	encrypted2, err := sessionEncryption.EncryptData(sessionID2, originalData)
+	encrypted2, err := sessionEncryption.Encrypt(sessionID2, originalData)
 	if err != nil {
 		t.Fatalf("Failed to encrypt with session 2: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestSessionEncryptionWithDifferentSessions(t *testing.T) {
 	}
 	
 	// Decrypt with correct session
-	decrypted1, err := sessionEncryption.DecryptData(sessionID1, encrypted1)
+	decrypted1, err := sessionEncryption.Decrypt(sessionID1, encrypted1)
 	if err != nil {
 		t.Fatalf("Failed to decrypt with session 1: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestSessionEncryptionWithDifferentSessions(t *testing.T) {
 	}
 	
 	// Try to decrypt with wrong session (should fail)
-	_, err = sessionEncryption.DecryptData(sessionID2, encrypted1)
+	_, err = sessionEncryption.Decrypt(sessionID2, encrypted1)
 	if err == nil {
 		t.Fatal("Decryption should fail with wrong session ID")
 	}
@@ -88,12 +88,12 @@ func TestSessionEncryptionEmptySessionID(t *testing.T) {
 	originalData := []byte("Test data")
 	
 	// Empty session ID should fail
-	_, err := sessionEncryption.EncryptData("", originalData)
+	_, err := sessionEncryption.Encrypt("", originalData)
 	if err == nil {
 		t.Fatal("Encryption should fail with empty session ID")
 	}
 	
-	_, err = sessionEncryption.DecryptData("", []byte("dummy"))
+	_, err = sessionEncryption.Decrypt("", []byte("dummy"))
 	if err == nil {
 		t.Fatal("Decryption should fail with empty session ID")
 	}
@@ -110,13 +110,13 @@ func TestSessionEncryptionSameSeedKeySameResult(t *testing.T) {
 	sessionID := "same-session"
 	
 	// Encrypt with first instance
-	encrypted1, err := encryption1.EncryptData(sessionID, originalData)
+	encrypted1, err := encryption1.Encrypt(sessionID, originalData)
 	if err != nil {
 		t.Fatalf("Failed to encrypt with first instance: %v", err)
 	}
 	
 	// Decrypt with second instance (should work with same seed key)
-	decrypted, err := encryption2.DecryptData(sessionID, encrypted1)
+	decrypted, err := encryption2.Decrypt(sessionID, encrypted1)
 	if err != nil {
 		t.Fatalf("Failed to decrypt with second instance: %v", err)
 	}

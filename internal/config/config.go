@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -87,10 +88,8 @@ type SecurityConfig struct {
 	TLSEnabled bool   `yaml:"tls_enabled" mapstructure:"tls_enabled"`
 	CertFile   string `yaml:"cert_file" mapstructure:"cert_file"`
 	KeyFile    string `yaml:"key_file" mapstructure:"key_file"`
-
 	// Access control configuration
 	AccessControl AccessControlConfig `yaml:"access_control" mapstructure:"access_control"`
-	
 	// Session encryption configuration
 	SessionEncryption SessionEncryptionConfig `yaml:"session_encryption" mapstructure:"session_encryption"`
 }
@@ -210,6 +209,18 @@ func validateConfig(config *NodeConfig) error {
 		}
 		if config.TSS.ValidationService.TimeoutSeconds <= 0 {
 			return fmt.Errorf("validation service timeout must be positive")
+		}
+	}
+
+	// Validate session encryption configuration if enabled
+	if config.Security.SessionEncryption.Enabled {
+		if config.Security.SessionEncryption.SeedKey == "" {
+			return fmt.Errorf("session encryption seed key cannot be empty when session encryption is enabled")
+		}
+
+		_, err := hex.DecodeString(config.Security.SessionEncryption.SeedKey)
+		if err != nil {
+			return fmt.Errorf("invalid session encryption seed key: %w", err)
 		}
 	}
 

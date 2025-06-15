@@ -60,7 +60,7 @@ func NewGossipRouter(network *Network, logger *zap.Logger) *GossipRouter {
 func (gr *GossipRouter) SendWithGossip(ctx context.Context, msg *Message) error {
 	if msg.IsBroadcast {
 		// Broadcast messages use PubSub gossip (already implemented)
-		return gr.network.SendMessage(ctx, msg)
+		return gr.network.Send(ctx, msg)
 	}
 
 	// For point-to-point messages, try direct first, then gossip
@@ -95,7 +95,7 @@ func (gr *GossipRouter) sendToTarget(ctx context.Context, msg *Message, target s
 		directMsg := *msg
 		directMsg.To = []string{target}
 		gr.setProtocolID(&directMsg)
-		return gr.network.sendEncryptedMessage(ctx, &directMsg)
+		return gr.network.Send(ctx, &directMsg)
 	}
 
 	return fmt.Errorf("not directly connected to target")
@@ -121,7 +121,7 @@ func (gr *GossipRouter) sendViaGossip(ctx context.Context, msg *Message, target 
 		directMsg := *msg
 		directMsg.To = []string{target}
 		gr.setProtocolID(&directMsg)
-		return gr.network.sendEncryptedMessage(ctx, &directMsg)
+		return gr.network.Send(ctx, &directMsg)
 	}
 
 	// Target not directly connected, use gossip routing
@@ -176,7 +176,7 @@ func (gr *GossipRouter) sendRoutedMessage(ctx context.Context, routedMsg *Routed
 		ProtocolID:  gossipProtocolID,
 	}
 
-	return gr.network.sendEncryptedMessage(ctx, gossipMsg)
+	return gr.network.Send(ctx, gossipMsg)
 }
 
 // HandleRoutedMessage handles incoming routed messages
@@ -224,7 +224,7 @@ func (gr *GossipRouter) HandleRoutedMessage(ctx context.Context, msg *Message) e
 		directMsg := *routedMsg.Message
 		directMsg.To = []string{routedMsg.FinalTarget}
 		gr.setProtocolID(&directMsg)
-		return gr.network.sendEncryptedMessage(ctx, &directMsg)
+		return gr.network.Send(ctx, &directMsg)
 	}
 
 	// Continue gossip forwarding

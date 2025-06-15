@@ -9,35 +9,35 @@ import (
 	"io"
 )
 
-// SessionEncryption provides encryption/decryption functionality based on sessionID and seed key
-type SessionEncryption struct {
+// sessionEncryption provides encryption/decryption functionality based on sessionID and seed key
+type sessionEncryption struct {
 	seedKey []byte // Seed key shared among participants
 }
 
-// SessionEncryptionInterface defines the interface for session-based encryption
-type SessionEncryptionInterface interface {
-	EncryptData(sessionID string, data []byte) ([]byte, error)
-	DecryptData(sessionID string, encryptedData []byte) ([]byte, error)
+// SessionEncryption defines the interface for session-based encryption
+type SessionEncryption interface {
+	Encrypt(sessionID string, data []byte) ([]byte, error)
+	Decrypt(sessionID string, encryptedData []byte) ([]byte, error)
 }
 
 // NewSessionEncryption creates a new SessionEncryption instance
-func NewSessionEncryption(seedKey []byte) *SessionEncryption {
-	return &SessionEncryption{
+func NewSessionEncryption(seedKey []byte) SessionEncryption {
+	return &sessionEncryption{
 		seedKey: seedKey,
 	}
 }
 
 // deriveKey derives encryption key from seed key and session ID using SHA256
 // Key derivation: SHA256(seedKey + sessionID) -> 32 bytes for AES-256
-func (se *SessionEncryption) deriveKey(sessionID string) []byte {
+func (se *sessionEncryption) deriveKey(sessionID string) []byte {
 	hasher := sha256.New()
 	hasher.Write(se.seedKey)
 	hasher.Write([]byte(sessionID))
 	return hasher.Sum(nil) // 32 bytes, perfect for AES-256
 }
 
-// EncryptData encrypts data using AES-256-GCM with session-derived key
-func (se *SessionEncryption) EncryptData(sessionID string, data []byte) ([]byte, error) {
+// Encrypt encrypts data using AES-256-GCM with session-derived key
+func (se *sessionEncryption) Encrypt(sessionID string, data []byte) ([]byte, error) {
 	if sessionID == "" {
 		return nil, errors.New("session ID cannot be empty")
 	}
@@ -65,8 +65,8 @@ func (se *SessionEncryption) EncryptData(sessionID string, data []byte) ([]byte,
 	return ciphertext, nil
 }
 
-// DecryptData decrypts data using AES-256-GCM with session-derived key
-func (se *SessionEncryption) DecryptData(sessionID string, encryptedData []byte) ([]byte, error) {
+// Decrypt decrypts data using AES-256-GCM with session-derived key
+func (se *sessionEncryption) Decrypt(sessionID string, encryptedData []byte) ([]byte, error) {
 	if sessionID == "" {
 		return nil, errors.New("session ID cannot be empty")
 	}
@@ -92,3 +92,21 @@ func (se *SessionEncryption) DecryptData(sessionID string, encryptedData []byte)
 	nonce, ciphertext := encryptedData[:nonceSize], encryptedData[nonceSize:]
 	return gcm.Open(nil, nonce, ciphertext, nil)
 } 
+
+// unimplementedSessionEncryption is a session encryption implementation that does not encrypt or decrypt data
+type unimplementedSessionEncryption struct {}
+
+// Encrypt does nothing and returns the data as is
+func (e *unimplementedSessionEncryption) Encrypt(sessionID string, data []byte) ([]byte, error) {
+	return data, nil
+}
+
+// Decrypt does nothing and returns the data as is
+func (e *unimplementedSessionEncryption) Decrypt(sessionID string, encryptedData []byte) ([]byte, error) {
+	return encryptedData, nil
+}
+
+// NewUnimplementedSessionEncryption creates a new unimplementedSessionEncryption instance
+func NewUnimplementedSessionEncryption() SessionEncryption {
+	return &unimplementedSessionEncryption{}
+}
