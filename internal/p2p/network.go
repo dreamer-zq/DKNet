@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/dreamer-zq/DKNet/internal/config"
 	"github.com/dreamer-zq/DKNet/internal/security"
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -47,10 +48,13 @@ type Config struct {
 	BootstrapPeers []string
 	PrivateKeyFile string
 	MaxPeers       int
+	
+	// Access control configuration
+	AccessControl *config.AccessControlConfig
 }
 
 // NewNetwork creates a new P2P network instance
-func NewNetwork(cfg *Config, accessController security.AccessController, logger *zap.Logger) (*Network, error) {
+func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 	// Create libp2p host
 	privKey, err := loadPrivateKey(cfg.PrivateKeyFile, logger)
 	if err != nil {
@@ -72,6 +76,12 @@ func NewNetwork(cfg *Config, accessController security.AccessController, logger 
 			logger.Error("Failed to close host during cleanup", zap.Error(closeErr))
 		}
 		return nil, fmt.Errorf("failed to create pubsub: %w", err)
+	}
+
+	// Initialize access controller if configuration is provided
+	var accessController security.AccessController
+	if cfg.AccessControl != nil {
+		accessController = security.NewController(cfg.AccessControl, logger.Named("access_control"))
 	}
 
 	n := &Network{

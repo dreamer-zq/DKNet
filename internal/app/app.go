@@ -10,7 +10,6 @@ import (
 	"github.com/dreamer-zq/DKNet/internal/common"
 	"github.com/dreamer-zq/DKNet/internal/config"
 	"github.com/dreamer-zq/DKNet/internal/p2p"
-	"github.com/dreamer-zq/DKNet/internal/security"
 	"github.com/dreamer-zq/DKNet/internal/storage"
 	"github.com/dreamer-zq/DKNet/internal/tss"
 )
@@ -45,16 +44,14 @@ func New(cfg *config.NodeConfig, logger *zap.Logger, password string) (*App, err
 		return nil, fmt.Errorf("unsupported storage type: %s", cfg.Storage.Type)
 	}
 
-	// Initialize access controller
-	accessController := security.NewController(&cfg.Security.AccessControl, logger.Named("access_control"))
-
 	// Create P2P network
 	network, err := p2p.NewNetwork(&p2p.Config{
 		ListenAddrs:    cfg.P2P.ListenAddrs,
 		BootstrapPeers: cfg.P2P.BootstrapPeers,
 		PrivateKeyFile: cfg.P2P.PrivateKeyFile,
 		MaxPeers:       cfg.P2P.MaxPeers,
-	}, accessController, logger.Named("p2p"))
+		AccessControl:  &cfg.Security.AccessControl,
+	}, logger.Named("p2p"))
 	if err != nil {
 		common.LogMsgDo("failed to create P2P network", func() error {
 			return store.Close()
