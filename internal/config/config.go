@@ -87,6 +87,15 @@ type SecurityConfig struct {
 	TLSEnabled bool   `yaml:"tls_enabled" mapstructure:"tls_enabled"`
 	CertFile   string `yaml:"cert_file" mapstructure:"cert_file"`
 	KeyFile    string `yaml:"key_file" mapstructure:"key_file"`
+
+	// Access control configuration
+	AccessControl AccessControlConfig `yaml:"access_control" mapstructure:"access_control"`
+}
+
+// AccessControlConfig holds access control configuration
+type AccessControlConfig struct {
+	Enabled      bool     `yaml:"enabled" mapstructure:"enabled"`
+	AllowedPeers []string `yaml:"allowed_peers" mapstructure:"allowed_peers"`
 }
 
 // Load loads configuration from file or environment variables
@@ -169,6 +178,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("security.tls_enabled", false)
 	v.SetDefault("security.cert_file", "")
 	v.SetDefault("security.key_file", "")
+	v.SetDefault("security.access_control.enabled", false)
+	v.SetDefault("security.access_control.allowed_peers", []string{})
 }
 
 // validateConfig validates the configuration
