@@ -223,7 +223,6 @@ func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, re
 
 	// Store key data with encrypted KeyData field
 	keyDataStruct := &keyData{
-		NodeID:    s.nodeID,
 		Moniker:   s.moniker,
 		KeyData:   encryptedKeyData,      // Store encrypted data
 		Threshold: originalReq.Threshold, // Store the original threshold from request

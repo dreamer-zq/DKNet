@@ -75,7 +75,7 @@ func runInitNode(cmd *cobra.Command, args []string) error {
 	logger.Info("Generated configuration", zap.String("file", configFile))
 
 	// Generate node info
-	if err := generateNodeInfo(nodeDir, "node1", peerID.String(),
+	if err := generateNodeInfo(nodeDir, peerID.String(),
 		listenAddr, p2pPort, bootstrapPeers, dockerMode); err != nil {
 		return fmt.Errorf("failed to generate node info: %w", err)
 	}

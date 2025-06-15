@@ -66,7 +66,7 @@ func New(cfg *config.NodeConfig, logger *zap.Logger, password string) (*App, err
 
 	// Initialize TSS service with encryption
 	tssService, err := tss.NewService(&tss.Config{
-		NodeID:            peerID, // Use peer ID as node ID
+		PeerID:            peerID, // Use peer ID for TSS service
 		Moniker:           cfg.TSS.Moniker,
 		ValidationService: cfg.TSS.ValidationService,
 	}, store, network, logger.Named("tss"), password)

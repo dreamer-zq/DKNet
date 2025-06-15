@@ -54,20 +54,20 @@ func NewService(
 		logger:     logger,
 		encryption: keyEncryption,
 		operations: make(map[string]*Operation),
-		nodeID:     cfg.NodeID,
+		nodeID:     cfg.PeerID,
 		moniker:    cfg.Moniker,
 	}
 
 	// Check if validation service is configured and enabled
 	if cfg.ValidationService != nil && cfg.ValidationService.Enabled {
-		service.validationService = plugin.NewHTTPValidationService(cfg.ValidationService, cfg.NodeID, logger)
+		service.validationService = plugin.NewHTTPValidationService(cfg.ValidationService, cfg.PeerID, logger)
 	}
 
 	// Set this service as the message handler for the network
 	network.SetMessageHandler(service)
 
 	logger.Info("TSS service initialized",
-		zap.String("node_id", cfg.NodeID),
+		zap.String("peer_id", cfg.PeerID),
 		zap.String("moniker", cfg.Moniker))
 
 	return service, nil

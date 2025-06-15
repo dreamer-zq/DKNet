@@ -77,7 +77,6 @@ type ValidationServiceConfig struct {
 
 // NodeKeyInfo contains information about a node's P2P key
 type NodeKeyInfo struct {
-	NodeID     string
 	PeerID     string
 	KeyFile    string
 	PrivateKey crypto.PrivKey

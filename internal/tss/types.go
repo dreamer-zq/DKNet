@@ -28,7 +28,7 @@ const (
 
 // Config holds TSS service configuration
 type Config struct {
-	NodeID  string
+	PeerID  string
 	Moniker string
 	// Validation service configuration (optional)
 	ValidationService *config.ValidationServiceConfig `json:"validation_service,omitempty"`
@@ -199,7 +199,6 @@ func (o *operationData) IsActive() bool {
 
 // keyData represents the TSS key data that needs to be stored
 type keyData struct {
-	NodeID    string `json:"node_id"`
 	Moniker   string `json:"moniker"`
 	KeyData   []byte `json:"key_data"`
 	Threshold int    `json:"threshold"`

@@ -60,7 +60,7 @@ func generateAndSaveNodeConfig(
 
 // generateNodeInfo creates a node information file
 func generateNodeInfo(
-	nodeDir, nodeID, peerID string,
+	nodeDir, peerID string,
 	listenAddr string,
 	p2pPort int,
 	bootstrapPeers []string,
@@ -72,7 +72,6 @@ func generateNodeInfo(
 ====================
 
 Node Details:
-- Node ID: %s
 - Peer ID: %s
 
 Network Configuration:
@@ -84,7 +83,7 @@ Generated Files:
 - Private Key: ./node_key
 
 Bootstrap Peers:
-`, nodeID, peerID, listenAddr, p2pPort, listenAddr, p2pPort, peerID)
+`, peerID, listenAddr, p2pPort, listenAddr, p2pPort, peerID)
 
 	if len(bootstrapPeers) == 0 {
 		content += "- None specified (you need to add bootstrap peers to connect to the network)\n"
@@ -130,13 +129,13 @@ Each node has its own directory with:
 - %s/node2/config.yaml & node_key & node-info.txt
 - %s/node3/config.yaml & node_key & node-info.txt
 
-Node Information:
+Node Information (Peer IDs):
 `, nodes, map[bool]string{true: "Docker", false: "Local"}[dockerMode], outputDir, outputDir, outputDir)
 
 	for i := 1; i <= nodes; i++ {
 		nodeID := fmt.Sprintf("node%d", i)
 		nodeInfo := nodeKeys[nodeID]
-		content += fmt.Sprintf("- %s: %s\n", nodeID, nodeInfo.PeerID)
+		content += fmt.Sprintf("- node%d: %s\n", i, nodeInfo.PeerID)
 	}
 
 	content += "\nBootstrap Multiaddrs:\n"

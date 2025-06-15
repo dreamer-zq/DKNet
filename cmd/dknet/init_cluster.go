@@ -67,7 +67,6 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 		}
 
 		nodeKeys[nodeID] = config.NodeKeyInfo{
-			NodeID:     nodeID,
 			PeerID:     peerID.String(),
 			KeyFile:    filepath.Join(nodeDir, "node_key"),
 			PrivateKey: privKey,
@@ -118,7 +117,7 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 		// Generate node info file
 		p2pPort := getNodeP2PPort(i, dockerMode)
 		listenAddr := getNodeListenAddr(dockerMode)
-		if err := generateNodeInfo(nodeDir, nodeID, nodeKeys[nodeID].PeerID,
+		if err := generateNodeInfo(nodeDir, nodeKeys[nodeID].PeerID,
 			listenAddr, p2pPort, bootstrapPeers, dockerMode); err != nil {
 			return fmt.Errorf("failed to generate node info for %s: %w", nodeID, err)
 		}
