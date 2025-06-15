@@ -41,25 +41,25 @@ func (se *sessionEncryption) Encrypt(sessionID string, data []byte) ([]byte, err
 	if sessionID == "" {
 		return nil, errors.New("session ID cannot be empty")
 	}
-	
+
 	key := se.deriveKey(sessionID)
-	
+
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Generate random nonce
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, err
 	}
-	
+
 	// Encrypt data: nonce + encrypted_data
 	ciphertext := gcm.Seal(nonce, nonce, data, nil)
 	return ciphertext, nil
@@ -70,31 +70,31 @@ func (se *sessionEncryption) Decrypt(sessionID string, encryptedData []byte) ([]
 	if sessionID == "" {
 		return nil, errors.New("session ID cannot be empty")
 	}
-	
+
 	key := se.deriveKey(sessionID)
-	
+
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	nonceSize := gcm.NonceSize()
 	if len(encryptedData) < nonceSize {
 		return nil, errors.New("ciphertext too short")
 	}
-	
+
 	// Extract nonce and ciphertext
 	nonce, ciphertext := encryptedData[:nonceSize], encryptedData[nonceSize:]
 	return gcm.Open(nil, nonce, ciphertext, nil)
-} 
+}
 
 // unimplementedSessionEncryption is a session encryption implementation that does not encrypt or decrypt data
-type unimplementedSessionEncryption struct {}
+type unimplementedSessionEncryption struct{}
 
 // Encrypt does nothing and returns the data as is
 func (e *unimplementedSessionEncryption) Encrypt(sessionID string, data []byte) ([]byte, error) {

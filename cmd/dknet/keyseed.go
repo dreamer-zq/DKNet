@@ -60,4 +60,4 @@ func runKeyseed() error {
 	fmt.Println("- Store this key securely and do not share it publicly")
 
 	return nil
-} 
+}
