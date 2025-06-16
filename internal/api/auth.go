@@ -84,12 +84,13 @@ func (a *authenticator) Authenticate(ctx context.Context, token string) (*AuthCo
 		}
 	}
 
-	// Validate expiration
+	// Validate expiration (only if exp claim exists)
 	if exp, ok := claims["exp"].(float64); ok {
 		if time.Now().Unix() > int64(exp) {
 			return nil, errors.New("JWT token has expired")
 		}
 	}
+	// Note: If no "exp" claim exists, the token is considered permanent
 
 	// Extract user information
 	userID := ""

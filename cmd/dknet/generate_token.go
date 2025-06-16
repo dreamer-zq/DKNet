@@ -11,6 +11,10 @@ import (
 	"github.com/dreamer-zq/DKNet/internal/config"
 )
 
+const (
+	neverExpires = "never"
+)
+
 // generateTokenCmd creates a command to generate JWT tokens for API authentication
 func generateTokenCmd() *cobra.Command {
 	var outputFormat string
@@ -51,13 +55,19 @@ and generates a token that can be used by clients to authenticate with the API.`
 			}
 
 			// Generate JWT token
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			claims := jwt.MapClaims{
 				"sub":   userID,
 				"iss":   jwtConfig.JWTIssuer,
-				"exp":   time.Now().Add(time.Duration(expiryHours) * time.Hour).Unix(),
 				"iat":   time.Now().Unix(),
 				"roles": roles,
-			})
+			}
+
+			// Add expiration only if specified (0 means no expiration)
+			if expiryHours > 0 {
+				claims["exp"] = time.Now().Add(time.Duration(expiryHours) * time.Hour).Unix()
+			}
+
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 			tokenString, err := token.SignedString([]byte(jwtConfig.JWTSecret))
 			if err != nil {
@@ -67,12 +77,18 @@ and generates a token that can be used by clients to authenticate with the API.`
 			// Output the token
 			if outputFormat == "json" {
 				output := map[string]interface{}{
-					"token":      tokenString,
-					"user_id":    userID,
-					"issuer":     jwtConfig.JWTIssuer,
-					"roles":      roles,
-					"expires_in": fmt.Sprintf("%dh", expiryHours),
-					"expires_at": time.Now().Add(time.Duration(expiryHours) * time.Hour).Format(time.RFC3339),
+					"token":   tokenString,
+					"user_id": userID,
+					"issuer":  jwtConfig.JWTIssuer,
+					"roles":   roles,
+				}
+
+				if expiryHours > 0 {
+					output["expires_in"] = fmt.Sprintf("%dh", expiryHours)
+					output["expires_at"] = time.Now().Add(time.Duration(expiryHours) * time.Hour).Format(time.RFC3339)
+				} else {
+					output["expires_in"] = neverExpires
+					output["expires_at"] = neverExpires
 				}
 				jsonData, err := json.MarshalIndent(output, "", "  ")
 				if err != nil {
@@ -85,7 +101,14 @@ and generates a token that can be used by clients to authenticate with the API.`
 				fmt.Printf("User ID: %s\n", userID)
 				fmt.Printf("Issuer: %s\n", jwtConfig.JWTIssuer)
 				fmt.Printf("Roles: %v\n", roles)
-				fmt.Printf("Expires: %s (%dh)\n", time.Now().Add(time.Duration(expiryHours)*time.Hour).Format(time.RFC3339), expiryHours)
+
+				if expiryHours > 0 {
+					fmt.Printf("Expires: %s (%dh)\n", time.Now().Add(time.Duration(expiryHours)*time.Hour).Format(time.RFC3339), expiryHours)
+				} else {
+					fmt.Printf("Expires: Never (permanent token)\n")
+					fmt.Printf("⚠️  Warning: This is a permanent token. Store it securely!\n")
+				}
+
 				fmt.Printf("\nUsage with dknet-cli:\n")
 				fmt.Printf("  dknet-cli --token=\"%s\" <command>\n", tokenString)
 				fmt.Printf("\nUsage with curl:\n")
@@ -99,7 +122,7 @@ and generates a token that can be used by clients to authenticate with the API.`
 	cmd.Flags().StringVarP(&outputFormat, "output", "o", "text", "Output format (text|json)")
 	cmd.Flags().StringVarP(&userID, "user", "u", "", "User ID for the token (default: admin-user)")
 	cmd.Flags().StringSliceVarP(&roles, "roles", "r", nil, "Roles for the token (default: admin,operator)")
-	cmd.Flags().IntVarP(&expiryHours, "expires", "e", 24, "Token expiry in hours (default: 24)")
+	cmd.Flags().IntVarP(&expiryHours, "expires", "e", 24, "Token expiry in hours (default: 24, use 0 for no expiration)")
 
 	return cmd
 }
