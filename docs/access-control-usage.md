@@ -32,7 +32,7 @@ security:
 
 每个节点在启动时会显示其PeerID，例如：
 
-```
+```text
 2024-01-01T12:00:00.000Z INFO p2p Host ID: 12D3KooWBhZKGWdvx7YdCUFqAE6CbU6GGLw3n7p9R1v8qN2XY3Zh
 ```
 
@@ -61,6 +61,7 @@ curl http://localhost:8080/api/v1/network/info
 在每个节点的`config.yaml`中添加其他节点的PeerID：
 
 **node1/config.yaml:**
+
 ```yaml
 security:
   access_control:
@@ -71,6 +72,7 @@ security:
 ```
 
 **node2/config.yaml:**
+
 ```yaml
 security:
   access_control:
@@ -81,6 +83,7 @@ security:
 ```
 
 **node3/config.yaml:**
+
 ```yaml
 security:
   access_control:
@@ -111,7 +114,7 @@ security:
 
 当授权节点连接时，你会看到类似的日志：
 
-```
+```text
 2024-01-01T12:00:00.000Z INFO p2p Accepted connection from authorized peer peer_id=12D3KooW...
 ```
 
@@ -119,7 +122,7 @@ security:
 
 当未授权节点尝试连接时，你会看到：
 
-```
+```text
 2024-01-01T12:00:00.000Z WARN p2p Rejected stream from unauthorized peer peer_id=12D3KooW... protocol=/tss/keygen/1.0.0
 ```
 
@@ -130,6 +133,7 @@ security:
 **症状：** 节点启动正常，但无法与其他节点建立连接
 
 **解决方案：**
+
 1. 检查`allowed_peers`配置是否包含目标节点的PeerID
 2. 确认PeerID格式正确（以`12D3KooW`开头）
 3. 检查网络连接和防火墙设置
@@ -139,6 +143,7 @@ security:
 **症状：** 配置文件中的PeerID格式不正确
 
 **解决方案：**
+
 1. PeerID必须是有效的libp2p peer ID格式
 2. 通常以`12D3KooW`开头，长度为52个字符
 3. 从节点启动日志或API获取正确的PeerID
@@ -148,6 +153,7 @@ security:
 **症状：** 虽然配置了`enabled: true`，但所有节点都能连接
 
 **解决方案：**
+
 1. 检查配置文件格式是否正确（YAML缩进）
 2. 确认配置文件路径正确
 3. 重启节点以应用新配置
@@ -174,4 +180,4 @@ security:
 
 ## 示例配置
 
-完整的示例配置文件请参考：`examples/config-with-access-control.yaml` 
+完整的示例配置文件请参考：`examples/config-with-access-control.yaml`
