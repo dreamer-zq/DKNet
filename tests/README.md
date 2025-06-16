@@ -26,6 +26,31 @@ tests/
 
 ## 安全特性
 
+### Session Encryption (会话加密)
+
+DKNet TSS 支持 **Session Encryption** 功能，为 TSS 消息提供额外的应用层加密保护：
+
+- **加密算法**: AES-256-GCM（对称加密）
+- **密钥派生**: SHA256(seed_key + session_id)
+- **动态密钥**: 每个会话使用不同的派生密钥
+- **透明集成**: 自动加密/解密所有 TSS 相关消息
+
+#### 配置说明
+
+Session Encryption 通过配置文件启用：
+
+```yaml
+security:
+  session_encryption:
+    enabled: true
+    seed_key: "a9abe2b4fa5490ff80d59e01731fc2ce8d90429b2b824e0712264985f421210b"
+```
+
+**重要**: 
+- 所有参与方必须配置相同的 `seed_key`
+- `seed_key` 应通过安全的带外通道分发
+- 可使用 `./bin/dknet keyseed` 命令生成新的种子密钥
+
 ### 加密存储
 
 DKNet TSS 使用 **AES-256-GCM** 对称加密来保护存储的 TSS 私钥：

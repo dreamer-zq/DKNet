@@ -311,7 +311,7 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 				s.logger.Info("Sending broadcast message",
 					zap.String("operation_id", operation.ID),
 					zap.String("session_id", operation.SessionID))
-				if err := s.network.SendMessage(ctx, p2pMsg); err != nil {
+				if err := s.network.Send(ctx, p2pMsg); err != nil {
 					s.logger.Error("Failed to broadcast message",
 						zap.Error(err),
 						zap.String("operation_id", operation.ID))
@@ -332,7 +332,7 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 					zap.String("session_id", operation.SessionID),
 					zap.Strings("targets", targetPeers))
 
-				if err := s.network.SendMessageWithGossip(ctx, p2pMsg); err != nil {
+				if err := s.network.SendWithGossip(ctx, p2pMsg); err != nil {
 					s.logger.Error("Failed to send message with gossip routing",
 						zap.Error(err),
 						zap.String("operation_id", operation.ID),
@@ -446,7 +446,7 @@ func (s *Service) broadcastOperationSync(ctx context.Context, syncData Message) 
 		Data:        data, // Serialized operation sync data
 		Timestamp:   time.Now(),
 	}
-	return s.network.SendMessage(ctx, msg)
+	return s.network.Send(ctx, msg)
 }
 
 // saveOperation saves an operation to persistent storage

@@ -29,3 +29,9 @@ security:
     tls_enabled: false
     cert_file: ""
     key_file: ""
+    access_control:
+        enabled: false
+        allowed_peers: []
+    session_encryption:
+        enabled: true
+        seed_key: "a9abe2b4fa5490ff80d59e01731fc2ce8d90429b2b824e0712264985f421210b"

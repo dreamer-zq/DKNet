@@ -33,7 +33,8 @@ type Message struct {
 	From        string      `json:"from"` // sender node ID
 	To          []string    `json:"to"`   // recipient node IDs (empty for broadcast)
 	IsBroadcast bool        `json:"is_broadcast"`
-	Data        []byte      `json:"data"` // message payload
+	Data        []byte      `json:"data"`      // message payload
+	Encrypted   bool        `json:"encrypted"` // indicates if data is encrypted
 	Timestamp   time.Time   `json:"timestamp"`
 
 	// P2P layer information - records original sender's actual PeerID to avoid mapping confusion from forwarding
