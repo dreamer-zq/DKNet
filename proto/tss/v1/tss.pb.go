@@ -471,7 +471,9 @@ type SigningResult struct {
 	// R component of the signature
 	R string `protobuf:"bytes,2,opt,name=r,proto3" json:"r,omitempty"`
 	// S component of the signature
-	S             string `protobuf:"bytes,3,opt,name=s,proto3" json:"s,omitempty"`
+	S string `protobuf:"bytes,3,opt,name=s,proto3" json:"s,omitempty"`
+	// V component (recovery ID) for Ethereum compatibility
+	V             int32 `protobuf:"varint,4,opt,name=v,proto3" json:"v,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -525,6 +527,13 @@ func (x *SigningResult) GetS() string {
 		return x.S
 	}
 	return ""
+}
+
+func (x *SigningResult) GetV() int32 {
+	if x != nil {
+		return x.V
+	}
+	return 0
 }
 
 // StartResharingRequest represents a resharing request
@@ -993,11 +1002,12 @@ const file_proto_tss_v1_tss_proto_rawDesc = "" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12/\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x17.tss.v1.OperationStatusR\x06status\x129\n" +
 	"\n" +
-	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"I\n" +
+	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"W\n" +
 	"\rSigningResult\x12\x1c\n" +
 	"\tsignature\x18\x01 \x01(\tR\tsignature\x12\f\n" +
 	"\x01r\x18\x02 \x01(\tR\x01r\x12\f\n" +
-	"\x01s\x18\x03 \x01(\tR\x01s\"\xed\x01\n" +
+	"\x01s\x18\x03 \x01(\tR\x01s\x12\f\n" +
+	"\x01v\x18\x04 \x01(\x05R\x01v\"\xed\x01\n" +
 	"\x15StartResharingRequest\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x15\n" +
 	"\x06key_id\x18\x02 \x01(\tR\x05keyId\x12#\n" +

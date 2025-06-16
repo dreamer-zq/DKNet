@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bnb-chain/tss-lib/v2/common"
 	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
 	"github.com/bnb-chain/tss-lib/v2/tss"
 	"github.com/google/uuid"
@@ -409,13 +410,10 @@ func (s *Service) createParticipantList(peerIDs []string) ([]*tss.PartyID, error
 	copy(sortedPeerIDs, peerIDs)
 	sort.Strings(sortedPeerIDs)
 
-	// Use a large base number to avoid any issues with small integers
-	baseKey := big.NewInt(1000000)
-
-	for i, peerID := range sortedPeerIDs {
-		// Create a unique key by adding index to base
-		// This ensures keys are: 1000001, 1000002, 1000003, etc.
-		key := new(big.Int).Add(baseKey, big.NewInt(int64(i+1)))
+	for _, peerID := range sortedPeerIDs {
+		// Generate a deterministic key based on the peer ID itself
+		// This ensures the same node always gets the same key across different operations
+		key := s.generateDeterministicKey(peerID)
 
 		// Use empty moniker for remote peers, or actual moniker if it's this node
 		moniker := ""
@@ -427,6 +425,24 @@ func (s *Service) createParticipantList(peerIDs []string) ([]*tss.PartyID, error
 		participants = append(participants, party)
 	}
 	return tss.SortPartyIDs(participants), nil
+}
+
+// generateDeterministicKey generates a deterministic big.Int key from a peer ID
+// This ensures the same peer always gets the same key across different operations
+// Uses the same method as bnb-chain/tss library for compatibility
+func (s *Service) generateDeterministicKey(peerID string) *big.Int {
+	// Use TSS library's SHA512_256 function for consistency with bnb-chain/tss
+	hash := common.SHA512_256([]byte(peerID))
+	
+	// Convert hash to big.Int
+	key := new(big.Int).SetBytes(hash)
+	
+	// Ensure key is never zero (add 1 if it is)
+	if key.Cmp(big.NewInt(0)) == 0 {
+		key.SetInt64(1)
+	}
+	
+	return key
 }
 
 // broadcastOperationSync broadcasts operation synchronization message to all peers

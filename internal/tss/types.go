@@ -118,6 +118,7 @@ type SigningResult struct {
 	Signature string `json:"signature"`
 	R         string `json:"r"`
 	S         string `json:"s"`
+	V         int    `json:"v"`
 }
 
 // ResharingRequest represents a resharing request

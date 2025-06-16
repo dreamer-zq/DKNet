@@ -224,6 +224,7 @@ func (s *Server) getOperationHandler(c *gin.Context) {
 							Signature: result.Signature,
 							R:         result.R,
 							S:         result.S,
+							V:         int32(result.V),
 						},
 					}
 				}
@@ -322,6 +323,7 @@ func (s *Server) getOperationHandler(c *gin.Context) {
 						Signature: result.Signature,
 						R:         result.R,
 						S:         result.S,
+						V:         int32(result.V),
 					},
 				}
 			}

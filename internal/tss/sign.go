@@ -329,18 +329,29 @@ func (s *Service) runSigningOperation(ctx context.Context, operation *Operation,
 
 // saveSigningResult saves signing result with Ethereum-compatible format
 func (s *Service) saveSigningResult(_ context.Context, operation *Operation, result *common.SignatureData) error {
+	// Calculate Ethereum-compatible v value from recovery ID
+	// Traditional Ethereum format: v = recovery_id + 27
+	v := 27
+	if len(result.SignatureRecovery) > 0 {
+		v = int(result.SignatureRecovery[0]) + 27
+	}
+
 	// Create signing result with Ethereum-compatible format
 	signingResult := &SigningResult{
 		Signature: hex.EncodeToString(result.Signature),
 		R:         hex.EncodeToString(result.R),
 		S:         hex.EncodeToString(result.S),
+		V:         v,
 	}
 
 	operation.Lock()
 	operation.Result = signingResult
 	operation.Unlock()
 
-	s.logger.Info("Saved signing result (Ethereum-compatible format for ecrecover)")
+	s.logger.Info("Saved signing result (Ethereum-compatible format for ecrecover)",
+		zap.String("r", signingResult.R),
+		zap.String("s", signingResult.S),
+		zap.Int("v", signingResult.V))
 
 	return nil
 }

@@ -112,6 +112,9 @@ message SigningResult {
     
     // S component of the signature  
     string s = 3;
+    
+    // V component (recovery ID) for Ethereum compatibility
+    int32 v = 4;
 }
 
 // StartResharingRequest represents a resharing request

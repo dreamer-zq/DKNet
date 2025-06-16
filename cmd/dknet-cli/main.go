@@ -382,7 +382,7 @@ func reshareHTTP(ctx context.Context, keyID string, newThreshold, newParties int
 }
 
 func getOperationHTTP(ctx context.Context, operationID string) error {
-	resp, err := makeHTTPRequest(ctx, "GET", "/operations/"+operationID, nil)
+	resp, err := makeHTTPRequest(ctx, "GET", "/api/v1/operations/"+operationID, nil)
 	if err != nil {
 		return err
 	}

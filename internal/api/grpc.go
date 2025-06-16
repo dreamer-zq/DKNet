@@ -213,6 +213,7 @@ func (g *gRPCTSSServer) GetOperation(ctx context.Context, req *tssv1.GetOperatio
 							Signature: result.Signature,
 							R:         result.R,
 							S:         result.S,
+							V:         int32(result.V),
 						},
 					}
 				}
@@ -308,6 +309,7 @@ func (g *gRPCTSSServer) GetOperation(ctx context.Context, req *tssv1.GetOperatio
 						Signature: result.Signature,
 						R:         result.R,
 						S:         result.S,
+						V:         int32(result.V),
 					},
 				}
 			}
