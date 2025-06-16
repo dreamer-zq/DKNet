@@ -183,7 +183,7 @@ func (s *Service) GetOperation(operationID string) (*Operation, bool) {
 }
 
 // GetOperationData returns operation data by ID, checking both memory and persistent storage
-func (s *Service) GetOperationData(ctx context.Context, operationID string) (*operationData, error) {
+func (s *Service) GetOperationData(ctx context.Context, operationID string) (*OperationData, error) {
 	// First check active operations in memory
 	s.mutex.RLock()
 	op, exists := s.operations[operationID]
@@ -191,7 +191,7 @@ func (s *Service) GetOperationData(ctx context.Context, operationID string) (*op
 
 	if exists {
 		// Convert active operation to OperationData
-		opData := &operationData{
+		opData := &OperationData{
 			ID:           op.ID,
 			Type:         op.Type,
 			SessionID:    op.SessionID,
@@ -468,7 +468,7 @@ func (s *Service) broadcastOperationSync(ctx context.Context, syncData Message) 
 // saveOperation saves an operation to persistent storage
 func (s *Service) saveOperation(ctx context.Context, operation *Operation) error {
 	// Convert Operation to OperationData for persistence
-	opData := &operationData{
+	opData := &OperationData{
 		ID:           operation.ID,
 		Type:         operation.Type,
 		SessionID:    operation.SessionID,
@@ -506,14 +506,14 @@ func (s *Service) saveOperation(ctx context.Context, operation *Operation) error
 }
 
 // loadOperation loads an operation from persistent storage
-func (s *Service) loadOperation(ctx context.Context, operationID string) (*operationData, error) {
+func (s *Service) loadOperation(ctx context.Context, operationID string) (*OperationData, error) {
 	key := fmt.Sprintf("operation:%s", operationID)
 	data, err := s.storage.Load(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load operation data: %w", err)
 	}
 
-	var opData operationData
+	var opData OperationData
 	if err := json.Unmarshal(data, &opData); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal operation data: %w", err)
 	}

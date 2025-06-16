@@ -174,8 +174,8 @@ type ResharingSyncData struct {
 	KeyID           string   `json:"key_id"`
 }
 
-// operationData represents operation data for persistence
-type operationData struct {
+// OperationData represents operation data for persistence
+type OperationData struct {
 	ID           string          `json:"id"`
 	Type         OperationType   `json:"type"`
 	SessionID    string          `json:"session_id"`
@@ -189,12 +189,12 @@ type operationData struct {
 }
 
 // IsCompleted returns true if the operation has completed (success, failure, or cancellation)
-func (o *operationData) IsCompleted() bool {
+func (o *OperationData) IsCompleted() bool {
 	return o.Status == StatusCompleted || o.Status == StatusFailed || o.Status == StatusCancelled
 }
 
 // IsActive returns true if the operation is still active (pending or in progress)
-func (o *operationData) IsActive() bool {
+func (o *OperationData) IsActive() bool {
 	return o.Status == StatusPending || o.Status == StatusInProgress
 }
 
