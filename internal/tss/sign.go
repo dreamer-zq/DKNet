@@ -329,29 +329,68 @@ func (s *Service) runSigningOperation(ctx context.Context, operation *Operation,
 
 // saveSigningResult saves signing result with Ethereum-compatible format
 func (s *Service) saveSigningResult(_ context.Context, operation *Operation, result *common.SignatureData) error {
-	// Calculate Ethereum-compatible v value from recovery ID
-	// Traditional Ethereum format: v = recovery_id + 27
-	v := 27
-	if len(result.SignatureRecovery) > 0 {
-		v = int(result.SignatureRecovery[0]) + 27
+	// Ensure R and S are exactly 32 bytes each
+	rBytes := result.R
+	sBytes := result.S
+
+	// Pad with leading zeros if necessary
+	if len(rBytes) < 32 {
+		padded := make([]byte, 32)
+		copy(padded[32-len(rBytes):], rBytes)
+		rBytes = padded
+	}
+	if len(sBytes) < 32 {
+		padded := make([]byte, 32)
+		copy(padded[32-len(sBytes):], sBytes)
+		sBytes = padded
 	}
 
-	// Create signing result with Ethereum-compatible format
+	// Truncate if longer than 32 bytes (should not happen, but safety check)
+	if len(rBytes) > 32 {
+		rBytes = rBytes[len(rBytes)-32:]
+	}
+	if len(sBytes) > 32 {
+		sBytes = sBytes[len(sBytes)-32:]
+	}
+
+	// Calculate Ethereum-compatible v value from recovery ID
+	// Ethereum format: v = recovery_id + 27
+	v := 27
+	if len(result.SignatureRecovery) > 0 {
+		recoveryID := int(result.SignatureRecovery[0])
+		// Ensure recovery ID is in valid range (0 or 1)
+		if recoveryID >= 0 && recoveryID <= 1 {
+			v = recoveryID + 27
+		} else {
+			s.logger.Warn("Invalid recovery ID, using default v=27",
+				zap.Int("recovery_id", recoveryID))
+		}
+	}
+
+	// Create 65-byte Ethereum signature: R(32) + S(32) + V(1)
+	signature65 := make([]byte, 65)
+	copy(signature65[0:32], rBytes)  // R component
+	copy(signature65[32:64], sBytes) // S component
+	signature65[64] = byte(v)        // V component
+
+	// Create signing result with both individual components and complete signature
 	signingResult := &SigningResult{
-		Signature: hex.EncodeToString(result.Signature),
-		R:         hex.EncodeToString(result.R),
-		S:         hex.EncodeToString(result.S),
-		V:         v,
+		Signature: "0x" + hex.EncodeToString(signature65), // 65-byte signature for contract verification
+		R:         "0x" + hex.EncodeToString(rBytes),      // R component (32 bytes)
+		S:         "0x" + hex.EncodeToString(sBytes),      // S component (32 bytes)
+		V:         v,                                      // V value (recovery_id + 27)
 	}
 
 	operation.Lock()
 	operation.Result = signingResult
 	operation.Unlock()
 
-	s.logger.Info("Saved signing result (Ethereum-compatible format for ecrecover)",
+	s.logger.Info("Saved signing result (Ethereum-compatible 65-byte format)",
+		zap.String("signature_65_bytes", signingResult.Signature),
 		zap.String("r", signingResult.R),
 		zap.String("s", signingResult.S),
-		zap.Int("v", signingResult.V))
+		zap.Int("v", signingResult.V),
+		zap.Int("signature_length", len(signature65)))
 
 	return nil
 }
