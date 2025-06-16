@@ -433,15 +433,15 @@ func (s *Service) createParticipantList(peerIDs []string) ([]*tss.PartyID, error
 func (s *Service) generateDeterministicKey(peerID string) *big.Int {
 	// Use TSS library's SHA512_256 function for consistency with bnb-chain/tss
 	hash := common.SHA512_256([]byte(peerID))
-	
+
 	// Convert hash to big.Int
 	key := new(big.Int).SetBytes(hash)
-	
+
 	// Ensure key is never zero (add 1 if it is)
 	if key.Cmp(big.NewInt(0)) == 0 {
 		key.SetInt64(1)
 	}
-	
+
 	return key
 }
 

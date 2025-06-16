@@ -46,7 +46,7 @@ using threshold cryptography to ensure no single point of failure.`,
 	}
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config.yaml)")
-	rootCmd.AddCommand(startCmd, runInitClusterCmd(), runInitNodeCmd(), runShowNodeCmd(), keyseedCmd())
+	rootCmd.AddCommand(startCmd, runInitClusterCmd(), runInitNodeCmd(), runShowNodeCmd(), keyseedCmd(), generateTokenCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Fatal("Failed to execute command", zap.Error(err))

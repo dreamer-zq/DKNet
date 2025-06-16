@@ -85,13 +85,22 @@ type NodeKeyInfo struct {
 
 // SecurityConfig holds security configuration
 type SecurityConfig struct {
-	TLSEnabled bool   `yaml:"tls_enabled" mapstructure:"tls_enabled"`
-	CertFile   string `yaml:"cert_file" mapstructure:"cert_file"`
-	KeyFile    string `yaml:"key_file" mapstructure:"key_file"`
-	// Access control configuration
-	AccessControl AccessControlConfig `yaml:"access_control" mapstructure:"access_control"`
-	// Session encryption configuration
+	TLSEnabled        bool                    `yaml:"tls_enabled" mapstructure:"tls_enabled"`
+	CertFile          string                  `yaml:"cert_file" mapstructure:"cert_file"`
+	KeyFile           string                  `yaml:"key_file" mapstructure:"key_file"`
+	APIAuth           AuthConfig              `yaml:"auth" mapstructure:"auth"`
+	AccessControl     AccessControlConfig     `yaml:"access_control" mapstructure:"access_control"`
 	SessionEncryption SessionEncryptionConfig `yaml:"session_encryption" mapstructure:"session_encryption"`
+}
+
+// AuthConfig holds API authentication configuration
+type AuthConfig struct {
+	// Enabled indicates if authentication is enabled
+	Enabled bool `yaml:"enabled" mapstructure:"enabled"`
+	// JWTSecret is the secret for JWT token validation
+	JWTSecret string `yaml:"jwt_secret" mapstructure:"jwt_secret"`
+	// JWTIssuer is the expected issuer for JWT tokens
+	JWTIssuer string `yaml:"jwt_issuer,omitempty" mapstructure:"jwt_issuer"`
 }
 
 // AccessControlConfig holds access control configuration
@@ -186,6 +195,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("security.tls_enabled", false)
 	v.SetDefault("security.cert_file", "")
 	v.SetDefault("security.key_file", "")
+	v.SetDefault("security.auth.enabled", false)
+	v.SetDefault("security.auth.jwt_secret", "")
+	v.SetDefault("security.auth.jwt_issuer", "")
 	v.SetDefault("security.access_control.enabled", false)
 	v.SetDefault("security.access_control.allowed_peers", []string{})
 	v.SetDefault("security.session_encryption.enabled", false)
@@ -221,6 +233,13 @@ func validateConfig(config *NodeConfig) error {
 		_, err := hex.DecodeString(config.Security.SessionEncryption.SeedKey)
 		if err != nil {
 			return fmt.Errorf("invalid session encryption seed key: %w", err)
+		}
+	}
+
+	// Validate JWT authentication configuration if enabled
+	if config.Security.APIAuth.Enabled {
+		if config.Security.APIAuth.JWTSecret == "" {
+			return fmt.Errorf("JWT secret cannot be empty when authentication is enabled")
 		}
 	}
 

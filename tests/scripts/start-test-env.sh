@@ -21,6 +21,13 @@ DOCKER_COMPOSE_FILE="$TESTS_DIR/docker/docker-compose.yml"
 # Default password for testing
 DEFAULT_PASSWORD="TestPassword123!"
 
+# JWT Configuration (matching Docker test setup)
+JWT_SECRET="dknet-test-jwt-secret-key-2024"
+JWT_ISSUER="dknet-test"
+
+# Global JWT token variable
+JWT_TOKEN=""
+
 # Function to print colored output
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -102,22 +109,38 @@ start_env() {
     # Check service health
     print_status "Checking service health..."
     
-    # Check validation service
+    # Check validation service (no auth required)
     if curl -s http://localhost:8888/health >/dev/null 2>&1; then
         print_success "Validation service is healthy"
     else
         print_warning "Validation service may not be ready yet"
     fi
     
-    # Check TSS nodes
-    for i in {1..3}; do
-        port=$((8080 + i))
-        if curl -s http://localhost:$port/health >/dev/null 2>&1; then
-            print_success "TSS Node $i is healthy"
-        else
-            print_warning "TSS Node $i may not be ready yet"
-        fi
-    done
+    # Generate JWT token for TSS node health checks
+    if ! generate_jwt_token; then
+        print_warning "Could not generate JWT token, TSS nodes may require authentication"
+        print_warning "Attempting health checks without authentication..."
+        
+        # Check TSS nodes without auth (may fail if auth is enabled)
+        for i in {1..3}; do
+            port=$((8080 + i))
+            if curl -s http://localhost:$port/health >/dev/null 2>&1; then
+                print_success "TSS Node $i is healthy"
+            else
+                print_warning "TSS Node $i may not be ready yet or requires authentication"
+            fi
+        done
+    else
+        # Check TSS nodes with authentication
+        for i in {1..3}; do
+            port=$((8080 + i))
+            if api_call "GET" "http://localhost:$port/health" "" "Checking TSS Node $i health" >/dev/null 2>&1; then
+                print_success "TSS Node $i is healthy"
+            else
+                print_warning "TSS Node $i may not be ready yet"
+            fi
+        done
+    fi
     
     print_success "Test environment started successfully!"
     print_status "Services available at:"
@@ -128,6 +151,12 @@ start_env() {
     echo ""
     print_status "Encryption password: $(get_current_password)"
     print_warning "All nodes use the same encryption password for testing purposes."
+    echo ""
+    print_status "JWT Authentication is enabled for all TSS nodes"
+    print_status "JWT Secret: $JWT_SECRET"
+    print_status "JWT Issuer: $JWT_ISSUER"
+    print_warning "Use '$0 generate-token' to get a JWT token for API testing"
+    print_warning "Use '$0 test-auth' to verify authentication is working"
 }
 
 # Function to stop the test environment
@@ -170,11 +199,18 @@ test_tss() {
     local NODE2_PEER_ID="QmQjz2j7wFScU4Rj1cP3iwisbGwdhkNXmfmUYUHmvtEXY3"
     local NODE3_PEER_ID="QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi"
     
-    # Check if environment is running
+    # Generate JWT token for authenticated API calls
+    if ! generate_jwt_token; then
+        print_error "Cannot run TSS tests without JWT token"
+        exit 1
+    fi
+    
+    # Check if environment is running with authentication
+    print_status "Checking TSS nodes health with authentication..."
     local all_healthy=true
     for i in {1..3}; do
         port=$((8080 + i))
-        if ! curl -s http://localhost:$port/health >/dev/null 2>&1; then
+        if ! api_call "GET" "http://localhost:$port/health" "" "Checking TSS Node $i" >/dev/null 2>&1; then
             print_error "TSS Node $i is not healthy"
             all_healthy=false
         fi
@@ -185,15 +221,35 @@ test_tss() {
         exit 1
     fi
     
-    print_status "Testing keygen operation..."
-    # Example keygen test with peer IDs
-    curl -X POST http://localhost:8081/api/v1/keygen \
-        -H "Content-Type: application/json" \
-        -d '{
-            "threshold": 2,
-            "parties": 3,
-            "participants": ["'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"]
-        }' || print_warning "Keygen test may have failed"
+    print_status "Testing keygen operation with authentication..."
+    local keygen_data='{
+        "threshold": 2,
+        "parties": 3,
+        "participants": ["'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"]
+    }'
+    
+    # Capture the keygen response
+    local keygen_response
+    if keygen_response=$(api_call_with_response "POST" "http://localhost:8081/api/v1/keygen" "$keygen_data" "Starting keygen operation"); then
+        print_success "Keygen operation initiated successfully"
+        
+        # Extract operation ID from response
+        local operation_id
+        operation_id=$(echo "$keygen_response" | grep -o '"operation_id":"[^"]*"' | cut -d'"' -f4 2>/dev/null || echo "")
+        
+        if [ -n "$operation_id" ]; then
+            print_status "Testing operation status retrieval..."
+            if api_call "GET" "http://localhost:8081/api/v1/operations/$operation_id" "" "Getting operation status"; then
+                print_success "Operation status retrieved successfully"
+            else
+                print_warning "Failed to retrieve operation status"
+            fi
+        else
+            print_warning "Could not extract operation ID from keygen response"
+        fi
+    else
+        print_warning "Keygen test may have failed"
+    fi
     
     print_success "TSS tests completed"
 }
@@ -208,22 +264,36 @@ show_status() {
     echo ""
     print_status "Service health checks:"
     
-    # Check validation service
+    # Check validation service (no auth required)
     if curl -s http://localhost:8888/health >/dev/null 2>&1; then
         print_success "✓ Validation service (http://localhost:8888)"
     else
         print_error "✗ Validation service (http://localhost:8888)"
     fi
     
-    # Check TSS nodes
-    for i in {1..3}; do
-        port=$((8080 + i))
-        if curl -s http://localhost:$port/health >/dev/null 2>&1; then
-            print_success "✓ TSS Node $i (http://localhost:$port)"
-        else
-            print_error "✗ TSS Node $i (http://localhost:$port)"
-        fi
-    done
+    # Generate JWT token for TSS node checks
+    if generate_jwt_token >/dev/null 2>&1; then
+        # Check TSS nodes with authentication
+        for i in {1..3}; do
+            port=$((8080 + i))
+            if api_call "GET" "http://localhost:$port/health" "" "" >/dev/null 2>&1; then
+                print_success "✓ TSS Node $i (http://localhost:$port) [Authenticated]"
+            else
+                print_error "✗ TSS Node $i (http://localhost:$port) [Auth Failed]"
+            fi
+        done
+    else
+        print_warning "Could not generate JWT token for TSS node health checks"
+        # Fallback to unauthenticated checks
+        for i in {1..3}; do
+            port=$((8080 + i))
+            if curl -s http://localhost:$port/health >/dev/null 2>&1; then
+                print_success "✓ TSS Node $i (http://localhost:$port) [No Auth]"
+            else
+                print_error "✗ TSS Node $i (http://localhost:$port) [May require auth]"
+            fi
+        done
+    fi
     
     echo ""
     print_status "Current encryption password: $(get_current_password)"
@@ -274,6 +344,8 @@ show_help() {
     echo "  stop               Stop the test environment"
     echo "  test               Run validation tests"
     echo "  test-tss           Run TSS functionality tests"
+    echo "  test-auth          Test API authentication"
+    echo "  generate-token     Generate JWT token for manual testing"
     echo "  status             Show environment status"
     echo "  logs               Show logs for all services"
     echo "  logs <service>     Show logs for specific service"
@@ -288,7 +360,9 @@ show_help() {
     echo "  $0 start                           # Start with default password"
     echo "  $0 set-password 'MySecurePass123!' # Set custom password"
     echo "  $0 start                           # Start with custom password"
+    echo "  $0 test-auth                       # Test JWT authentication"
     echo "  $0 test-tss                        # Run TSS functionality tests"
+    echo "  $0 generate-token                  # Generate JWT token for manual use"
     echo "  $0 logs tss-node1                  # Show node1 logs"
     echo "  $0 cleanup                         # Cleanup everything"
     echo ""
@@ -297,6 +371,211 @@ show_help() {
     echo "  - Use TSS_ENCRYPTION_PASSWORD environment variable for custom passwords"
     echo "  - All nodes use the same password for testing purposes"
     echo "  - Never use default password in production environments"
+    echo ""
+    echo "JWT Authentication:"
+    echo "  - JWT Secret: $JWT_SECRET"
+    echo "  - JWT Issuer: $JWT_ISSUER"
+    echo "  - All API endpoints require JWT authentication"
+    echo "  - Use 'generate-token' command to get JWT token for manual testing"
+}
+
+# Function to generate JWT token
+generate_jwt_token() {
+    print_status "Generating JWT token for API authentication..."
+    
+    # Create temporary Go file for JWT generation
+    local temp_dir="/tmp/dknet-jwt-$$"
+    mkdir -p "$temp_dir"
+    
+    cat > "$temp_dir/generate_jwt.go" << 'EOF'
+package main
+
+import (
+	"fmt"
+	"os"
+	"time"
+	"github.com/golang-jwt/jwt/v5"
+)
+
+func main() {
+	if len(os.Args) < 3 {
+		fmt.Fprintf(os.Stderr, "Usage: %s <secret> <issuer>\n", os.Args[0])
+		os.Exit(1)
+	}
+	
+	secret := os.Args[1]
+	issuer := os.Args[2]
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":   "test-user",
+		"iss":   issuer,
+		"exp":   time.Now().Add(24 * time.Hour).Unix(),
+		"iat":   time.Now().Unix(),
+		"roles": []string{"admin", "operator"},
+	})
+
+	tokenString, err := token.SignedString([]byte(secret))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error generating token: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Print(tokenString)
+}
+EOF
+
+    # Initialize go module and generate token
+    cd "$temp_dir"
+    go mod init jwt-gen >/dev/null 2>&1 || true
+    go get github.com/golang-jwt/jwt/v5 >/dev/null 2>&1 || {
+        print_error "Failed to get JWT dependency. Please ensure Go is installed and has internet access."
+        rm -rf "$temp_dir"
+        return 1
+    }
+    
+    JWT_TOKEN=$(go run generate_jwt.go "$JWT_SECRET" "$JWT_ISSUER" 2>/dev/null)
+    local exit_code=$?
+    
+    # Cleanup
+    rm -rf "$temp_dir"
+    
+    if [ $exit_code -eq 0 ] && [ -n "$JWT_TOKEN" ]; then
+        print_success "JWT token generated successfully"
+        print_status "Token expires in 24 hours"
+        return 0
+    else
+        print_error "Failed to generate JWT token"
+        return 1
+    fi
+}
+
+# Function to make authenticated API call
+api_call() {
+    local method="$1"
+    local url="$2"
+    local data="$3"
+    local description="$4"
+    
+    if [ -z "$JWT_TOKEN" ]; then
+        print_warning "No JWT token available, attempting to generate..."
+        if ! generate_jwt_token; then
+            print_error "Cannot make authenticated API call without JWT token"
+            return 1
+        fi
+    fi
+    
+    print_status "${description:-Making API call to $url}"
+    
+    local curl_args=(-s -w "%{http_code}")
+    curl_args+=(-H "Authorization: Bearer $JWT_TOKEN")
+    curl_args+=(-H "Content-Type: application/json")
+    
+    if [ "$method" = "POST" ] && [ -n "$data" ]; then
+        curl_args+=(-X POST -d "$data")
+    elif [ "$method" = "GET" ]; then
+        curl_args+=(-X GET)
+    fi
+    
+    curl_args+=("$url")
+    
+    local response
+    response=$(curl "${curl_args[@]}" 2>/dev/null)
+    local http_code="${response: -3}"
+    local body="${response%???}"
+    
+    if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+        print_success "API call successful (HTTP $http_code)"
+        if [ -n "$body" ] && [ "$body" != "null" ]; then
+            echo "Response: $body"
+        fi
+        return 0
+    else
+        print_error "API call failed (HTTP $http_code)"
+        if [ -n "$body" ]; then
+            echo "Error response: $body"
+        fi
+        return 1
+    fi
+}
+
+# Function to make authenticated API call and return response body
+api_call_with_response() {
+    local method="$1"
+    local url="$2"
+    local data="$3"
+    local description="$4"
+    
+    if [ -z "$JWT_TOKEN" ]; then
+        print_warning "No JWT token available, attempting to generate..."
+        if ! generate_jwt_token; then
+            print_error "Cannot make authenticated API call without JWT token"
+            return 1
+        fi
+    fi
+    
+    print_status "${description:-Making API call to $url}"
+    
+    local curl_args=(-s -w "%{http_code}")
+    curl_args+=(-H "Authorization: Bearer $JWT_TOKEN")
+    curl_args+=(-H "Content-Type: application/json")
+    
+    if [ "$method" = "POST" ] && [ -n "$data" ]; then
+        curl_args+=(-X POST -d "$data")
+    elif [ "$method" = "GET" ]; then
+        curl_args+=(-X GET)
+    fi
+    
+    curl_args+=("$url")
+    
+    local response
+    response=$(curl "${curl_args[@]}" 2>/dev/null)
+    local http_code="${response: -3}"
+    local body="${response%???}"
+    
+    if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+        print_success "API call successful (HTTP $http_code)"
+        echo "$body"  # Return the response body
+        return 0
+    else
+        print_error "API call failed (HTTP $http_code)"
+        if [ -n "$body" ]; then
+            echo "Error response: $body" >&2
+        fi
+        return 1
+    fi
+}
+
+# Function to check API authentication
+check_auth() {
+    print_status "Testing API authentication..."
+    
+    # Test without authentication (should fail)
+    print_status "Testing unauthenticated request (should fail)..."
+    local response
+    response=$(curl -s -w "%{http_code}" -o /dev/null http://localhost:8081/health 2>/dev/null || echo "000")
+    
+    if [ "$response" = "401" ]; then
+        print_success "✓ Unauthenticated requests correctly rejected (HTTP 401)"
+    else
+        print_warning "⚠ Expected HTTP 401 for unauthenticated request, got HTTP $response"
+    fi
+    
+    # Generate JWT token if not available
+    if [ -z "$JWT_TOKEN" ]; then
+        if ! generate_jwt_token; then
+            print_error "Cannot test authenticated requests without JWT token"
+            return 1
+        fi
+    fi
+    
+    # Test with authentication (should succeed)
+    print_status "Testing authenticated request..."
+    if api_call "GET" "http://localhost:8081/health" "" "Testing authenticated health check"; then
+        print_success "✓ JWT authentication working correctly"
+        return 0
+    else
+        print_error "✗ JWT authentication failed"
+        return 1
+    fi
 }
 
 # Main script logic
@@ -317,6 +596,20 @@ main() {
             ;;
         test-tss)
             test_tss
+            ;;
+        test-auth)
+            check_auth
+            ;;
+        generate-token)
+            if generate_jwt_token; then
+                echo ""
+                print_success "JWT Token generated:"
+                echo "$JWT_TOKEN"
+                echo ""
+                print_status "Usage examples:"
+                echo "HTTP: curl -H \"Authorization: Bearer $JWT_TOKEN\" http://localhost:8081/health"
+                echo "gRPC: grpcurl -H \"authorization: Bearer $JWT_TOKEN\" localhost:9095 tss.v1.TSSService/GetOperation"
+            fi
             ;;
         status)
             show_status

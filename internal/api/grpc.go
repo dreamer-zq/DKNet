@@ -20,15 +20,19 @@ import (
 
 // startGRPCServer starts the gRPC server
 func (s *Server) startGRPCServer() error {
-	addr := fmt.Sprintf("%s:%d", s.config.GRPC.Host, s.config.GRPC.Port)
+	addr := fmt.Sprintf("%s:%d", s.config.Server.GRPC.Host, s.config.Server.GRPC.Port)
 
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %w", addr, err)
 	}
 
-	// Create gRPC server
-	s.grpcServer = grpc.NewServer()
+	// Create gRPC server with authentication interceptors
+	opts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(GRPCAuthInterceptor(s.authenticator, s.logger)),
+		grpc.StreamInterceptor(GRPCAuthStreamInterceptor(s.authenticator, s.logger)),
+	}
+	s.grpcServer = grpc.NewServer(opts...)
 
 	// Register services
 	s.setupGRPCServices()

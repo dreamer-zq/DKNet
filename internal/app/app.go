@@ -27,21 +27,9 @@ type App struct {
 // New creates a new application instance
 func New(cfg *config.NodeConfig, logger *zap.Logger, password string) (*App, error) {
 	// Initialize storage (always use plain storage, encryption is handled at TSS level)
-	var store storage.Storage
-	var err error
-
-	switch cfg.Storage.Type {
-	case "leveldb":
-		store, err = storage.NewLevelDBStorage(cfg.Storage.Path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create LevelDB storage: %w", err)
-		}
-		logger.Info("Initialized LevelDB storage")
-	case "file":
-		// TODO: Implement file storage
-		return nil, fmt.Errorf("file storage not implemented yet")
-	default:
-		return nil, fmt.Errorf("unsupported storage type: %s", cfg.Storage.Type)
+	store, err := storage.NewLevelDBStorage(cfg.Storage.Path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create LevelDB storage: %w", err)
 	}
 
 	// Create P2P network
@@ -87,23 +75,14 @@ func New(cfg *config.NodeConfig, logger *zap.Logger, password string) (*App, err
 	network.SetMessageHandler(tssService)
 
 	// Initialize API server
-	apiServer, err := api.NewServer(&api.Config{
-		HTTP: api.HTTPConfig{
-			Host: cfg.Server.HTTP.Host,
-			Port: cfg.Server.HTTP.Port,
-		},
-		GRPC: api.GRPCConfig{
-			Host: cfg.Server.GRPC.Host,
-			Port: cfg.Server.GRPC.Port,
-		},
-	}, tssService, network, logger.Named("api"))
+	apiServer, err := api.NewServer(cfg, tssService, network, logger.Named("api"))
 	if err != nil {
-		if closeErr := store.Close(); closeErr != nil {
-			logger.Error("Failed to close storage during cleanup", zap.Error(closeErr))
-		}
-		if stopErr := network.Stop(); stopErr != nil {
-			logger.Error("Failed to stop network during cleanup", zap.Error(stopErr))
-		}
+		common.LogMsgDo("failed to close storage", func() error {
+			return store.Close()
+		})
+		common.LogMsgDo("failed to stop network", func() error {
+			return network.Stop()
+		})
 		return nil, fmt.Errorf("failed to create API server: %w", err)
 	}
 

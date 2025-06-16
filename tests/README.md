@@ -46,7 +46,8 @@ security:
     seed_key: "a9abe2b4fa5490ff80d59e01731fc2ce8d90429b2b824e0712264985f421210b"
 ```
 
-**重要**: 
+**重要**:
+
 - 所有参与方必须配置相同的 `seed_key`
 - `seed_key` 应通过安全的带外通道分发
 - 可使用 `./bin/dknet keyseed` 命令生成新的种子密钥

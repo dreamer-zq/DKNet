@@ -30,6 +30,10 @@ security:
     tls_enabled: false
     cert_file: ""
     key_file: ""
+    auth:
+        enabled: true
+        jwt_secret: "dknet-test-jwt-secret-key-2024"
+        jwt_issuer: "dknet-test"
     access_control:
         enabled: false
         allowed_peers: []

@@ -38,15 +38,21 @@ func generateAndSaveNodeConfig(
 			MaxPeers:       50,
 		},
 		Storage: config.StorageConfig{
-			Type: "leveldb",
-			Path: "./data/storage",
+			Type:    "leveldb",
+			Path:    "./data/storage",
+			Options: make(map[string]string),
 		},
 		TSS: config.TSSConfig{
 			Moniker: moniker,
+			ValidationService: &config.ValidationServiceConfig{
+				Enabled:            false,
+				URL:                "",
+				TimeoutSeconds:     30,
+				Headers:            make(map[string]string),
+				InsecureSkipVerify: false,
+			},
 		},
-		Security: config.SecurityConfig{
-			TLSEnabled: false,
-		},
+		Security: generateDefaultSecurityConfig(),
 	}
 
 	// Save config to file
@@ -55,7 +61,7 @@ func generateAndSaveNodeConfig(
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	return os.WriteFile(configPath, data, 0644)
+	return os.WriteFile(configPath, data, 0o644)
 }
 
 // generateNodeInfo creates a node information file
@@ -109,7 +115,7 @@ Security Note:
 - Only share the peer ID and multiaddr, never the private key
 `, listenAddr, p2pPort, peerID)
 
-	return os.WriteFile(infoFile, []byte(content), 0644)
+	return os.WriteFile(infoFile, []byte(content), 0o644)
 }
 
 // generateSummary creates a cluster summary file
@@ -167,5 +173,50 @@ Local Usage:
 `, outputDir, outputDir, outputDir)
 	}
 
-	return os.WriteFile(summaryFile, []byte(content), 0644)
+	return os.WriteFile(summaryFile, []byte(content), 0o644)
+}
+
+// SecurityOptions holds security configuration options
+type SecurityOptions struct {
+	EnableAuth           bool
+	JWTSecret            string
+	JWTIssuer            string
+	EnableTLS            bool
+	CertFile             string
+	KeyFile              string
+	EnableAccessControl  bool
+	AllowedPeers         []string
+	EnableSessionEncrypt bool
+	SessionSeedKey       string
+}
+
+// ValidationServiceOptions holds validation service configuration options
+type ValidationServiceOptions struct {
+	Enabled            bool
+	URL                string
+	TimeoutSeconds     int
+	Headers            map[string]string
+	InsecureSkipVerify bool
+}
+
+// generateDefaultSecurityConfig creates a default security configuration
+func generateDefaultSecurityConfig() config.SecurityConfig {
+	return config.SecurityConfig{
+		TLSEnabled: false,
+		CertFile:   "",
+		KeyFile:    "",
+		APIAuth: config.AuthConfig{
+			Enabled:   false,
+			JWTSecret: "",
+			JWTIssuer: "",
+		},
+		AccessControl: config.AccessControlConfig{
+			Enabled:      false,
+			AllowedPeers: []string{},
+		},
+		SessionEncryption: config.SessionEncryptionConfig{
+			Enabled: false,
+			SeedKey: "",
+		},
+	}
 }

@@ -27,6 +27,9 @@ var (
 	useGRPC      bool
 	timeout      time.Duration
 	outputFormat string
+
+	// Authentication flags
+	jwtToken string
 )
 
 var rootCmd = &cobra.Command{
@@ -35,7 +38,18 @@ var rootCmd = &cobra.Command{
 	Long: `DKNet CLI is a command line client for interacting with DKNet TSS servers.
 	
 It provides commands for key generation, signing, resharing, and other
-threshold signature scheme operations through HTTP or gRPC APIs.`,
+threshold signature scheme operations through HTTP or gRPC APIs.
+
+Authentication:
+  Use --token to provide a JWT token for API authentication.
+  Generate tokens using the server's 'dknet generate-token' command.
+
+Examples:
+  # Generate token on server
+  dknet generate-token --config=/path/to/config.yaml
+  
+  # Use token with CLI
+  dknet-cli --token="your-jwt-token" keygen --threshold=2 --parties=3 --participants=node1,node2,node3`,
 	PersistentPreRunE: setupConnection,
 	PersistentPostRun: cleanup,
 }
@@ -45,6 +59,9 @@ func main() {
 	rootCmd.PersistentFlags().BoolVarP(&useGRPC, "grpc", "g", false, "Use gRPC instead of HTTP")
 	rootCmd.PersistentFlags().DurationVarP(&timeout, "timeout", "t", 30*time.Second, "Request timeout")
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "text", "Output format (text|json)")
+
+	// Authentication flags
+	rootCmd.PersistentFlags().StringVar(&jwtToken, "token", "", "JWT token for authentication")
 
 	rootCmd.AddCommand(
 		createKeygenCommand(),
@@ -259,6 +276,9 @@ func createGetOperationCommand() *cobra.Command {
 
 // gRPC implementations
 func keygenGRPC(ctx context.Context, threshold, parties int, participants []string) error {
+	// Add authentication to context
+	ctx = addAuthToContext(ctx)
+
 	req := &tssv1.StartKeygenRequest{
 		Threshold:    int32(threshold),
 		Parties:      int32(parties),
@@ -274,6 +294,9 @@ func keygenGRPC(ctx context.Context, threshold, parties int, participants []stri
 }
 
 func signGRPC(ctx context.Context, message []byte, keyID string, participants []string) error {
+	// Add authentication to context
+	ctx = addAuthToContext(ctx)
+
 	req := &tssv1.StartSigningRequest{
 		Message:      message,
 		KeyId:        keyID,
@@ -289,6 +312,9 @@ func signGRPC(ctx context.Context, message []byte, keyID string, participants []
 }
 
 func reshareGRPC(ctx context.Context, keyID string, newThreshold, newParties int, oldParticipants, newParticipants []string) error {
+	// Add authentication to context
+	ctx = addAuthToContext(ctx)
+
 	req := &tssv1.StartResharingRequest{
 		KeyId:           keyID,
 		NewThreshold:    int32(newThreshold),
@@ -306,6 +332,9 @@ func reshareGRPC(ctx context.Context, keyID string, newThreshold, newParties int
 }
 
 func getOperationGRPC(ctx context.Context, operationID string) error {
+	// Add authentication to context
+	ctx = addAuthToContext(ctx)
+
 	req := &tssv1.GetOperationRequest{
 		OperationId: operationID,
 	}
@@ -387,10 +416,20 @@ func getOperationHTTP(ctx context.Context, operationID string) error {
 		return err
 	}
 
-	var opResp tssv1.GetOperationResponse
-	if err := json.Unmarshal(resp, &opResp); err != nil {
+	// For now, let's output the raw JSON response since there's a format mismatch
+	if outputFormat == "json" {
+		var rawResp map[string]interface{}
+		if err := json.Unmarshal(resp, &rawResp); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+		return outputJSON(rawResp)
+	}
+
+	// Parse the raw response for text output
+	var rawResp map[string]interface{}
+	if err := json.Unmarshal(resp, &rawResp); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	return outputGetOperationResponse(&opResp)
+	return outputRawOperationResponse(rawResp)
 }

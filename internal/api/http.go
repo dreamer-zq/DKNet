@@ -28,7 +28,7 @@ func (s *Server) startHTTPServer() error {
 	s.setupHTTPRoutes(router)
 
 	// Create HTTP server
-	addr := fmt.Sprintf("%s:%d", s.config.HTTP.Host, s.config.HTTP.Port)
+	addr := fmt.Sprintf("%s:%d", s.config.Server.HTTP.Host, s.config.Server.HTTP.Port)
 	s.httpServer = &http.Server{
 		Addr:         addr,
 		Handler:      router,
@@ -68,7 +68,10 @@ func (s *Server) stopHTTPServer() error {
 
 // setupHTTPRoutes sets up HTTP routes
 func (s *Server) setupHTTPRoutes(router *gin.Engine) {
-	// Health check
+	// Add authentication middleware
+	router.Use(HTTPAuthMiddleware(s.authenticator, s.logger))
+
+	// Health check (typically excluded from auth)
 	router.GET("/health", s.healthHandler)
 
 	// TSS operations

@@ -94,11 +94,11 @@ func validateSigningRequest(req *ValidationRequest) *ValidationResponse {
 		}
 	}
 
-	// 6. Require minimum number of participants (modified for testing)
-	if len(req.Participants) < 1 {
+	// 6. Require minimum number of participants (at least 2 for proper TSS)
+	if len(req.Participants) < 2 {
 		return &ValidationResponse{
 			Approved: false,
-			Reason:   "At least 1 participant required",
+			Reason:   "At least 2 participants required for TSS operations",
 		}
 	}
 

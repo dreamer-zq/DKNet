@@ -7,32 +7,6 @@ import (
 	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
 )
 
-// Config holds API server configuration
-type Config struct {
-	HTTP     HTTPConfig
-	GRPC     GRPCConfig
-	Security SecurityConfig
-}
-
-// HTTPConfig holds HTTP server configuration
-type HTTPConfig struct {
-	Host string
-	Port int
-}
-
-// GRPCConfig holds gRPC server configuration
-type GRPCConfig struct {
-	Host string
-	Port int
-}
-
-// SecurityConfig holds security configuration
-type SecurityConfig struct {
-	TLSEnabled bool
-	CertFile   string
-	KeyFile    string
-}
-
 // Helper functions to convert between internal types and proto types
 func convertOperationStatus(status tss.OperationStatus) tssv1.OperationStatus {
 	switch status {
