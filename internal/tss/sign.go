@@ -18,9 +18,15 @@ import (
 )
 
 // StartSigning starts a new signing operation
-func (s *Service) StartSigning(ctx context.Context, req *SigningRequest) (*Operation, error) {
+func (s *Service) StartSigning(
+	ctx context.Context,
+	operationID string,
+	message []byte,
+	keyID string,
+	participants []string,
+) (*Operation, error) {
 	// Check for existing operation (idempotency)
-	existingOp, err := s.checkIdempotency(ctx, req.OperationID)
+	existingOp, err := s.checkIdempotency(ctx, operationID)
 	if err != nil {
 		return nil, err
 	}
@@ -29,39 +35,47 @@ func (s *Service) StartSigning(ctx context.Context, req *SigningRequest) (*Opera
 		return existingOp, nil
 	}
 
+	// Create request for validation
+	req := &SigningRequest{
+		OperationID:  operationID,
+		Message:      message,
+		KeyID:        keyID,
+		Participants: participants,
+	}
+
 	// Validate signing request with external validation service (if configured)
 	if err = s.validateSigningRequest(ctx, req); err != nil {
 		s.logger.Error("Signing request validation failed",
 			zap.Error(err),
-			zap.String("key_id", req.KeyID))
+			zap.String("key_id", keyID))
 		return nil, fmt.Errorf("signing request validation failed: %w", err)
 	}
 
 	// Load key data and metadata
-	keyData, err := s.loadKeyData(ctx, req.KeyID)
+	keyData, err := s.loadKeyData(ctx, keyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load key data: %w", err)
 	}
 
 	// Load key metadata to get original threshold
-	keyMetadata, err := s.loadKeyDataStruct(ctx, req.KeyID)
+	keyMetadata, err := s.loadKeyDataStruct(ctx, keyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load key metadata: %w", err)
 	}
 
 	// Generate or use provided operation ID
-	operationID := s.generateOrUseOperationID(req.OperationID)
+	operationID = s.generateOrUseOperationID(operationID)
 	sessionID := uuid.New().String()
 
 	// Create participant list
-	participants, err := s.createParticipantList(req.Participants)
+	participantList, err := s.createParticipantList(participants)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create participant list: %w", err)
 	}
 
 	// Find our party ID in the participants list
 	var ourPartyID *tss.PartyID
-	for _, p := range participants {
+	for _, p := range participantList {
 		if p.Id == s.nodeID {
 			ourPartyID = p
 			break
@@ -72,16 +86,16 @@ func (s *Service) StartSigning(ctx context.Context, req *SigningRequest) (*Opera
 	}
 
 	// Create TSS parameters - use the original threshold from keygen
-	ctx2 := tss.NewPeerContext(participants)
+	ctx2 := tss.NewPeerContext(participantList)
 	threshold := keyMetadata.Threshold // Use the original threshold from stored metadata
-	params := tss.NewParameters(tss.S256(), ctx2, ourPartyID, len(participants), threshold)
+	params := tss.NewParameters(tss.S256(), ctx2, ourPartyID, len(participantList), threshold)
 
 	// Create channels
 	outCh := make(chan tss.Message, 100)
 	endCh := make(chan *common.SignatureData, 1)
 
 	// Hash the message to sign - use Ethereum-compatible hash for ecrecover verification
-	hash := hashMessageForEthereum(req.Message)
+	hash := hashMessageForEthereum(message)
 
 	// Create signing party
 	party := signing.NewLocalParty(new(big.Int).SetBytes(hash), params, *keyData, outCh, endCh)
@@ -90,17 +104,20 @@ func (s *Service) StartSigning(ctx context.Context, req *SigningRequest) (*Opera
 	// Set a shorter timeout for signing operations (5 minutes)
 	operationCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 
+	// Update request with final operation ID
+	req.OperationID = operationID
+
 	operation := &Operation{
 		ID:           operationID,
 		Type:         OperationSigning,
 		SessionID:    sessionID,
-		Participants: participants,
+		Participants: participantList,
 		Party:        party,
 		OutCh:        outCh,
 		EndCh:        make(chan interface{}, 1), // Generic channel for interface{}
 		Status:       StatusPending,
 		CreatedAt:    time.Now(),
-		Request:      req, // Store the original request
+		Request:      req, // Store the request for persistence
 		cancel:       cancel,
 	}
 
@@ -115,7 +132,7 @@ func (s *Service) StartSigning(ctx context.Context, req *SigningRequest) (*Opera
 	// Broadcast signing operation sync message to other participants
 	go s.broadcastSigningOperation(
 		operationID, sessionID,
-		threshold, len(participants), req.Participants, req.KeyID, req.Message,
+		threshold, len(participantList), participants, keyID, message,
 	)
 
 	return operation, nil

@@ -91,16 +91,14 @@ type gRPCHealthServer struct {
 
 // StartKeygen implements TSSService.StartKeygen
 func (g *gRPCTSSServer) StartKeygen(ctx context.Context, req *tssv1.StartKeygenRequest) (*tssv1.StartKeygenResponse, error) {
-	// Convert proto request to internal request
-	tssReq := &tss.KeygenRequest{
-		OperationID:  req.OperationId,
-		Threshold:    int(req.Threshold),
-		Parties:      int(req.Parties),
-		Participants: req.Participants,
-	}
-
 	// Start keygen operation
-	operation, err := g.tssService.StartKeygen(ctx, tssReq)
+	operation, err := g.tssService.StartKeygen(
+		ctx,
+		req.OperationId,
+		int(req.Threshold),
+		int(req.Parties),
+		req.Participants,
+	)
 	if err != nil {
 		g.logger.Error("Failed to start keygen", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to start keygen: %v", err)
@@ -116,16 +114,14 @@ func (g *gRPCTSSServer) StartKeygen(ctx context.Context, req *tssv1.StartKeygenR
 
 // StartSigning implements TSSService.StartSigning
 func (g *gRPCTSSServer) StartSigning(ctx context.Context, req *tssv1.StartSigningRequest) (*tssv1.StartSigningResponse, error) {
-	// Convert proto request to internal request
-	tssReq := &tss.SigningRequest{
-		OperationID:  req.OperationId,
-		Message:      req.Message,
-		KeyID:        req.KeyId,
-		Participants: req.Participants,
-	}
-
 	// Start signing operation
-	operation, err := g.tssService.StartSigning(ctx, tssReq)
+	operation, err := g.tssService.StartSigning(
+		ctx,
+		req.OperationId,
+		req.Message,
+		req.KeyId,
+		req.Participants,
+	)
 	if err != nil {
 		g.logger.Error("Failed to start signing", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to start signing: %v", err)
@@ -141,18 +137,16 @@ func (g *gRPCTSSServer) StartSigning(ctx context.Context, req *tssv1.StartSignin
 
 // StartResharing implements TSSService.StartResharing
 func (g *gRPCTSSServer) StartResharing(ctx context.Context, req *tssv1.StartResharingRequest) (*tssv1.StartResharingResponse, error) {
-	// Convert proto request to internal request
-	tssReq := &tss.ResharingRequest{
-		OperationID:     req.OperationId,
-		KeyID:           req.KeyId,
-		NewThreshold:    int(req.NewThreshold),
-		NewParties:      int(req.NewParties),
-		OldParticipants: req.OldParticipants,
-		NewParticipants: req.NewParticipants,
-	}
-
 	// Start resharing operation
-	operation, err := g.tssService.StartResharing(ctx, tssReq)
+	operation, err := g.tssService.StartResharing(
+		ctx,
+		req.OperationId,
+		req.KeyId,
+		int(req.NewThreshold),
+		int(req.NewParties),
+		req.OldParticipants,
+		req.NewParticipants,
+	)
 	if err != nil {
 		g.logger.Error("Failed to start resharing", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to start resharing: %v", err)

@@ -13,9 +13,17 @@ import (
 )
 
 // StartResharing starts a new resharing operation
-func (s *Service) StartResharing(ctx context.Context, req *ResharingRequest) (*Operation, error) {
+func (s *Service) StartResharing(
+	ctx context.Context,
+	operationID,
+	keyID string,
+	newThreshold,
+	newParties int,
+	oldParticipants,
+	newParticipants []string,
+) (*Operation, error) {
 	// Check for existing operation (idempotency)
-	existingOp, err := s.checkIdempotency(ctx, req.OperationID)
+	existingOp, err := s.checkIdempotency(ctx, operationID)
 	if err != nil {
 		return nil, err
 	}
@@ -25,22 +33,22 @@ func (s *Service) StartResharing(ctx context.Context, req *ResharingRequest) (*O
 	}
 
 	// Load key data
-	keyData, err := s.loadKeyData(ctx, req.KeyID)
+	keyData, err := s.loadKeyData(ctx, keyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load key data: %w", err)
 	}
 
 	// Generate or use provided operation ID
-	operationID := s.generateOrUseOperationID(req.OperationID)
+	operationID = s.generateOrUseOperationID(operationID)
 	sessionID := uuid.New().String()
 
 	// Create participant lists
-	oldParticipants, err := s.createParticipantList(req.OldParticipants)
+	oldParticipantList, err := s.createParticipantList(oldParticipants)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create old participant list: %w", err)
 	}
 
-	newParticipants, err := s.createParticipantList(req.NewParticipants)
+	newParticipantList, err := s.createParticipantList(newParticipants)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new participant list: %w", err)
 	}
@@ -48,7 +56,7 @@ func (s *Service) StartResharing(ctx context.Context, req *ResharingRequest) (*O
 	// Find our party ID in the participant lists
 	var ourPartyID *tss.PartyID
 	// Check if we're in the old participants (for existing shareholder)
-	for _, p := range oldParticipants {
+	for _, p := range oldParticipantList {
 		if p.Id == s.nodeID {
 			ourPartyID = p
 			break
@@ -56,7 +64,7 @@ func (s *Service) StartResharing(ctx context.Context, req *ResharingRequest) (*O
 	}
 	// If not found in old, check new participants (for new shareholder)
 	if ourPartyID == nil {
-		for _, p := range newParticipants {
+		for _, p := range newParticipantList {
 			if p.Id == s.nodeID {
 				ourPartyID = p
 				break
@@ -68,10 +76,10 @@ func (s *Service) StartResharing(ctx context.Context, req *ResharingRequest) (*O
 	}
 
 	// Create TSS parameters for resharing
-	oldCtx := tss.NewPeerContext(oldParticipants)
-	newCtx := tss.NewPeerContext(newParticipants)
+	oldCtx := tss.NewPeerContext(oldParticipantList)
+	newCtx := tss.NewPeerContext(newParticipantList)
 	params := tss.NewReSharingParameters(tss.S256(), oldCtx, newCtx, ourPartyID,
-		len(oldParticipants), req.NewThreshold, len(newParticipants), req.NewThreshold)
+		len(oldParticipantList), newThreshold, len(newParticipantList), newThreshold)
 
 	// Create channels
 	outCh := make(chan tss.Message, 100)
@@ -84,17 +92,27 @@ func (s *Service) StartResharing(ctx context.Context, req *ResharingRequest) (*O
 	// Set a longer timeout for resharing operations (15 minutes)
 	operationCtx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 
+	// Create request for storage
+	req := &ResharingRequest{
+		OperationID:     operationID,
+		KeyID:           keyID,
+		NewThreshold:    newThreshold,
+		NewParties:      newParties,
+		OldParticipants: oldParticipants,
+		NewParticipants: newParticipants,
+	}
+
 	operation := &Operation{
 		ID:           operationID,
 		Type:         OperationResharing,
 		SessionID:    sessionID,
-		Participants: newParticipants, // Use new participants for message handling
+		Participants: newParticipantList, // Use new participants for message handling
 		Party:        party,
 		OutCh:        outCh,
 		EndCh:        make(chan interface{}, 1), // Generic channel for interface{}
 		Status:       StatusPending,
 		CreatedAt:    time.Now(),
-		Request:      req, // Store the original request
+		Request:      req, // Store the request for persistence
 		cancel:       cancel,
 	}
 
@@ -109,7 +127,7 @@ func (s *Service) StartResharing(ctx context.Context, req *ResharingRequest) (*O
 	s.logger.Info("Started resharing operation",
 		zap.String("operation_id", operationID),
 		zap.String("session_id", sessionID),
-		zap.String("key_id", req.KeyID))
+		zap.String("key_id", keyID))
 
 	return operation, nil
 }

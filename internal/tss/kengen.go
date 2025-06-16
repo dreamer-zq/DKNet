@@ -18,9 +18,15 @@ import (
 )
 
 // StartKeygen starts a new keygen operation
-func (s *Service) StartKeygen(ctx context.Context, req *KeygenRequest) (*Operation, error) {
+func (s *Service) StartKeygen(
+	ctx context.Context,
+	operationID string,
+	threshold,
+	parties int,
+	participants []string,
+) (*Operation, error) {
 	// Check for existing operation (idempotency)
-	existingOp, err := s.checkIdempotency(ctx, req.OperationID)
+	existingOp, err := s.checkIdempotency(ctx, operationID)
 	if err != nil {
 		return nil, err
 	}
@@ -30,18 +36,18 @@ func (s *Service) StartKeygen(ctx context.Context, req *KeygenRequest) (*Operati
 	}
 
 	// Generate or use provided operation ID
-	operationID := s.generateOrUseOperationID(req.OperationID)
+	operationID = s.generateOrUseOperationID(operationID)
 	sessionID := uuid.New().String()
 
 	// Create participant list
-	participants, err := s.createParticipantList(req.Participants)
+	participantList, err := s.createParticipantList(participants)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create participant list: %w", err)
 	}
 
 	// Find our party ID in the participants list
 	var ourPartyID *tss.PartyID
-	for _, p := range participants {
+	for _, p := range participantList {
 		if p.Id == s.nodeID {
 			ourPartyID = p
 			break
@@ -52,8 +58,8 @@ func (s *Service) StartKeygen(ctx context.Context, req *KeygenRequest) (*Operati
 	}
 
 	// Create TSS parameters
-	peerCtx := tss.NewPeerContext(participants)
-	params := tss.NewParameters(tss.S256(), peerCtx, ourPartyID, req.Parties, req.Threshold)
+	peerCtx := tss.NewPeerContext(participantList)
+	params := tss.NewParameters(tss.S256(), peerCtx, ourPartyID, parties, threshold)
 
 	// Create channels
 	outCh := make(chan tss.Message, 100)
@@ -66,17 +72,25 @@ func (s *Service) StartKeygen(ctx context.Context, req *KeygenRequest) (*Operati
 	// Set a longer timeout for keygen operations (10 minutes)
 	operationCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 
+	// Create request for storage
+	req := &KeygenRequest{
+		OperationID:  operationID,
+		Threshold:    threshold,
+		Parties:      parties,
+		Participants: participants,
+	}
+
 	operation := &Operation{
 		ID:           operationID,
 		Type:         OperationKeygen,
 		SessionID:    sessionID,
-		Participants: participants,
+		Participants: participantList,
 		Party:        party,
 		OutCh:        outCh,
 		EndCh:        make(chan interface{}, 1), // Generic channel for interface{}
 		Status:       StatusPending,
 		CreatedAt:    time.Now(),
-		Request:      req, // Store the original request
+		Request:      req, // Store the request for persistence
 		cancel:       cancel,
 	}
 
@@ -89,7 +103,7 @@ func (s *Service) StartKeygen(ctx context.Context, req *KeygenRequest) (*Operati
 	go s.runKeygenOperation(operationCtx, operation, endCh)
 
 	// Broadcast keygen operation sync message to other participants
-	go s.broadcastKeygenOperation(operationID, sessionID, req.Threshold, req.Parties, req.Participants)
+	go s.broadcastKeygenOperation(operationID, sessionID, threshold, parties, participants)
 
 	return operation, nil
 }

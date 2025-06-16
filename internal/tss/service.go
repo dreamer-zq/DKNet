@@ -230,7 +230,7 @@ func (s *Service) handleOperationSync(ctx context.Context, msg *p2p.Message) err
 
 	s.logger.Info("Received operation sync message",
 		zap.String("operation_id", baseData.OperationID),
-		zap.String("operation_type", baseData.OperationType),
+		zap.String("operation_type", string(baseData.OperationType)),
 		zap.String("session_id", baseData.SessionID),
 		zap.String("from", msg.From),
 		zap.Strings("participants", baseData.Participants))
@@ -258,11 +258,11 @@ func (s *Service) handleOperationSync(ctx context.Context, msg *p2p.Message) err
 
 	// Create the operation based on the sync message
 	switch baseData.OperationType {
-	case "keygen":
+	case OperationKeygen:
 		return s.createSyncedKeygenOperation(ctx, msg)
-	case "signing":
+	case OperationSigning:
 		return s.createSyncedSigningOperation(ctx, msg)
-	case "resharing":
+	case OperationResharing:
 		// TODO: implement resharing operation sync
 		s.logger.Warn("Resharing operation sync not implemented yet")
 		return nil

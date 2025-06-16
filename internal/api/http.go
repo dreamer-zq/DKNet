@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/dreamer-zq/DKNet/internal/tss"
 	healthv1 "github.com/dreamer-zq/DKNet/proto/health/v1"
 	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
 )
@@ -72,16 +71,16 @@ func (s *Server) setupHTTPRoutes(router *gin.Engine) {
 	router.Use(HTTPAuthMiddleware(s.authenticator, s.logger))
 
 	// Health check (typically excluded from auth)
-	router.GET("/health", s.healthHandler)
+	router.GET(HealthPath, s.healthHandler)
 
 	// TSS operations
-	api := router.Group("/api/v1")
-	api.POST("/keygen", s.keygenHandler)
-	api.POST("/sign", s.signHandler)
-	api.POST("/reshare", s.reshareHandler)
+	api := router.Group(APIVersionPrefix)
+	api.POST(KeygenPath, s.keygenHandler)
+	api.POST(SignPath, s.signHandler)
+	api.POST(ResharePath, s.reshareHandler)
 
 	// Operations
-	api.GET("/operations/:operation_id", s.getOperationHandler)
+	api.GET(OperationPathPattern, s.getOperationHandler)
 }
 
 // healthHandler handles health check requests
@@ -101,14 +100,20 @@ func (s *Server) healthHandler(c *gin.Context) {
 
 // keygenHandler handles keygen requests
 func (s *Server) keygenHandler(c *gin.Context) {
-	var req tss.KeygenRequest
+	var req tssv1.StartKeygenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Use background context for async TSS operations to avoid HTTP timeout cancellation
-	operation, err := s.tssService.StartKeygen(context.Background(), &req)
+	operation, err := s.tssService.StartKeygen(
+		context.Background(),
+		req.OperationId,
+		int(req.Threshold),
+		int(req.Parties),
+		req.Participants,
+	)
 	if err != nil {
 		s.logger.Error("Failed to start keygen", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -126,14 +131,20 @@ func (s *Server) keygenHandler(c *gin.Context) {
 
 // signHandler handles signing requests
 func (s *Server) signHandler(c *gin.Context) {
-	var req tss.SigningRequest
+	var req tssv1.StartSigningRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Use background context for async TSS operations to avoid HTTP timeout cancellation
-	operation, err := s.tssService.StartSigning(context.Background(), &req)
+	operation, err := s.tssService.StartSigning(
+		context.Background(),
+		req.OperationId,
+		req.Message,
+		req.KeyId,
+		req.Participants,
+	)
 	if err != nil {
 		s.logger.Error("Failed to start signing", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -151,14 +162,22 @@ func (s *Server) signHandler(c *gin.Context) {
 
 // reshareHandler handles resharing requests
 func (s *Server) reshareHandler(c *gin.Context) {
-	var req tss.ResharingRequest
+	var req tssv1.StartResharingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Use background context for async TSS operations to avoid HTTP timeout cancellation
-	operation, err := s.tssService.StartResharing(context.Background(), &req)
+	operation, err := s.tssService.StartResharing(
+		context.Background(),
+		req.OperationId,
+		req.KeyId,
+		int(req.NewThreshold),
+		int(req.NewParties),
+		req.OldParticipants,
+		req.NewParticipants,
+	)
 	if err != nil {
 		s.logger.Error("Failed to start resharing", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

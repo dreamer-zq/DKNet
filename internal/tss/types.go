@@ -138,12 +138,12 @@ type Message interface {
 
 // OperationSyncData defines the base structure for operation sync data
 type OperationSyncData struct {
-	OperationID   string   `json:"operation_id"`
-	OperationType string   `json:"operation_type"`
-	SessionID     string   `json:"session_id"`
-	Threshold     int      `json:"threshold"`
-	Parties       int      `json:"parties"`
-	Participants  []string `json:"participants"`
+	OperationID   string        `json:"operation_id"`
+	OperationType OperationType `json:"operation_type"`
+	SessionID     string        `json:"session_id"`
+	Threshold     int           `json:"threshold"`
+	Parties       int           `json:"parties"`
+	Participants  []string      `json:"participants"`
 }
 
 // ID implement Message.ID

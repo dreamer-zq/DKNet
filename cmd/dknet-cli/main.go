@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 
+	"github.com/dreamer-zq/DKNet/internal/api"
 	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
 )
 
@@ -349,13 +350,13 @@ func getOperationGRPC(ctx context.Context, operationID string) error {
 
 // HTTP implementations
 func keygenHTTP(ctx context.Context, threshold, parties int, participants []string) error {
-	reqBody := map[string]interface{}{
-		"threshold":    threshold,
-		"parties":      parties,
-		"participants": participants,
+	req := &tssv1.StartKeygenRequest{
+		Threshold:    int32(threshold),
+		Parties:      int32(parties),
+		Participants: participants,
 	}
 
-	resp, err := makeHTTPRequest(ctx, "POST", "/api/v1/keygen", reqBody)
+	resp, err := makeHTTPRequest(ctx, "POST", api.FullKeygenPath, req)
 	if err != nil {
 		return err
 	}
@@ -369,13 +370,13 @@ func keygenHTTP(ctx context.Context, threshold, parties int, participants []stri
 }
 
 func signHTTP(ctx context.Context, message []byte, keyID string, participants []string) error {
-	reqBody := map[string]interface{}{
-		"message":      message,
-		"key_id":       keyID,
-		"participants": participants,
+	req := &tssv1.StartSigningRequest{
+		Message:      message,
+		KeyId:        keyID,
+		Participants: participants,
 	}
 
-	resp, err := makeHTTPRequest(ctx, "POST", "/api/v1/sign", reqBody)
+	resp, err := makeHTTPRequest(ctx, "POST", api.FullSignPath, req)
 	if err != nil {
 		return err
 	}
@@ -389,15 +390,15 @@ func signHTTP(ctx context.Context, message []byte, keyID string, participants []
 }
 
 func reshareHTTP(ctx context.Context, keyID string, newThreshold, newParties int, oldParticipants, newParticipants []string) error {
-	reqBody := map[string]interface{}{
-		"key_id":           keyID,
-		"new_threshold":    newThreshold,
-		"new_parties":      newParties,
-		"old_participants": oldParticipants,
-		"new_participants": newParticipants,
+	req := &tssv1.StartResharingRequest{
+		KeyId:           keyID,
+		NewThreshold:    int32(newThreshold),
+		NewParties:      int32(newParties),
+		OldParticipants: oldParticipants,
+		NewParticipants: newParticipants,
 	}
 
-	resp, err := makeHTTPRequest(ctx, "POST", "/api/v1/reshare", reqBody)
+	resp, err := makeHTTPRequest(ctx, "POST", api.FullResharePath, req)
 	if err != nil {
 		return err
 	}
@@ -411,7 +412,7 @@ func reshareHTTP(ctx context.Context, keyID string, newThreshold, newParties int
 }
 
 func getOperationHTTP(ctx context.Context, operationID string) error {
-	resp, err := makeHTTPRequest(ctx, "GET", "/api/v1/operations/"+operationID, nil)
+	resp, err := makeHTTPRequest(ctx, "GET", api.GetOperationPath(operationID), nil)
 	if err != nil {
 		return err
 	}

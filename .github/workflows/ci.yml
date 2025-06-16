@@ -3,6 +3,26 @@ name: CI/CD Pipeline
 on:
   pull_request:
     branches: [ main ]
+    paths:
+      - '**.go'
+      - '**.sh'
+      - '**.yaml'
+      - '**.yml'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Dockerfile*'
+      - 'docker-compose*.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - '**.go'
+      - '**.sh'
+      - '**.yaml'
+      - '**.yml'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Dockerfile*'
+      - 'docker-compose*.yml'
 
 env:
   GO_VERSION: '1.23'
