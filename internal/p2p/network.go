@@ -39,8 +39,8 @@ type Network struct {
 	gossipRouter *GossipRouter
 	// Access control
 	accessController security.AccessController
-	// Session encryption
-	sessionEncryption security.SessionEncryption
+	// Unified message encryption
+	messageEncryption security.MessageEncryption
 }
 
 // Config holds P2P network configuration
@@ -53,7 +53,7 @@ type Config struct {
 	// Access control configuration
 	AccessControl *config.AccessControlConfig
 
-	// Session encryption configuration
+	// Encryption configuration
 	SessionEncryption *config.SessionEncryptionConfig
 }
 
@@ -82,17 +82,23 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		return nil, fmt.Errorf("failed to create pubsub: %w", err)
 	}
 
-	// Initialize session encryption if enabled
-	sessionEncryption := security.NewUnimplementedSessionEncryption()
+	// Initialize unified message encryption
+	encryptionConfig := &security.EncryptionConfig{
+		EnableEncryption: cfg.SessionEncryption.Enabled,
+		PrivateKey:       privKey,
+		Peerstore:        h.Peerstore(),
+	}
+
+	// Configure session encryption if enabled
 	if cfg.SessionEncryption.Enabled {
 		seedKey, err := hex.DecodeString(cfg.SessionEncryption.SeedKey)
 		if err != nil {
 			return nil, fmt.Errorf("invalid session encryption seed key: %w", err)
 		}
-
-		sessionEncryption = security.NewSessionEncryption(seedKey)
-		logger.Info("Session encryption enabled")
+		encryptionConfig.SessionSeedKey = seedKey
 	}
+
+	messageEncryption := security.NewMessageEncryption(encryptionConfig, logger)
 
 	n := &Network{
 		host:              h,
@@ -101,7 +107,7 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		topics:            make(map[string]*pubsub.Topic),
 		connectedPeers:    make(map[peer.ID]bool),
 		accessController:  security.NewController(cfg.AccessControl, logger.Named("access_control")),
-		sessionEncryption: sessionEncryption,
+		messageEncryption: messageEncryption,
 	}
 
 	// Set up protocol handlers
@@ -189,56 +195,52 @@ func (n *Network) SendWithGossip(ctx context.Context, msg *Message) error {
 	return n.gossipRouter.SendWithGossip(ctx, msg)
 }
 
-// encryptMessage applies session encryption to a message if configured
+// encryptMessage applies encryption to a message using unified encryption interface
 func (n *Network) encryptMessage(msg *Message) error {
-	// Skip if already encrypted or no session encryption configured
-	if msg.Encrypted || msg.SessionID == "" {
-		return nil
+	// Create encryption context
+	ctx := &security.MessageEncryptionContext{
+		Data:         msg.Data,
+		Encrypted:    msg.Encrypted,
+		IsBroadcast:  msg.IsBroadcast,
+		Recipients:   msg.To,
+		SessionID:    msg.SessionID,
+		SenderPeerID: msg.SenderPeerID,
+
+		// Set callback functions to update the message
+		SetData: func(data []byte) {
+			msg.Data = data
+		},
+		SetEncrypted: func(encrypted bool) {
+			msg.Encrypted = encrypted
+		},
 	}
 
-	encryptedData, err := n.sessionEncryption.Encrypt(msg.SessionID, msg.Data)
-	if err != nil {
-		n.logger.Error("Failed to encrypt message data",
-			zap.String("session_id", msg.SessionID),
-			zap.String("type", msg.Type),
-			zap.Error(err))
-		return err
-	}
-
-	msg.Data = encryptedData
-	msg.Encrypted = true
-
-	n.logger.Debug("Message encrypted",
-		zap.String("session_id", msg.SessionID),
-		zap.String("type", msg.Type))
-
-	return nil
+	// Use unified encryption interface
+	return n.messageEncryption.Encrypt(ctx)
 }
 
-// decryptMessage applies session decryption to a message if needed
+// decryptMessage applies decryption to a message using unified encryption interface
 func (n *Network) decryptMessage(msg *Message) error {
-	// Skip if not encrypted or no session encryption configured
-	if !msg.Encrypted || msg.SessionID == "" {
-		return nil
+	// Create decryption context
+	ctx := &security.MessageEncryptionContext{
+		Data:         msg.Data,
+		Encrypted:    msg.Encrypted,
+		IsBroadcast:  msg.IsBroadcast,
+		Recipients:   msg.To,
+		SessionID:    msg.SessionID,
+		SenderPeerID: msg.SenderPeerID,
+
+		// Set callback functions to update the message
+		SetData: func(data []byte) {
+			msg.Data = data
+		},
+		SetEncrypted: func(encrypted bool) {
+			msg.Encrypted = encrypted
+		},
 	}
 
-	decryptedData, err := n.sessionEncryption.Decrypt(msg.SessionID, msg.Data)
-	if err != nil {
-		n.logger.Error("Failed to decrypt message data",
-			zap.String("session_id", msg.SessionID),
-			zap.String("type", msg.Type),
-			zap.Error(err))
-		return err
-	}
-
-	msg.Data = decryptedData
-	msg.Encrypted = false
-
-	n.logger.Debug("Message decrypted",
-		zap.String("session_id", msg.SessionID),
-		zap.String("type", msg.Type))
-
-	return nil
+	// Use unified decryption interface
+	return n.messageEncryption.Decrypt(ctx)
 }
 
 // sendDirect sends a message directly to specific peers

@@ -27,15 +27,16 @@ var typeToProtocol = map[string]protocol.ID{
 
 // Message represents a generic message sent over the network
 type Message struct {
-	ProtocolID  protocol.ID `json:"protocol_id"`
-	SessionID   string      `json:"session_id"`
-	Type        string      `json:"type"` // Message type for routing
-	From        string      `json:"from"` // sender node ID
-	To          []string    `json:"to"`   // recipient node IDs (empty for broadcast)
-	IsBroadcast bool        `json:"is_broadcast"`
-	Data        []byte      `json:"data"`      // message payload
-	Encrypted   bool        `json:"encrypted"` // indicates if data is encrypted
-	Timestamp   time.Time   `json:"timestamp"`
+	ProtocolID    protocol.ID `json:"protocol_id"`
+	SessionID     string      `json:"session_id"`
+	Type          string      `json:"type"` // Message type for routing
+	From          string      `json:"from"` // sender node ID
+	To            []string    `json:"to"`   // recipient node IDs (empty for broadcast)
+	IsBroadcast   bool        `json:"is_broadcast"`
+	Data          []byte      `json:"data"`                     // message payload
+	Encrypted     bool        `json:"encrypted"`                // indicates if data is encrypted
+	PeerEncrypted bool        `json:"peer_encrypted,omitempty"` // indicates if data is encrypted for specific peer(s)
+	Timestamp     time.Time   `json:"timestamp"`
 
 	// P2P layer information - records original sender's actual PeerID to avoid mapping confusion from forwarding
 	SenderPeerID string `json:"sender_peer_id,omitempty"` // actual P2P peer ID of original sender

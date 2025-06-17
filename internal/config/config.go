@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/spf13/viper"
@@ -17,6 +18,7 @@ type NodeConfig struct {
 	Storage  StorageConfig  `yaml:"storage" mapstructure:"storage"`
 	TSS      TSSConfig      `yaml:"tss" mapstructure:"tss"`
 	Security SecurityConfig `yaml:"security" mapstructure:"security"`
+	Logging  LoggingConfig  `yaml:"logging" mapstructure:"logging"`
 
 	// ConfigDir is the directory containing the config file (not saved to YAML)
 	ConfigDir string `yaml:"-" mapstructure:"-"`
@@ -115,6 +117,16 @@ type SessionEncryptionConfig struct {
 	SeedKey string `yaml:"seed_key" mapstructure:"seed_key"`
 }
 
+// LoggingConfig holds logging configuration
+type LoggingConfig struct {
+	// Level sets the minimum log level to output (debug, info, warn, error)
+	Level string `yaml:"level" mapstructure:"level"`
+	// Environment sets the log environment
+	Environment string `yaml:"environment" mapstructure:"environment"`
+	// Output sets the log output destination (stdout, file path)
+	Output string `yaml:"output" mapstructure:"output"`
+}
+
 // Load loads configuration from file or environment variables
 func Load(configFile string) (*NodeConfig, error) {
 	v := viper.New()
@@ -202,6 +214,13 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("security.access_control.allowed_peers", []string{})
 	v.SetDefault("security.session_encryption.enabled", false)
 	v.SetDefault("security.session_encryption.seed_key", "")
+
+	// Logging defaults
+	v.SetDefault("logging.level", "info")
+	v.SetDefault("logging.environment", "dev")
+	v.SetDefault("logging.output", "stdout")
+	v.SetDefault("logging.enable_caller", false)
+	v.SetDefault("logging.enable_stacktrace", false)
 }
 
 // validateConfig validates the configuration
@@ -243,5 +262,28 @@ func validateConfig(config *NodeConfig) error {
 		}
 	}
 
+	// Validate logging configuration
+	if err := validateLoggingConfig(&config.Logging); err != nil {
+		return fmt.Errorf("invalid logging configuration: %w", err)
+	}
+
+	return nil
+}
+
+// validateLoggingConfig validates logging configuration
+func validateLoggingConfig(config *LoggingConfig) error {
+	// Validate log level
+	validLevels := []string{"debug", "info", "warn", "error"}
+	isValidLevel := slices.Contains(validLevels, config.Level)
+	if !isValidLevel {
+		return fmt.Errorf("invalid log level: %s, must be one of: %v", config.Level, validLevels)
+	}
+
+	// Validate log environment
+	validEnvironments := []string{"dev", "pro"}
+	isValidEnvironment := slices.Contains(validEnvironments, config.Environment)
+	if !isValidEnvironment {
+		return fmt.Errorf("invalid log environment: %s, must be one of: %v", config.Environment, validEnvironments)
+	}
 	return nil
 }

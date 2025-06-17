@@ -16,6 +16,7 @@ import (
 )
 
 func main() {
+	// Initialize with a basic logger first, will be reconfigured after loading config
 	var err error
 	logger, err = zap.NewProduction()
 	if err != nil {
@@ -58,6 +59,19 @@ func runServer(cmd *cobra.Command, args []string) error {
 	cfg, err := config.Load(cfgFile)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Reconfigure logger based on configuration
+	configuredLogger, err := common.NewLogger(&cfg.Logging)
+	if err != nil {
+		logger.Warn("Failed to create configured logger, using default", zap.Error(err))
+	} else {
+		// Replace global logger
+		logger = configuredLogger
+		logger.Info("Logger reconfigured",
+			zap.String("level", cfg.Logging.Level),
+			zap.String("environment", cfg.Logging.Environment),
+			zap.String("output", cfg.Logging.Output))
 	}
 
 	// Get encryption password from environment or interactive input
