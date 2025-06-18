@@ -17,6 +17,7 @@
 - **P2P 通信**: 基于 libp2p 的节点间通信
 - **验证服务**: 可配置的签名请求验证
 - **容器化部署**: 支持 Docker 和 Kubernetes
+- **MCP 集成**: 支持 Model Context Protocol，允许 LLM 通过自然语言调用 TSS 功能
 
 ## 快速开始
 
@@ -48,7 +49,8 @@ make build
 DKNet/
 ├── cmd/
 │   ├── dknet/              # 服务器主程序
-│   └── dknet-cli/          # 客户端命令行工具
+│   ├── dknet-cli/          # 客户端命令行工具
+│   └── dknet-mcp/          # MCP 服务器（LLM 集成）
 ├── internal/               # 内部包
 │   ├── api/               # API 层 (HTTP/gRPC)
 │   ├── app/               # 应用程序层
@@ -80,6 +82,42 @@ DKNet/
 
 1. **环境变量** (推荐用于生产)
 2. **交互式输入** (推荐用于开发)
+
+## MCP 集成（LLM 支持）
+
+DKNet 支持 Model Context Protocol (MCP)，允许 LLM 应用通过自然语言与 TSS 集群交互。
+
+### 构建 MCP 服务器
+
+```bash
+make build-mcp
+```
+
+### 与 Claude Desktop 集成
+
+1. 配置 Claude Desktop：
+
+```json
+{
+  "mcpServers": {
+    "dknet-tss": {
+      "command": "/path/to/DKNet/bin/dknet-mcp",
+      "args": [
+        "--node-addr", "localhost:9095",
+        "--node-id", "12D3KooWGZCnvk6cX2UUhc1SHhkGvdfJNZicx4uXEb3niyHHN7ch"
+      ]
+    }
+  }
+}
+```
+
+2. 重启 Claude Desktop
+
+3. 使用自然语言进行 TSS 操作：
+   - "请生成一个 2-of-3 的门限签名密钥"
+   - "使用密钥 xyz 对消息 'Hello World' 进行签名"
+
+详细的 MCP 使用指南请参考 [MCP 文档](docs/mcp-usage.md)。
 
 ## 部署
 

@@ -6,8 +6,10 @@
 help:
 	@echo "DKNet Build Commands:"
 	@echo "  build            - Build server and client binaries"
+	@echo "  build-all        - Build all binaries including MCP server"
 	@echo "  build-server     - Build DKNet binary"
 	@echo "  build-client     - Build TSS client binary"
+	@echo "  build-mcp        - Build MCP server binary"
 	@echo "  test             - Run tests"
 	@echo "  clean            - Clean build artifacts"
 	@echo ""
@@ -39,6 +41,8 @@ LDFLAGS = -X main.version=$(VERSION) \
 # Build commands
 build: build-server build-client
 
+build-all: build-server build-client build-mcp
+
 build-server:
 	@echo "Building DKNet..."
 	@mkdir -p bin
@@ -48,6 +52,11 @@ build-client:
 	@echo "Building TSS client..."
 	@mkdir -p bin
 	go build -ldflags "$(LDFLAGS)" -o bin/dknet-cli ./cmd/dknet-cli
+
+build-mcp:
+	@echo "Building DKNet MCP Server..."
+	@mkdir -p bin
+	go build -ldflags "$(LDFLAGS)" -o bin/dknet-mcp ./cmd/dknet-mcp
 
 run: build-server
 	@echo "Starting DKNet..."

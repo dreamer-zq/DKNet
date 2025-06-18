@@ -1,0 +1,36 @@
+{
+  "mcpServers": {
+    "dknet-tss": {
+      "command": "/path/to/your/DKNet/bin/dknet-mcp",
+      "args": [
+        "--node-addr", "localhost:9095",
+        "--node-id", "12D3KooWGZCnvk6cX2UUhc1SHhkGvdfJNZicx4uXEb3niyHHN7ch"
+      ],
+      "env": {
+        "DKNET_LOG_LEVEL": "info"
+      }
+    },
+    "dknet-tss-with-auth": {
+      "command": "/path/to/your/DKNet/bin/dknet-mcp",
+      "args": [
+        "--node-addr", "localhost:9095",
+        "--node-id", "12D3KooWGZCnvk6cX2UUhc1SHhkGvdfJNZicx4uXEb3niyHHN7ch",
+        "--jwt-token", "your-jwt-token-here"
+      ],
+      "env": {
+        "DKNET_LOG_LEVEL": "info"
+      }
+    },
+    "dknet-tss-remote": {
+      "command": "/path/to/your/DKNet/bin/dknet-mcp",
+      "args": [
+        "--node-addr", "192.168.1.100:9095",
+        "--node-id", "12D3KooWEMke2yrVjg4nadKBBCZrWeZtxD4KucM4QzgH24JMo6JU",
+        "--jwt-token", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.token"
+      ],
+      "env": {
+        "DKNET_LOG_LEVEL": "debug"
+      }
+    }
+  }
+} 
