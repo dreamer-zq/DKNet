@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/rand"
-	"embed"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -12,10 +11,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
-)
 
-//go:embed templates/*
-var templateFS embed.FS
+	"github.com/dreamer-zq/DKNet/templates"
+)
 
 const (
 	defaultBindIP = "0.0.0.0"
@@ -121,7 +119,7 @@ type DockerComposeConfig struct {
 // generateDockerCompose generates docker-compose.yaml file using template
 func generateDockerCompose(outputDir string, nodes int) error {
 	// Read template
-	tmplContent, err := templateFS.ReadFile("templates/docker-compose.tmpl")
+	tmplContent, err := templates.GetTemplate("docker-compose.tmpl")
 	if err != nil {
 		return fmt.Errorf("failed to read docker-compose template: %w", err)
 	}
