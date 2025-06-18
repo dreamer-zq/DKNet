@@ -156,20 +156,22 @@ func (pe *ed25519PeerEncryption) deriveUnifiedKey(peerID1, peerID2 string, key1,
 	key2Material := normalizeEd25519Key(key2Raw)
 
 	// Create deterministic key material by combining in a consistent order
-	keyMaterial := append(key1Material, key2Material...)
+	keyMaterial := make([]byte, 0, len(key1Material)+len(key2Material)+len(peerID1)+len(peerID2))
+	keyMaterial = append(keyMaterial, key1Material...)
+	keyMaterial = append(keyMaterial, key2Material...)
 	keyMaterial = append(keyMaterial, []byte(peerID1)...)
 	keyMaterial = append(keyMaterial, []byte(peerID2)...)
 
 	// Use HKDF to derive a 32-byte AES key
 	salt := sha256.Sum256([]byte("DKNet-Ed25519-P2P-Salt"))
 	info := []byte("DKNet-Ed25519-P2P-Encryption-v1")
-	
-	hkdf := hkdf.New(sha256.New, keyMaterial, salt[:], info)
+
+	hkdfReader := hkdf.New(sha256.New, keyMaterial, salt[:], info)
 	key := make([]byte, 32)
-	if _, err := io.ReadFull(hkdf, key); err != nil {
+	if _, err := io.ReadFull(hkdfReader, key); err != nil {
 		return nil, fmt.Errorf("failed to derive key: %w", err)
 	}
-	
+
 	return key, nil
 }
 
@@ -183,7 +185,7 @@ func normalizeEd25519Key(keyRaw []byte) []byte {
 }
 
 // encryptWithAESGCM encrypts data using AES-GCM
-func encryptWithAESGCM(data, key []byte) ([]byte, []byte, error) {
+func encryptWithAESGCM(data, key []byte) (encryptedData, nonce []byte, err error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create AES cipher: %w", err)
@@ -194,13 +196,13 @@ func encryptWithAESGCM(data, key []byte) ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("failed to create GCM: %w", err)
 	}
 
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+	nonce = make([]byte, gcm.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, nil, fmt.Errorf("failed to generate nonce: %w", err)
 	}
 
-	encrypted := gcm.Seal(nil, nonce, data, nil)
-	return encrypted, nonce, nil
+	encryptedData = gcm.Seal(nil, nonce, data, nil)
+	return encryptedData, nonce, nil
 }
 
 // decryptWithAESGCM decrypts data using AES-GCM

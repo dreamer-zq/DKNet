@@ -59,8 +59,8 @@ func runInitNode(cmd *cobra.Command, args []string) error {
 
 	// Create node directory
 	nodeDir := filepath.Join(outputDir, "node1")
-	if err := ensureNodeDirectory(nodeDir); err != nil {
-		return err
+	if dirErr := ensureNodeDirectory(nodeDir); dirErr != nil {
+		return dirErr
 	}
 
 	// Generate and save node key

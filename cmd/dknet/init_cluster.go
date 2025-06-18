@@ -30,15 +30,15 @@ each organization should generate their own keys independently.`,
 
 func runInitCluster(cmd *cobra.Command, args []string) error {
 	nodes, _ := cmd.Flags().GetInt("nodes")
-	outputDir, _ := cmd.Flags().GetString("output")
+	clusterOutputDir, _ := cmd.Flags().GetString("output")
 	generateDocker, _ := cmd.Flags().GetBool("docker")
 
 	// Default output directory
-	if outputDir == "" {
+	if clusterOutputDir == "" {
 		if generateDocker {
-			outputDir = "deployments/docker-cluster"
+			clusterOutputDir = "deployments/docker-cluster"
 		} else {
-			outputDir = "tss-cluster"
+			clusterOutputDir = "tss-cluster"
 		}
 	}
 
@@ -52,30 +52,30 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Generated unified session encryption key\n")
 
 	// Create output directory
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(clusterOutputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
 	// Step 1: Generate keys for all nodes and collect peer info
 	type NodeInfo struct {
-		Index    int
-		NodeDir  string
-		PeerID   string
+		Index     int
+		NodeDir   string
+		PeerID    string
 		Multiaddr string
 	}
-	
+
 	var nodeInfos []NodeInfo
 	for i := 1; i <= nodes; i++ {
-		nodeDir := filepath.Join(outputDir, fmt.Sprintf("node%d", i))
-		if err := os.MkdirAll(nodeDir, 0755); err != nil {
-			return fmt.Errorf("failed to create node directory: %w", err)
+		nodeDir := filepath.Join(clusterOutputDir, fmt.Sprintf("node%d", i))
+		if createErr := os.MkdirAll(nodeDir, 0755); createErr != nil {
+			return fmt.Errorf("failed to create node directory: %w", createErr)
 		}
 
 		// Generate node key
 		nodeID := fmt.Sprintf("node%d", i)
-		_, peerID, err := generateAndSaveNodeKey(nodeDir, nodeID)
-		if err != nil {
-			return fmt.Errorf("failed to generate node key for %s: %w", nodeID, err)
+		_, peerID, keyErr := generateAndSaveNodeKey(nodeDir, nodeID)
+		if keyErr != nil {
+			return fmt.Errorf("failed to generate node key for %s: %w", nodeID, keyErr)
 		}
 
 		// Generate multiaddr for this node
@@ -112,7 +112,7 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 
 		// Generate config file
 		configFile := filepath.Join(nodeInfo.NodeDir, "config.yaml")
-		
+
 		// Set ports based on mode
 		httpPort := 8080
 		grpcPort := 9090
@@ -126,9 +126,10 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 		listenAddr := getNodeListenAddr(generateDocker)
 		p2pPort := getNodeP2PPort(nodeInfo.Index, generateDocker)
 
-		err = generateAndSaveNodeConfig(nodeName, bootstrapPeers, listenAddr, p2pPort, httpPort, grpcPort, configFile, sessionSeedKey, generateDocker)
-		if err != nil {
-			return fmt.Errorf("failed to generate config for node %d: %w", nodeInfo.Index, err)
+		configErr := generateAndSaveNodeConfig(nodeName, bootstrapPeers, listenAddr, p2pPort,
+			httpPort, grpcPort, configFile, sessionSeedKey, generateDocker)
+		if configErr != nil {
+			return fmt.Errorf("failed to generate config for node %d: %w", nodeInfo.Index, configErr)
 		}
 
 		// Generate node info file
@@ -142,22 +143,22 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 	// Generate Docker Compose configuration if requested
 	if generateDocker {
 		fmt.Println("Generating Docker Compose configuration...")
-		
-		if err := generateDockerCompose(outputDir, nodes); err != nil {
-			return fmt.Errorf("failed to generate docker-compose.yaml: %w", err)
+
+		if dockerErr := generateDockerCompose(clusterOutputDir, nodes); dockerErr != nil {
+			return fmt.Errorf("failed to generate docker-compose.yaml: %w", dockerErr)
 		}
 		fmt.Println("Generated docker-compose.yaml")
 	}
 
 	fmt.Printf("✅ Cluster initialization completed!\n")
 	if generateDocker {
-		fmt.Printf("📁 Docker configuration saved to: %s\n", outputDir)
+		fmt.Printf("📁 Docker configuration saved to: %s\n", clusterOutputDir)
 		fmt.Println("")
 		fmt.Println("🐳 Before starting the cluster, build the Docker image:")
 		fmt.Println("   docker build -t dknet:latest .")
 		fmt.Println("")
 		fmt.Println("🚀 To start the cluster:")
-		fmt.Printf("   cd %s\n", outputDir)
+		fmt.Printf("   cd %s\n", clusterOutputDir)
 		fmt.Println("   export TSS_ENCRYPTION_PASSWORD=\"YourSecurePassword123!\"")
 		fmt.Println("   docker-compose up -d")
 		fmt.Println("")

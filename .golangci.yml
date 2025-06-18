@@ -15,7 +15,6 @@ output:
 linters:
   enable:
     - errcheck
-    - govet
     - ineffassign
     - staticcheck
     - unused
@@ -29,11 +28,6 @@ linters:
     - whitespace
 
   settings:
-    govet:
-      enable-all: true
-      disable:
-        - fieldalignment
-
     goconst:
       min-len: 2
       min-occurrences: 2

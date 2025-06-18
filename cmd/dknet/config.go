@@ -65,7 +65,7 @@ func generateAndSaveNodeConfig(
 		Security: generateDefaultSecurityConfigWithSessionKey(sessionSeedKey),
 		Logging: config.LoggingConfig{
 			Level:       "debug",
-			Environment: "dev", 
+			Environment: "dev",
 			Output:      "stdout",
 		},
 	}
@@ -133,64 +133,6 @@ Security Note:
 	return os.WriteFile(infoFile, []byte(content), 0o644)
 }
 
-// generateSummary creates a cluster summary file
-func generateSummary(outputDir string, nodeKeys map[string]config.NodeKeyInfo, multiaddrs []string, nodes int, dockerMode bool) error {
-	summaryFile := filepath.Join(outputDir, "cluster-info.txt")
-
-	content := fmt.Sprintf(`TSS Cluster Configuration Summary
-=====================================
-
-Cluster Parameters:
-- Nodes: %d
-- Mode: %s
-
-Generated Files Structure:
-Each node has its own directory with:
-- %s/node1/config.yaml & node_key & node-info.txt
-- %s/node2/config.yaml & node_key & node-info.txt
-- %s/node3/config.yaml & node_key & node-info.txt
-
-Node Information (Peer IDs):
-`, nodes, map[bool]string{true: "Docker", false: "Local"}[dockerMode], outputDir, outputDir, outputDir)
-
-	for i := 1; i <= nodes; i++ {
-		nodeID := fmt.Sprintf("node%d", i)
-		nodeInfo := nodeKeys[nodeID]
-		content += fmt.Sprintf("- node%d: %s\n", i, nodeInfo.PeerID)
-	}
-
-	content += "\nBootstrap Multiaddrs:\n"
-	for i, addr := range multiaddrs {
-		content += fmt.Sprintf("- node%d: %s\n", i+1, addr)
-	}
-
-	if dockerMode {
-		content += fmt.Sprintf(`
-Docker Usage:
-1. Update your docker-compose.yml to mount each node directory:
-   volumes:
-     - ./%s/node1:/app/node:ro
-   
-2. Start the cluster:
-   docker-compose up -d
-
-3. Each container should reference ./node/config.yaml and ./node/node_key
-`, outputDir)
-	} else {
-		content += fmt.Sprintf(`
-Local Usage:
-1. Start each node with its configuration:
-   ./dknet start --config %s/node1/config.yaml
-   ./dknet start --config %s/node2/config.yaml
-   ./dknet start --config %s/node3/config.yaml
-
-2. Each node runs on different ports as configured in their config.yaml
-`, outputDir, outputDir, outputDir)
-	}
-
-	return os.WriteFile(summaryFile, []byte(content), 0o644)
-}
-
 // SecurityOptions holds security configuration options
 type SecurityOptions struct {
 	EnableAuth           bool
@@ -212,28 +154,6 @@ type ValidationServiceOptions struct {
 	TimeoutSeconds     int
 	Headers            map[string]string
 	InsecureSkipVerify bool
-}
-
-// generateDefaultSecurityConfig creates a default security configuration
-func generateDefaultSecurityConfig() config.SecurityConfig {
-	return config.SecurityConfig{
-		TLSEnabled: false,
-		CertFile:   "",
-		KeyFile:    "",
-		APIAuth: config.AuthConfig{
-			Enabled:   false,
-			JWTSecret: "",
-			JWTIssuer: "",
-		},
-		AccessControl: config.AccessControlConfig{
-			Enabled:      false,
-			AllowedPeers: []string{},
-		},
-		SessionEncryption: config.SessionEncryptionConfig{
-			Enabled: false,
-			SeedKey: "",
-		},
-	}
 }
 
 // generateDefaultSecurityConfigWithSessionKey creates a default security configuration with a session key

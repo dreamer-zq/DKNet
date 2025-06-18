@@ -169,59 +169,15 @@ func generateDockerCompose(outputDir string, nodes int) error {
 	if err != nil {
 		return fmt.Errorf("failed to create docker-compose.yaml: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to close file: %v\n", err)
+		}
+	}()
 
 	// Execute template
 	if err := tmpl.Execute(file, config); err != nil {
 		return fmt.Errorf("failed to execute docker-compose template: %w", err)
-	}
-
-	return nil
-}
-
-// generateNodeConfig generates configuration files for a single node
-func generateNodeConfig(nodeDir string, nodeIndex, totalNodes int, dockerMode bool, sessionSeedKey string) error {
-	// Create node directory
-	if err := os.MkdirAll(nodeDir, 0755); err != nil {
-		return fmt.Errorf("failed to create node directory: %w", err)
-	}
-
-	// Generate node key
-	nodeID := fmt.Sprintf("node%d", nodeIndex)
-	_, peerID, err := generateAndSaveNodeKey(nodeDir, nodeID)
-	if err != nil {
-		return fmt.Errorf("failed to generate node key: %w", err)
-	}
-
-	// Generate bootstrap peers (placeholder for now - we need peer info from other nodes)
-	var bootstrapPeers []string
-	// In a real implementation, you'd need to coordinate peer discovery
-	// For now, we'll leave this empty and let runtime discovery handle it
-
-	// Generate config file
-	configFile := filepath.Join(nodeDir, "config.yaml")
-	
-	// Set ports based on mode
-	httpPort := 8080
-	grpcPort := 9090
-	if !dockerMode {
-		// In local mode, use different ports for each node
-		httpPort = 8080 + nodeIndex
-		grpcPort = 9090 + nodeIndex + 4 // Offset to avoid conflicts
-	}
-
-	nodeName := fmt.Sprintf("TSS Node %d", nodeIndex)
-	listenAddr := getNodeListenAddr(dockerMode)
-	p2pPort := getNodeP2PPort(nodeIndex, dockerMode)
-
-	err = generateAndSaveNodeConfig(nodeName, bootstrapPeers, listenAddr, p2pPort, httpPort, grpcPort, configFile, sessionSeedKey, dockerMode)
-	if err != nil {
-		return fmt.Errorf("failed to generate config file: %w", err)
-	}
-
-	// Generate node info file (optional)
-	if err := generateNodeInfo(nodeDir, peerID.String(), listenAddr, p2pPort, bootstrapPeers, dockerMode); err != nil {
-		return fmt.Errorf("failed to generate node info: %w", err)
 	}
 
 	return nil

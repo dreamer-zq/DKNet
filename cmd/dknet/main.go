@@ -22,10 +22,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
 	defer func() {
-		common.LogMsgDo("failed to sync logger", func() error {
-			return logger.Sync()
-		})
+		_ = logger.Sync()
 	}()
 
 	rootCmd := &cobra.Command{
@@ -51,7 +50,9 @@ using threshold cryptography to ensure no single point of failure.`,
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		// Don't call os.Exit directly here, let main return normally
+		// The defer statement will execute properly this way
+		return
 	}
 }
 

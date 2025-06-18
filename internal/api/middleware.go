@@ -63,7 +63,7 @@ func GRPCAuthInterceptor(auth Authenticator, logger *zap.Logger) grpc.UnaryServe
 		if !auth.Enabled() {
 			return handler(ctx, req)
 		}
-		
+
 		// Extract token from gRPC metadata (if available)
 		token, err := extractTokenFromGRPCContext(ctx)
 		if err != nil {
@@ -102,7 +102,7 @@ func GRPCAuthStreamInterceptor(auth Authenticator, logger *zap.Logger) grpc.Stre
 		// Try to authenticate first - the authenticator will handle whether auth is enabled
 		var token string
 		var err error
-		
+
 		// Extract token from gRPC metadata (if available)
 		token, err = extractTokenFromGRPCContext(ss.Context())
 		if err != nil {
