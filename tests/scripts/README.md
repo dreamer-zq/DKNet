@@ -158,7 +158,7 @@ curl -X POST \
   -d '{
     "threshold": 2,
     "parties": 3,
-    "participants": ["QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF", "QmQjz2j7wFScU4Rj1cP3iwisbGwdhkNXmfmUYUHmvtEXY3", "QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi"]
+    "participants": ["12D3KooWGZCnvk6cX2UUhc1SHhkGvdfJNZicx4uXEb3niyHHN7ch", "12D3KooWEMke2yrVjg4nadKBBCZrWeZtxD4KucM4QzgH24JMo6JU", "12D3KooWT3TACsUvszChWcQwT7YpPa1udfwpb5k5qQ8zrBw4VqZ7"]
   }' \
   http://localhost:8081/api/v1/keygen
 

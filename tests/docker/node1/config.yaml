@@ -9,21 +9,22 @@ p2p:
     listen_addrs:
         - /ip4/0.0.0.0/tcp/4001
     bootstrap_peers:
-        # - /ip4/172.20.0.4/tcp/4001/p2p/QmQjz2j7wFScU4Rj1cP3iwisbGwdhkNXmfmUYUHmvtEXY3
-    private_key_file: ./node/node_key
+        - /ip4/172.20.0.3/tcp/4001/p2p/12D3KooWEMke2yrVjg4nadKBBCZrWeZtxD4KucM4QzgH24JMo6JU
+        - /ip4/172.20.0.4/tcp/4001/p2p/12D3KooWT3TACsUvszChWcQwT7YpPa1udfwpb5k5qQ8zrBw4VqZ7
+    private_key_file: /app/node/node_key
     max_peers: 50
 storage:
     type: leveldb
-    path: ./data
+    path: /app/data/storage
     options: {}
 tss:
-    moniker: "TSS Node 1"
+    moniker: TSS Node 1
     validation_service:
         enabled: true
         url: "http://validation-service:8888/validate"
         timeout_seconds: 30
         headers:
-            "X-Node-ID": "QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF"
+            "X-Node-ID": "12D3KooWGZCnvk6cX2UUhc1SHhkGvdfJNZicx4uXEb3niyHHN7ch"
         insecure_skip_verify: true
 security:
     tls_enabled: false
@@ -38,8 +39,8 @@ security:
         allowed_peers: []
     session_encryption:
         enabled: true
-        seed_key: "a9abe2b4fa5490ff80d59e01731fc2ce8d90429b2b824e0712264985f421210b"
+        seed_key: 6d7f736ab70d167ce0978beb92e3685c2525943e567eb47f2f18405b65479828
 logging:
-    level: "debug"
-    format: "console"
-    output: "stdout"
+    level: debug
+    environment: dev
+    output: stdout

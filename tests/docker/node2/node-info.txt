@@ -1,0 +1,31 @@
+DKNet Node Information
+====================
+
+Node Details:
+- Peer ID: 12D3KooWEMke2yrVjg4nadKBBCZrWeZtxD4KucM4QzgH24JMo6JU
+
+Network Configuration:
+- Listen Address: 0.0.0.0:4001
+- Multiaddr: /ip4/0.0.0.0/tcp/4001/p2p/12D3KooWEMke2yrVjg4nadKBBCZrWeZtxD4KucM4QzgH24JMo6JU
+
+Generated Files:
+- Configuration: ./config.yaml
+- Private Key: ./node_key
+
+Bootstrap Peers:
+- Peer 1: /ip4/172.20.0.2/tcp/4001/p2p/12D3KooWGZCnvk6cX2UUhc1SHhkGvdfJNZicx4uXEb3niyHHN7ch
+- Peer 2: /ip4/172.20.0.4/tcp/4001/p2p/12D3KooWT3TACsUvszChWcQwT7YpPa1udfwpb5k5qQ8zrBw4VqZ7
+
+Usage:
+1. Copy this entire directory to your deployment location
+2. Update bootstrap_peers in config.yaml if needed
+3. Start the node:
+   ./dknet start --config ./config.yaml
+
+Share with other nodes:
+- Your multiaddr: /ip4/0.0.0.0/tcp/4001/p2p/12D3KooWEMke2yrVjg4nadKBBCZrWeZtxD4KucM4QzgH24JMo6JU
+- Use this multiaddr in their bootstrap_peers configuration
+
+Security Note:
+- Keep node_key file secure and private
+- Only share the peer ID and multiaddr, never the private key

@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 TESTS_DIR="$PROJECT_ROOT/tests"
-DOCKER_COMPOSE_FILE="$TESTS_DIR/docker/docker-compose.yml"
+DOCKER_COMPOSE_FILE="$TESTS_DIR/docker/docker-compose.yaml"
 
 # JWT Configuration (matching Docker test setup)
 JWT_SECRET="dknet-test-jwt-secret-key-2024"
@@ -26,9 +26,9 @@ JWT_ISSUER="dknet-test"
 JWT_TOKEN=""
 
 # Peer IDs from cluster-info.txt (Phase 2: Using peer IDs directly as node IDs)
-NODE1_PEER_ID="QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF"
-NODE2_PEER_ID="QmQjz2j7wFScU4Rj1cP3iwisbGwdhkNXmfmUYUHmvtEXY3"
-NODE3_PEER_ID="QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi"
+NODE1_PEER_ID="12D3KooWGZCnvk6cX2UUhc1SHhkGvdfJNZicx4uXEb3niyHHN7ch"
+NODE2_PEER_ID="12D3KooWEMke2yrVjg4nadKBBCZrWeZtxD4KucM4QzgH24JMo6JU"
+NODE3_PEER_ID="12D3KooWT3TACsUvszChWcQwT7YpPa1udfwpb5k5qQ8zrBw4VqZ7"
 
 # Function to print colored output
 print_status() {

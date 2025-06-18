@@ -3,32 +3,32 @@ TSS Cluster Configuration Summary
 
 Cluster Parameters:
 - Nodes: 3
-- Threshold: 2
 - Mode: Docker
 
 Generated Files Structure:
 Each node has its own directory with:
-- ./tests/docker/node1/config.yaml & node_key & node-info.txt
-- ./tests/docker/node2/config.yaml & node_key & node-info.txt
-- ./tests/docker/node3/config.yaml & node_key & node-info.txt
+- tests/docker/node1/config.yaml & node_key & node-info.txt
+- tests/docker/node2/config.yaml & node_key & node-info.txt
+- tests/docker/node3/config.yaml & node_key & node-info.txt
 
-Node Information:
-- node1: QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF
-- node2: QmQjz2j7wFScU4Rj1cP3iwisbGwdhkNXmfmUYUHmvtEXY3
-- node3: QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi
+Node Information (Peer IDs):
+- node1: 12D3KooWGZCnvk6cX2UUhc1SHhkGvdfJNZicx4uXEb3niyHHN7ch
+- node2: 12D3KooWEMke2yrVjg4nadKBBCZrWeZtxD4KucM4QzgH24JMo6JU
+- node3: 12D3KooWT3TACsUvszChWcQwT7YpPa1udfwpb5k5qQ8zrBw4VqZ7
 
 Bootstrap Multiaddrs:
-- node1: /ip4/172.20.0.2/tcp/4001/p2p/QmVesSFq5FdNmoLyoe994jJdYLhqZqTyZajopMaxyBqbTF
-- node2: /ip4/172.20.0.3/tcp/4001/p2p/QmQjz2j7wFScU4Rj1cP3iwisbGwdhkNXmfmUYUHmvtEXY3
-- node3: /ip4/172.20.0.4/tcp/4001/p2p/QmPFTCTMKBtUg5fzeexHALdPniw98RV3W54Vg2Bphuc5qi
+- node1: /ip4/172.20.0.2/tcp/4001/p2p/12D3KooWGZCnvk6cX2UUhc1SHhkGvdfJNZicx4uXEb3niyHHN7ch
+- node2: /ip4/172.20.0.3/tcp/4001/p2p/12D3KooWEMke2yrVjg4nadKBBCZrWeZtxD4KucM4QzgH24JMo6JU
+- node3: /ip4/172.20.0.4/tcp/4001/p2p/12D3KooWT3TACsUvszChWcQwT7YpPa1udfwpb5k5qQ8zrBw4VqZ7
 
 Docker Usage:
-1. Use the unified test environment script:
-   ./tests/scripts/start-test-env.sh start
+1. Start the cluster:
+   cd tests/docker
+   export TSS_ENCRYPTION_PASSWORD="TestPassword123!"
+   docker-compose up -d
 
-2. Or manually with docker-compose:
-   docker-compose -f tests/docker/docker-compose.yml up -d
+2. Each container mounts its node directory and uses shared session encryption key
 
-3. Each container mounts the node directory:
-   volumes:
-     - ./tests/docker/node1:/app/node:ro
+3. All nodes have JWT authentication enabled with shared secret: dknet-test-jwt-secret-key-2024
+
+4. Validation service is available at http://validation-service:8888/validate 

@@ -1,4 +1,5 @@
 services:
+
   # Validation Service
   validation-service:
     build:
@@ -9,7 +10,8 @@ services:
     ports:
       - "8888:8888"  # Validation API
     networks:
-      - tss-network
+      tss-network:
+        ipv4_address: 172.20.0.5
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/health"]
@@ -18,7 +20,7 @@ services:
       retries: 3
       start_period: 5s
 
-  # TSS Node 1
+  # Node 1
   tss-node1:
     build: ../..
     container_name: tss-node1
@@ -27,15 +29,16 @@ services:
     ports:
       - "8081:8080"  # HTTP API
       - "9095:9090"  # gRPC API
-      - "4001:4001"  # P2P
+      - "4001:4001"   # P2P
     volumes:
       - ./node1:/app/node
       - tss-node1-data:/app/data
     environment:
       - TSS_CONFIG_FILE=/app/node/config.yaml
-      - TSS_ENCRYPTION_PASSWORD=${TSS_ENCRYPTION_PASSWORD:-TestPassword123!}
+      - TSS_ENCRYPTION_PASSWORD=$${TSS_ENCRYPTION_PASSWORD:-TestPassword123!}
     networks:
-      - tss-network
+      tss-network:
+        ipv4_address: 172.20.0.2
     restart: unless-stopped
     depends_on:
       - validation-service
@@ -46,7 +49,7 @@ services:
       retries: 3
       start_period: 10s
 
-  # TSS Node 2
+  # Node 2
   tss-node2:
     build: ../..
     container_name: tss-node2
@@ -55,15 +58,16 @@ services:
     ports:
       - "8082:8080"  # HTTP API
       - "9096:9090"  # gRPC API
-      - "4002:4001"  # P2P
+      - "4002:4001"   # P2P
     volumes:
       - ./node2:/app/node
       - tss-node2-data:/app/data
     environment:
       - TSS_CONFIG_FILE=/app/node/config.yaml
-      - TSS_ENCRYPTION_PASSWORD=${TSS_ENCRYPTION_PASSWORD:-TestPassword123!}
+      - TSS_ENCRYPTION_PASSWORD=$${TSS_ENCRYPTION_PASSWORD:-TestPassword123!}
     networks:
-      - tss-network
+      tss-network:
+        ipv4_address: 172.20.0.3
     restart: unless-stopped
     depends_on:
       - validation-service
@@ -75,7 +79,7 @@ services:
       retries: 3
       start_period: 15s
 
-  # TSS Node 3
+  # Node 3
   tss-node3:
     build: ../..
     container_name: tss-node3
@@ -84,15 +88,16 @@ services:
     ports:
       - "8083:8080"  # HTTP API
       - "9097:9090"  # gRPC API
-      - "4003:4001"  # P2P
+      - "4003:4001"   # P2P
     volumes:
       - ./node3:/app/node
       - tss-node3-data:/app/data
     environment:
       - TSS_CONFIG_FILE=/app/node/config.yaml
-      - TSS_ENCRYPTION_PASSWORD=${TSS_ENCRYPTION_PASSWORD:-TestPassword123!}
+      - TSS_ENCRYPTION_PASSWORD=$${TSS_ENCRYPTION_PASSWORD:-TestPassword123!}
     networks:
-      - tss-network
+      tss-network:
+        ipv4_address: 172.20.0.4
     restart: unless-stopped
     depends_on:
       - validation-service
@@ -106,16 +111,22 @@ services:
       start_period: 20s
 
 volumes:
+
   tss-node1-data:
     driver: local
+
   tss-node2-data:
     driver: local
+
   tss-node3-data:
     driver: local
 
+
 networks:
+
   tss-network:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16 
+        - subnet: 172.20.0.0/16
+ 
