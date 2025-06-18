@@ -26,6 +26,12 @@ var (
 	logger   *zap.Logger
 )
 
+const (
+	textMessageFormat = "text"
+	hexMessageFormat  = "hex"
+	na                = "N/A"
+)
+
 func main() {
 	// Simple logger setup
 	config := zap.NewDevelopmentConfig()
@@ -35,7 +41,9 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to setup logger:", err)
 	}
-	defer logger.Sync()
+	defer func() {
+		_ = logger.Sync()
+	}()
 
 	rootCmd := &cobra.Command{
 		Use:   "dknet-mcp",
@@ -51,7 +59,7 @@ Example:
 	rootCmd.PersistentFlags().StringVar(&nodeAddr, "node-addr", "localhost:9095", "DKNet node gRPC address")
 	rootCmd.PersistentFlags().StringVar(&nodeID, "node-id", "", "Node ID for X-Node-ID header (required)")
 	rootCmd.PersistentFlags().StringVar(&jwtToken, "jwt-token", "", "JWT token for authentication (if required)")
-	rootCmd.MarkPersistentFlagRequired("node-id")
+	_ = rootCmd.MarkPersistentFlagRequired("node-id")
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Fatal("Command execution failed", zap.Error(err))
@@ -69,7 +77,9 @@ func runMCPServer(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to DKNet node: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	// Test connection
 	tssClient := tssv1.NewTSSServiceClient(conn)
@@ -139,7 +149,7 @@ func registerTSSTools(s *server.MCPServer, tssClient tssv1.TSSServiceClient) err
 		if !ok {
 			return mcp.NewToolResultError("invalid arguments format"), nil
 		}
-		
+
 		threshold, ok := args["threshold"].(float64)
 		if !ok {
 			return mcp.NewToolResultError("threshold must be a number"), nil
@@ -283,7 +293,7 @@ The distributed key has been securely generated and stored across the DKNet clus
 			}
 		}
 
-		messageFormat := "text"
+		messageFormat := textMessageFormat
 		if format, exists := args["message_format"]; exists {
 			if formatStr, ok := format.(string); ok {
 				messageFormat = formatStr
@@ -294,13 +304,13 @@ The distributed key has been securely generated and stored across the DKNet clus
 		var messageBytes []byte
 
 		switch messageFormat {
-		case "hex":
+		case hexMessageFormat:
 			var decodeErr error
 			messageBytes, decodeErr = hex.DecodeString(messageStr)
 			if decodeErr != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("Invalid hex message: %v", decodeErr)), nil
 			}
-		case "text":
+		case textMessageFormat:
 			messageBytes = []byte(messageStr)
 		default:
 			return mcp.NewToolResultError("message_format must be 'text' or 'hex'"), nil
@@ -368,7 +378,12 @@ The message has been successfully signed using the distributed threshold signatu
 }
 
 // Helper function to wait for operation completion
-func waitForOperationCompletion(ctx context.Context, tssClient tssv1.TSSServiceClient, operationID string, timeout time.Duration) (*tssv1.GetOperationResponse, error) {
+func waitForOperationCompletion(
+	ctx context.Context,
+	tssClient tssv1.TSSServiceClient,
+	operationID string,
+	timeout time.Duration,
+) (*tssv1.GetOperationResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -404,7 +419,7 @@ func waitForOperationCompletion(ctx context.Context, tssClient tssv1.TSSServiceC
 			case tssv1.OperationStatus_OPERATION_STATUS_FAILED:
 				return nil, fmt.Errorf("operation failed")
 			case tssv1.OperationStatus_OPERATION_STATUS_CANCELED:
-				return nil, fmt.Errorf("operation was cancelled")
+				return nil, fmt.Errorf("operation was canceled")
 			}
 		}
 	}
@@ -415,28 +430,28 @@ func extractKeyID(resp *tssv1.GetOperationResponse) string {
 	if result := resp.GetKeygenResult(); result != nil {
 		return result.KeyId
 	}
-	return "N/A"
+	return na
 }
 
 func extractPublicKey(resp *tssv1.GetOperationResponse) string {
 	if result := resp.GetKeygenResult(); result != nil {
 		return result.PublicKey
 	}
-	return "N/A"
+	return na
 }
 
 func extractSignatureR(resp *tssv1.GetOperationResponse) string {
 	if result := resp.GetSigningResult(); result != nil {
 		return result.R
 	}
-	return "N/A"
+	return na
 }
 
 func extractSignatureS(resp *tssv1.GetOperationResponse) string {
 	if result := resp.GetSigningResult(); result != nil {
 		return result.S
 	}
-	return "N/A"
+	return na
 }
 
 func extractRecoveryID(resp *tssv1.GetOperationResponse) int {
@@ -444,4 +459,4 @@ func extractRecoveryID(resp *tssv1.GetOperationResponse) int {
 		return int(result.V)
 	}
 	return 0
-} 
+}

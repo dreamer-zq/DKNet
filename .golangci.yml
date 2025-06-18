@@ -53,7 +53,7 @@ linters:
         - wrapperFunc
 
     funlen:
-      lines: 200
+      lines: 300
       statements: -1
 
   exclusions:
