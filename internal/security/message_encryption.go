@@ -71,28 +71,29 @@ type messageEncryption struct {
 // NewMessageEncryption creates a new unified message encryption instance
 func NewMessageEncryption(config *EncryptionConfig, logger *zap.Logger) MessageEncryption {
 	me := &messageEncryption{
-		logger:            logger.Named("message_encryption"),
-		sessionEncryption: NewUnimplementedSessionEncryption(),
-		peerEncryption:    NewUnimplementedPeerEncryption(),
+		logger: logger,
 	}
 
-	// Initialize encryption modules based on EnableEncryption flag
-	if config.EnableEncryption {
-		// Initialize session encryption if seed key is provided
-		if len(config.SessionSeedKey) > 0 {
-			me.sessionEncryption = NewSessionEncryption(config.SessionSeedKey)
-			logger.Info("Session encryption enabled for unified encryption")
-		}
+	// Initialize session encryption if enabled and seed key provided
+	if config.EnableEncryption && len(config.SessionSeedKey) > 0 {
+		me.sessionEncryption = NewSessionEncryption(config.SessionSeedKey)
+		logger.Info("Session encryption initialized")
+	}
 
-		// Initialize peer encryption if private key and peerstore are available
-		if config.PrivateKey != nil && config.Peerstore != nil {
-			if config.PrivateKey.Type() == crypto.Ed25519 {
-				me.peerEncryption = NewEd25519PeerEncryption(config.PrivateKey, config.Peerstore)
-				logger.Info("Peer encryption enabled (Ed25519 optimized) for unified encryption")
-			} else {
-				me.peerEncryption = NewPeerEncryption(config.PrivateKey, config.Peerstore)
-				logger.Info("Peer encryption enabled (RSA) for unified encryption")
-			}
+	// Initialize peer encryption if enabled and private key provided
+	if config.EnableEncryption && config.PrivateKey != nil && config.Peerstore != nil {
+		// Choose the appropriate peer encryption based on key type
+		switch config.PrivateKey.Type() {
+		case crypto.RSA:
+			me.peerEncryption = NewPeerEncryption(config.PrivateKey, config.Peerstore)
+			logger.Info("RSA peer encryption initialized")
+		case crypto.Ed25519:
+			me.peerEncryption = NewEd25519PeerEncryption(config.PrivateKey, config.Peerstore)
+			logger.Info("Ed25519 peer encryption initialized")
+		default:
+			logger.Warn("Unsupported key type for peer encryption, using no-op implementation",
+				zap.String("key_type", config.PrivateKey.Type().String()))
+			me.peerEncryption = NewUnimplementedPeerEncryption()
 		}
 	} else {
 		logger.Info("Unified encryption disabled")
@@ -219,11 +220,25 @@ func (me *messageEncryption) encryptForPeers(msg *MessageEncryptionContext) erro
 	}
 
 	targetPeerID := msg.Recipients[0]
+	me.logger.Debug("Attempting peer encryption",
+		zap.String("target_peer", targetPeerID),
+		zap.String("sender_peer", msg.SenderPeerID),
+		zap.Int("data_len", len(msg.Data)))
+
+	if me.peerEncryption == nil {
+		me.logger.Warn("Peer encryption not available, falling back to session encryption")
+		if msg.SessionID != "" {
+			return me.encryptWithSession(msg)
+		}
+		return fmt.Errorf("no encryption method available")
+	}
+
 	encryptedData, err := me.peerEncryption.EncryptForPeer(targetPeerID, msg.Data)
 	if err != nil {
 		// Fallback to session encryption if peer encryption fails
 		me.logger.Warn("Peer encryption failed, falling back to session encryption",
 			zap.String("target_peer", targetPeerID),
+			zap.String("sender_peer", msg.SenderPeerID),
 			zap.Error(err))
 
 		if msg.SessionID != "" {
@@ -237,7 +252,8 @@ func (me *messageEncryption) encryptForPeers(msg *MessageEncryptionContext) erro
 	msg.SetEncrypted(true)
 
 	me.logger.Debug("Message encrypted for peer",
-		zap.String("target_peer", targetPeerID))
+		zap.String("target_peer", targetPeerID),
+		zap.String("sender_peer", msg.SenderPeerID))
 
 	return nil
 }
@@ -261,8 +277,24 @@ func (me *messageEncryption) encryptWithSession(msg *MessageEncryptionContext) e
 
 // decryptFromPeer decrypts message from a specific peer
 func (me *messageEncryption) decryptFromPeer(msg *MessageEncryptionContext) error {
+	me.logger.Debug("Attempting peer decryption",
+		zap.String("sender_peer", msg.SenderPeerID),
+		zap.Int("data_len", len(msg.Data)))
+
+	if me.peerEncryption == nil {
+		return fmt.Errorf("peer encryption not available")
+	}
+
+	if msg.SenderPeerID == "" {
+		me.logger.Warn("Empty sender peer ID for peer decryption")
+		return fmt.Errorf("empty sender peer ID")
+	}
+
 	decryptedData, err := me.peerEncryption.DecryptFromPeer(msg.SenderPeerID, msg.Data)
 	if err != nil {
+		me.logger.Debug("Peer decryption failed",
+			zap.String("sender_peer", msg.SenderPeerID),
+			zap.Error(err))
 		return fmt.Errorf("failed to decrypt from peer: %w", err)
 	}
 

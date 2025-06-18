@@ -25,6 +25,13 @@ const (
 )
 
 func setupConnection(cmd *cobra.Command, args []string) error {
+	// Check for JWT token from environment variable if not provided via flag
+	if jwtToken == "" {
+		if envToken := os.Getenv("DKNET_JWT_TOKEN"); envToken != "" {
+			jwtToken = envToken
+		}
+	}
+
 	if useGRPC {
 		conn, err := grpc.NewClient(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {

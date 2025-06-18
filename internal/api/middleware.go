@@ -15,10 +15,15 @@ import (
 // HTTPAuthMiddleware creates a Gin middleware for HTTP authentication
 func HTTPAuthMiddleware(auth Authenticator, logger *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Extract token from request
+		if !auth.Enabled() {
+			c.Next()
+			return
+		}
+
+		// Extract token from request (may be empty)
 		token := extractTokenFromHTTPRequest(c.Request)
 
-		// Authenticate
+		// Authenticate - the authenticator will handle whether auth is enabled
 		authCtx, err := auth.Authenticate(c.Request.Context(), token)
 		if err != nil {
 			logger.Warn("HTTP authentication failed",
@@ -55,16 +60,17 @@ func GRPCAuthInterceptor(auth Authenticator, logger *zap.Logger) grpc.UnaryServe
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (any, error) {
-		// Extract token from gRPC metadata
+		if !auth.Enabled() {
+			return handler(ctx, req)
+		}
+		
+		// Extract token from gRPC metadata (if available)
 		token, err := extractTokenFromGRPCContext(ctx)
 		if err != nil {
-			logger.Warn("Failed to extract token from gRPC context",
-				zap.String("method", info.FullMethod),
-				zap.Error(err))
 			return nil, status.Errorf(codes.Unauthenticated, "Authentication token required")
 		}
 
-		// Authenticate
+		// Authenticate - this will check if auth is enabled
 		authCtx, err := auth.Authenticate(ctx, token)
 		if err != nil {
 			logger.Warn("gRPC authentication failed",
@@ -93,16 +99,19 @@ func GRPCAuthStreamInterceptor(auth Authenticator, logger *zap.Logger) grpc.Stre
 		info *grpc.StreamServerInfo,
 		handler grpc.StreamHandler,
 	) error {
-		// Extract token from gRPC metadata
-		token, err := extractTokenFromGRPCContext(ss.Context())
+		// Try to authenticate first - the authenticator will handle whether auth is enabled
+		var token string
+		var err error
+		
+		// Extract token from gRPC metadata (if available)
+		token, err = extractTokenFromGRPCContext(ss.Context())
 		if err != nil {
-			logger.Warn("Failed to extract token from gRPC stream context",
-				zap.String("method", info.FullMethod),
-				zap.Error(err))
-			return status.Errorf(codes.Unauthenticated, "Authentication token required")
+			// If token extraction fails, pass empty token to authenticator
+			// The authenticator will decide whether this is acceptable based on config
+			token = ""
 		}
 
-		// Authenticate
+		// Authenticate - this will check if auth is enabled
 		authCtx, err := auth.Authenticate(ss.Context(), token)
 		if err != nil {
 			logger.Warn("gRPC stream authentication failed",

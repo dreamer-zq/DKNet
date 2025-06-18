@@ -1,0 +1,57 @@
+services:
+{{range .Nodes}}
+  # {{.Name}}
+  {{.ServiceName}}:
+    image: dknet:latest
+    container_name: {{.ServiceName}}
+    hostname: {{.ServiceName}}
+    command: ["start", "--config", "/app/node/config.yaml"]
+    ports:
+      - "{{.HTTPPort}}:8080"  # HTTP API
+      - "{{.GRPCPort}}:9090"  # gRPC API
+      - "{{.P2PPort}}:4001"   # P2P
+    volumes:
+      - ./{{.NodeDir}}:/app/node
+      - {{.ServiceName}}-data:/app/data
+    environment:
+      - TSS_CONFIG_FILE=/app/node/config.yaml
+      - TSS_ENCRYPTION_PASSWORD=$${TSS_ENCRYPTION_PASSWORD:-TestPassword123!}
+    networks:
+{{if .UseCustomIP}}
+      tss-network:
+        ipv4_address: {{.IP}}
+{{else}}
+      - tss-network
+{{end}}
+    restart: unless-stopped
+{{if .Dependencies}}
+    depends_on:
+{{range .Dependencies}}
+      - {{.}}
+{{end}}
+{{end}}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: {{.StartPeriod}}s
+
+{{end}}
+volumes:
+{{range .Nodes}}
+  {{.ServiceName}}-data:
+    driver: local
+{{end}}
+
+networks:
+{{if .UseCustomSubnet}}
+  tss-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: {{.Subnet}}
+{{else}}
+  tss-network:
+    driver: bridge
+{{end}} 

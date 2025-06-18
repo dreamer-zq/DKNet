@@ -41,16 +41,26 @@ var rootCmd = &cobra.Command{
 It provides commands for key generation, signing, resharing, and other
 threshold signature scheme operations through HTTP or gRPC APIs.
 
-Authentication:
-  Use --token to provide a JWT token for API authentication.
-  Generate tokens using the server's 'dknet generate-token' command.
+Authentication (optional):
+  JWT authentication can be enabled on the server. When enabled, provide a token using:
+  1. Command line flag: --token="your-jwt-token"
+  2. Environment variable: export DKNET_JWT_TOKEN="your-jwt-token"
+  
+  If authentication is not enabled on the server, omit the token entirely.
 
 Examples:
-  # Generate token on server
-  dknet generate-token --config=/path/to/config.yaml
+  # Without authentication
+  dknet-cli keygen --threshold=2 --parties=3 --participants=node1,node2,node3
   
-  # Use token with CLI
-  dknet-cli --token="your-jwt-token" keygen --threshold=2 --parties=3 --participants=node1,node2,node3`,
+  # With token via flag
+  dknet-cli --token="your-jwt-token" keygen --threshold=2 --parties=3 --participants=node1,node2,node3
+  
+  # With token via environment variable
+  export DKNET_JWT_TOKEN="your-jwt-token"
+  dknet-cli keygen --threshold=2 --parties=3 --participants=node1,node2,node3
+  
+  # Generate token on server (if auth is enabled)
+  dknet generate-token --config=/path/to/config.yaml`,
 	PersistentPreRunE: setupConnection,
 	PersistentPostRun: cleanup,
 }
@@ -62,7 +72,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "text", "Output format (text|json)")
 
 	// Authentication flags
-	rootCmd.PersistentFlags().StringVar(&jwtToken, "token", "", "JWT token for authentication")
+	rootCmd.PersistentFlags().StringVar(&jwtToken, "token", "", "JWT token for authentication (can also use DKNET_JWT_TOKEN env var)")
 
 	rootCmd.AddCommand(
 		createKeygenCommand(),

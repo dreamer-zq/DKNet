@@ -50,7 +50,8 @@ using threshold cryptography to ensure no single point of failure.`,
 	rootCmd.AddCommand(startCmd, runInitClusterCmd(), runInitNodeCmd(), runShowNodeCmd(), keyseedCmd(), generateTokenCmd())
 
 	if err := rootCmd.Execute(); err != nil {
-		logger.Fatal("Failed to execute command", zap.Error(err))
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 }
 

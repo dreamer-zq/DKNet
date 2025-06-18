@@ -67,14 +67,12 @@ func (s *Server) stopHTTPServer() error {
 
 // setupHTTPRoutes sets up HTTP routes
 func (s *Server) setupHTTPRoutes(router *gin.Engine) {
-	// Add authentication middleware
-	router.Use(HTTPAuthMiddleware(s.authenticator, s.logger))
-
-	// Health check (typically excluded from auth)
+	// Health check (excluded from auth)
 	router.GET(HealthPath, s.healthHandler)
 
-	// TSS operations
+	// TSS operations with authentication
 	api := router.Group(APIVersionPrefix)
+	api.Use(HTTPAuthMiddleware(s.authenticator, s.logger))
 	api.POST(KeygenPath, s.keygenHandler)
 	api.POST(SignPath, s.signHandler)
 	api.POST(ResharePath, s.reshareHandler)

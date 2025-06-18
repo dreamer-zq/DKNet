@@ -2,14 +2,20 @@ package main
 
 import (
 	"crypto/rand"
+	"embed"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
+	"text/template"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
 )
+
+//go:embed templates/*
+var templateFS embed.FS
 
 const (
 	defaultBindIP = "0.0.0.0"
@@ -49,7 +55,7 @@ func ensureNodeDirectory(nodeDir string) error {
 // generateAndSaveNodeKey generates P2P key pair and saves private key to file
 func generateAndSaveNodeKey(nodeDir, nodeID string) (crypto.PrivKey, peer.ID, error) {
 	// Generate private key
-	privKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, rand.Reader)
+	privKey, _, err := crypto.GenerateKeyPairWithReader(crypto.Ed25519, 2048, rand.Reader)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to generate private key for %s: %w", nodeID, err)
 	}
@@ -75,19 +81,6 @@ func generateAndSaveNodeKey(nodeDir, nodeID string) (crypto.PrivKey, peer.ID, er
 	return privKey, peerID, nil
 }
 
-// generateMultiaddr creates multiaddr string for a node
-func generateMultiaddr(nodeIndex int, peerID string, dockerMode bool) string {
-	if dockerMode {
-		// Use Docker container names and internal network IPs
-		ip := fmt.Sprintf("172.20.0.%d", nodeIndex+1) // Start from 172.20.0.2
-		return fmt.Sprintf("/ip4/%s/tcp/4001/p2p/%s", ip, peerID)
-	} else {
-		// Use localhost with different ports
-		port := 4000 + nodeIndex
-		return fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/p2p/%s", port, peerID)
-	}
-}
-
 // getNodeP2PPort returns the P2P port for a given node index
 func getNodeP2PPort(nodeIndex int, dockerMode bool) int {
 	if dockerMode {
@@ -102,4 +95,143 @@ func getNodeListenAddr(dockerMode bool) string {
 		return defaultBindIP
 	}
 	return "127.0.0.1"
+}
+
+// DockerNodeConfig represents configuration for a Docker node
+type DockerNodeConfig struct {
+	Name         string
+	ServiceName  string
+	NodeDir      string
+	HTTPPort     int
+	GRPCPort     int
+	P2PPort      int
+	IP           string
+	StartPeriod  int
+	UseCustomIP  bool
+	Dependencies []string
+}
+
+// DockerComposeConfig represents the full docker-compose configuration
+type DockerComposeConfig struct {
+	Nodes           []DockerNodeConfig
+	UseCustomSubnet bool
+	Subnet          string
+}
+
+// generateDockerCompose generates docker-compose.yaml file using template
+func generateDockerCompose(outputDir string, nodes int) error {
+	// Read template
+	tmplContent, err := templateFS.ReadFile("templates/docker-compose.tmpl")
+	if err != nil {
+		return fmt.Errorf("failed to read docker-compose template: %w", err)
+	}
+
+	// Parse template
+	tmpl, err := template.New("docker-compose").Parse(string(tmplContent))
+	if err != nil {
+		return fmt.Errorf("failed to parse docker-compose template: %w", err)
+	}
+
+	// Generate node configurations
+	var nodeConfigs []DockerNodeConfig
+	for i := 1; i <= nodes; i++ {
+		// Calculate dependencies (all previous nodes)
+		var dependencies []string
+		for j := 1; j < i; j++ {
+			dependencies = append(dependencies, fmt.Sprintf("tss-node%d", j))
+		}
+
+		nodeConfig := DockerNodeConfig{
+			Name:         fmt.Sprintf("Node %d", i),
+			ServiceName:  fmt.Sprintf("tss-node%d", i),
+			NodeDir:      fmt.Sprintf("node%d", i),
+			HTTPPort:     8080 + i,
+			GRPCPort:     9090 + i + 4,
+			P2PPort:      4000 + i,
+			IP:           fmt.Sprintf("172.20.0.%d", i+1),
+			StartPeriod:  5 + (i-1)*5,
+			UseCustomIP:  true, // Enable custom IP assignment
+			Dependencies: dependencies,
+		}
+		nodeConfigs = append(nodeConfigs, nodeConfig)
+	}
+
+	// Create template data
+	config := DockerComposeConfig{
+		Nodes:           nodeConfigs,
+		UseCustomSubnet: true,
+		Subnet:          "172.20.0.0/16",
+	}
+
+	// Generate output file
+	outputFile := filepath.Join(outputDir, "docker-compose.yaml")
+	file, err := os.Create(outputFile)
+	if err != nil {
+		return fmt.Errorf("failed to create docker-compose.yaml: %w", err)
+	}
+	defer file.Close()
+
+	// Execute template
+	if err := tmpl.Execute(file, config); err != nil {
+		return fmt.Errorf("failed to execute docker-compose template: %w", err)
+	}
+
+	return nil
+}
+
+// generateNodeConfig generates configuration files for a single node
+func generateNodeConfig(nodeDir string, nodeIndex, totalNodes int, dockerMode bool, sessionSeedKey string) error {
+	// Create node directory
+	if err := os.MkdirAll(nodeDir, 0755); err != nil {
+		return fmt.Errorf("failed to create node directory: %w", err)
+	}
+
+	// Generate node key
+	nodeID := fmt.Sprintf("node%d", nodeIndex)
+	_, peerID, err := generateAndSaveNodeKey(nodeDir, nodeID)
+	if err != nil {
+		return fmt.Errorf("failed to generate node key: %w", err)
+	}
+
+	// Generate bootstrap peers (placeholder for now - we need peer info from other nodes)
+	var bootstrapPeers []string
+	// In a real implementation, you'd need to coordinate peer discovery
+	// For now, we'll leave this empty and let runtime discovery handle it
+
+	// Generate config file
+	configFile := filepath.Join(nodeDir, "config.yaml")
+	
+	// Set ports based on mode
+	httpPort := 8080
+	grpcPort := 9090
+	if !dockerMode {
+		// In local mode, use different ports for each node
+		httpPort = 8080 + nodeIndex
+		grpcPort = 9090 + nodeIndex + 4 // Offset to avoid conflicts
+	}
+
+	nodeName := fmt.Sprintf("TSS Node %d", nodeIndex)
+	listenAddr := getNodeListenAddr(dockerMode)
+	p2pPort := getNodeP2PPort(nodeIndex, dockerMode)
+
+	err = generateAndSaveNodeConfig(nodeName, bootstrapPeers, listenAddr, p2pPort, httpPort, grpcPort, configFile, sessionSeedKey, dockerMode)
+	if err != nil {
+		return fmt.Errorf("failed to generate config file: %w", err)
+	}
+
+	// Generate node info file (optional)
+	if err := generateNodeInfo(nodeDir, peerID.String(), listenAddr, p2pPort, bootstrapPeers, dockerMode); err != nil {
+		return fmt.Errorf("failed to generate node info: %w", err)
+	}
+
+	return nil
+}
+
+// generateSessionSeedKey generates a random 32-byte seed key for session encryption
+func generateSessionSeedKey() (string, error) {
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		return "", fmt.Errorf("failed to generate random seed key: %w", err)
+	}
+	return hex.EncodeToString(key), nil
 }

@@ -29,6 +29,9 @@ type AuthContext struct {
 type Authenticator interface {
 	// Authenticate validates the JWT token
 	Authenticate(ctx context.Context, token string) (*AuthContext, error)
+
+	// Enabled checks if authentication is enabled
+	Enabled() bool
 }
 
 // authenticator implements the Authenticator interface
@@ -56,7 +59,6 @@ func (a *authenticator) Authenticate(ctx context.Context, token string) (*AuthCo
 	}
 	// Remove "Bearer " prefix if present
 	tokenString := strings.TrimPrefix(token, "Bearer ")
-
 	jwtToken, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Validate the signing method
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -115,6 +117,11 @@ func (a *authenticator) Authenticate(ctx context.Context, token string) (*AuthCo
 		Roles:         roles,
 		Claims:        claims,
 	}, nil
+}
+
+// Enabled checks if authentication is enabled
+func (a *authenticator) Enabled() bool {
+	return a.config.Enabled
 }
 
 // AuthContextKey is the key for storing auth context in request context

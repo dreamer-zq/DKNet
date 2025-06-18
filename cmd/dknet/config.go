@@ -19,7 +19,17 @@ func generateAndSaveNodeConfig(
 	httpPort int,
 	grpcPort int,
 	configPath string,
+	sessionSeedKey string,
+	dockerMode bool,
 ) error {
+	// Set the correct private key file path based on mode
+	privateKeyFile := "./node_key"
+	storagePath := "./data/storage"
+	if dockerMode {
+		privateKeyFile = "/app/node/node_key"
+		storagePath = "/app/data/storage"
+	}
+
 	cfg := &config.NodeConfig{
 		Server: config.ServerConfig{
 			HTTP: config.HTTPConfig{
@@ -34,12 +44,12 @@ func generateAndSaveNodeConfig(
 		P2P: config.P2PConfig{
 			ListenAddrs:    []string{fmt.Sprintf("/ip4/%s/tcp/%d", listenAddr, p2pPort)},
 			BootstrapPeers: bootstrapPeers,
-			PrivateKeyFile: "./node_key",
+			PrivateKeyFile: privateKeyFile,
 			MaxPeers:       50,
 		},
 		Storage: config.StorageConfig{
 			Type:    "leveldb",
-			Path:    "./data/storage",
+			Path:    storagePath,
 			Options: make(map[string]string),
 		},
 		TSS: config.TSSConfig{
@@ -52,7 +62,12 @@ func generateAndSaveNodeConfig(
 				InsecureSkipVerify: false,
 			},
 		},
-		Security: generateDefaultSecurityConfig(),
+		Security: generateDefaultSecurityConfigWithSessionKey(sessionSeedKey),
+		Logging: config.LoggingConfig{
+			Level:       "debug",
+			Environment: "dev", 
+			Output:      "stdout",
+		},
 	}
 
 	// Save config to file
@@ -217,6 +232,28 @@ func generateDefaultSecurityConfig() config.SecurityConfig {
 		SessionEncryption: config.SessionEncryptionConfig{
 			Enabled: false,
 			SeedKey: "",
+		},
+	}
+}
+
+// generateDefaultSecurityConfigWithSessionKey creates a default security configuration with a session key
+func generateDefaultSecurityConfigWithSessionKey(sessionSeedKey string) config.SecurityConfig {
+	return config.SecurityConfig{
+		TLSEnabled: false,
+		CertFile:   "",
+		KeyFile:    "",
+		APIAuth: config.AuthConfig{
+			Enabled:   false,
+			JWTSecret: "",
+			JWTIssuer: "",
+		},
+		AccessControl: config.AccessControlConfig{
+			Enabled:      false,
+			AllowedPeers: []string{},
+		},
+		SessionEncryption: config.SessionEncryptionConfig{
+			Enabled: true,
+			SeedKey: sessionSeedKey,
 		},
 	}
 }
