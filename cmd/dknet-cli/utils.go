@@ -354,3 +354,16 @@ func outputRawOperationResponse(resp map[string]interface{}) error {
 
 	return nil
 }
+
+func outputGetKeyMetadataResponse(resp *tssv1.GetKeyMetadataResponse) error {
+	if outputFormat == outputFormatJSON {
+		return outputJSON(resp)
+	}
+
+	fmt.Printf("📋 Key Metadata\n")
+	fmt.Printf("Moniker: %s\n", resp.Moniker)
+	fmt.Printf("Threshold: %d\n", resp.Threshold)
+	fmt.Printf("Participants: %s\n", strings.Join(resp.Participants, ", "))
+
+	return nil
+}

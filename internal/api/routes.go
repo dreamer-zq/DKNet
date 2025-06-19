@@ -31,4 +31,5 @@ func GetOperationPath(operationID string) string {
 // API路径模式（用于路由注册）
 const (
 	OperationPathPattern = OperationsPath + "/:operation_id"
+	KeyMetadataPath      = "/keys/:key_id"
 )

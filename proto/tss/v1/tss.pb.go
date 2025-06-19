@@ -674,6 +674,115 @@ func (x *StartResharingResponse) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type GetKeyMetadataRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Key ID to query
+	KeyId         string `protobuf:"bytes,1,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetKeyMetadataRequest) Reset() {
+	*x = GetKeyMetadataRequest{}
+	mi := &file_proto_tss_v1_tss_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetKeyMetadataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetKeyMetadataRequest) ProtoMessage() {}
+
+func (x *GetKeyMetadataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_tss_v1_tss_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetKeyMetadataRequest.ProtoReflect.Descriptor instead.
+func (*GetKeyMetadataRequest) Descriptor() ([]byte, []int) {
+	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetKeyMetadataRequest) GetKeyId() string {
+	if x != nil {
+		return x.KeyId
+	}
+	return ""
+}
+
+// GetKeyMetadataResponse represents the response to a key metadata request
+type GetKeyMetadataResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Key ID
+	Moniker string `protobuf:"bytes,1,opt,name=moniker,proto3" json:"moniker,omitempty"`
+	// Threshold
+	Threshold int32 `protobuf:"varint,2,opt,name=threshold,proto3" json:"threshold,omitempty"`
+	// Participants
+	Participants  []string `protobuf:"bytes,3,rep,name=participants,proto3" json:"participants,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetKeyMetadataResponse) Reset() {
+	*x = GetKeyMetadataResponse{}
+	mi := &file_proto_tss_v1_tss_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetKeyMetadataResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetKeyMetadataResponse) ProtoMessage() {}
+
+func (x *GetKeyMetadataResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_tss_v1_tss_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetKeyMetadataResponse.ProtoReflect.Descriptor instead.
+func (*GetKeyMetadataResponse) Descriptor() ([]byte, []int) {
+	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetKeyMetadataResponse) GetMoniker() string {
+	if x != nil {
+		return x.Moniker
+	}
+	return ""
+}
+
+func (x *GetKeyMetadataResponse) GetThreshold() int32 {
+	if x != nil {
+		return x.Threshold
+	}
+	return 0
+}
+
+func (x *GetKeyMetadataResponse) GetParticipants() []string {
+	if x != nil {
+		return x.Participants
+	}
+	return nil
+}
+
 // GetOperationRequest represents a request to get operation status
 type GetOperationRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -685,7 +794,7 @@ type GetOperationRequest struct {
 
 func (x *GetOperationRequest) Reset() {
 	*x = GetOperationRequest{}
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[8]
+	mi := &file_proto_tss_v1_tss_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -697,7 +806,7 @@ func (x *GetOperationRequest) String() string {
 func (*GetOperationRequest) ProtoMessage() {}
 
 func (x *GetOperationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[8]
+	mi := &file_proto_tss_v1_tss_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -710,7 +819,7 @@ func (x *GetOperationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOperationRequest.ProtoReflect.Descriptor instead.
 func (*GetOperationRequest) Descriptor() ([]byte, []int) {
-	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{8}
+	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetOperationRequest) GetOperationId() string {
@@ -761,7 +870,7 @@ type GetOperationResponse struct {
 
 func (x *GetOperationResponse) Reset() {
 	*x = GetOperationResponse{}
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[9]
+	mi := &file_proto_tss_v1_tss_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -773,7 +882,7 @@ func (x *GetOperationResponse) String() string {
 func (*GetOperationResponse) ProtoMessage() {}
 
 func (x *GetOperationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_tss_v1_tss_proto_msgTypes[9]
+	mi := &file_proto_tss_v1_tss_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -786,7 +895,7 @@ func (x *GetOperationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOperationResponse.ProtoReflect.Descriptor instead.
 func (*GetOperationResponse) Descriptor() ([]byte, []int) {
-	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{9}
+	return file_proto_tss_v1_tss_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetOperationResponse) GetOperationId() string {
@@ -1000,7 +1109,13 @@ const file_proto_tss_v1_tss_proto_rawDesc = "" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12/\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x17.tss.v1.OperationStatusR\x06status\x129\n" +
 	"\n" +
-	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"8\n" +
+	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\".\n" +
+	"\x15GetKeyMetadataRequest\x12\x15\n" +
+	"\x06key_id\x18\x01 \x01(\tR\x05keyId\"t\n" +
+	"\x16GetKeyMetadataResponse\x12\x18\n" +
+	"\amoniker\x18\x01 \x01(\tR\amoniker\x12\x1c\n" +
+	"\tthreshold\x18\x02 \x01(\x05R\tthreshold\x12\"\n" +
+	"\fparticipants\x18\x03 \x03(\tR\fparticipants\"8\n" +
 	"\x13GetOperationRequest\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\"\xbd\x06\n" +
 	"\x14GetOperationResponse\x12!\n" +
@@ -1036,13 +1151,14 @@ const file_proto_tss_v1_tss_proto_rawDesc = "" +
 	"\x1aOPERATION_TYPE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15OPERATION_TYPE_KEYGEN\x10\x01\x12\x1a\n" +
 	"\x16OPERATION_TYPE_SIGNING\x10\x02\x12\x1c\n" +
-	"\x18OPERATION_TYPE_RESHARING\x10\x032\xbb\x02\n" +
+	"\x18OPERATION_TYPE_RESHARING\x10\x032\x8c\x03\n" +
 	"\n" +
 	"TSSService\x12F\n" +
 	"\vStartKeygen\x12\x1a.tss.v1.StartKeygenRequest\x1a\x1b.tss.v1.StartKeygenResponse\x12I\n" +
 	"\fStartSigning\x12\x1b.tss.v1.StartSigningRequest\x1a\x1c.tss.v1.StartSigningResponse\x12O\n" +
 	"\x0eStartResharing\x12\x1d.tss.v1.StartResharingRequest\x1a\x1e.tss.v1.StartResharingResponse\x12I\n" +
-	"\fGetOperation\x12\x1b.tss.v1.GetOperationRequest\x1a\x1c.tss.v1.GetOperationResponseB0Z.github.com/dreamer-zq/DKNet/proto/tss/v1;tssv1b\x06proto3"
+	"\fGetOperation\x12\x1b.tss.v1.GetOperationRequest\x1a\x1c.tss.v1.GetOperationResponse\x12O\n" +
+	"\x0eGetKeyMetadata\x12\x1d.tss.v1.GetKeyMetadataRequest\x1a\x1e.tss.v1.GetKeyMetadataResponseB0Z.github.com/dreamer-zq/DKNet/proto/tss/v1;tssv1b\x06proto3"
 
 var (
 	file_proto_tss_v1_tss_proto_rawDescOnce sync.Once
@@ -1057,7 +1173,7 @@ func file_proto_tss_v1_tss_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_tss_v1_tss_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_tss_v1_tss_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_proto_tss_v1_tss_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_proto_tss_v1_tss_proto_goTypes = []any{
 	(OperationStatus)(0),           // 0: tss.v1.OperationStatus
 	(OperationType)(0),             // 1: tss.v1.OperationType
@@ -1069,21 +1185,23 @@ var file_proto_tss_v1_tss_proto_goTypes = []any{
 	(*SigningResult)(nil),          // 7: tss.v1.SigningResult
 	(*StartResharingRequest)(nil),  // 8: tss.v1.StartResharingRequest
 	(*StartResharingResponse)(nil), // 9: tss.v1.StartResharingResponse
-	(*GetOperationRequest)(nil),    // 10: tss.v1.GetOperationRequest
-	(*GetOperationResponse)(nil),   // 11: tss.v1.GetOperationResponse
-	(*timestamppb.Timestamp)(nil),  // 12: google.protobuf.Timestamp
+	(*GetKeyMetadataRequest)(nil),  // 10: tss.v1.GetKeyMetadataRequest
+	(*GetKeyMetadataResponse)(nil), // 11: tss.v1.GetKeyMetadataResponse
+	(*GetOperationRequest)(nil),    // 12: tss.v1.GetOperationRequest
+	(*GetOperationResponse)(nil),   // 13: tss.v1.GetOperationResponse
+	(*timestamppb.Timestamp)(nil),  // 14: google.protobuf.Timestamp
 }
 var file_proto_tss_v1_tss_proto_depIdxs = []int32{
 	0,  // 0: tss.v1.StartKeygenResponse.status:type_name -> tss.v1.OperationStatus
-	12, // 1: tss.v1.StartKeygenResponse.created_at:type_name -> google.protobuf.Timestamp
+	14, // 1: tss.v1.StartKeygenResponse.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: tss.v1.StartSigningResponse.status:type_name -> tss.v1.OperationStatus
-	12, // 3: tss.v1.StartSigningResponse.created_at:type_name -> google.protobuf.Timestamp
+	14, // 3: tss.v1.StartSigningResponse.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 4: tss.v1.StartResharingResponse.status:type_name -> tss.v1.OperationStatus
-	12, // 5: tss.v1.StartResharingResponse.created_at:type_name -> google.protobuf.Timestamp
+	14, // 5: tss.v1.StartResharingResponse.created_at:type_name -> google.protobuf.Timestamp
 	1,  // 6: tss.v1.GetOperationResponse.type:type_name -> tss.v1.OperationType
 	0,  // 7: tss.v1.GetOperationResponse.status:type_name -> tss.v1.OperationStatus
-	12, // 8: tss.v1.GetOperationResponse.created_at:type_name -> google.protobuf.Timestamp
-	12, // 9: tss.v1.GetOperationResponse.completed_at:type_name -> google.protobuf.Timestamp
+	14, // 8: tss.v1.GetOperationResponse.created_at:type_name -> google.protobuf.Timestamp
+	14, // 9: tss.v1.GetOperationResponse.completed_at:type_name -> google.protobuf.Timestamp
 	4,  // 10: tss.v1.GetOperationResponse.keygen_result:type_name -> tss.v1.KeygenResult
 	7,  // 11: tss.v1.GetOperationResponse.signing_result:type_name -> tss.v1.SigningResult
 	4,  // 12: tss.v1.GetOperationResponse.resharing_result:type_name -> tss.v1.KeygenResult
@@ -1093,13 +1211,15 @@ var file_proto_tss_v1_tss_proto_depIdxs = []int32{
 	2,  // 16: tss.v1.TSSService.StartKeygen:input_type -> tss.v1.StartKeygenRequest
 	5,  // 17: tss.v1.TSSService.StartSigning:input_type -> tss.v1.StartSigningRequest
 	8,  // 18: tss.v1.TSSService.StartResharing:input_type -> tss.v1.StartResharingRequest
-	10, // 19: tss.v1.TSSService.GetOperation:input_type -> tss.v1.GetOperationRequest
-	3,  // 20: tss.v1.TSSService.StartKeygen:output_type -> tss.v1.StartKeygenResponse
-	6,  // 21: tss.v1.TSSService.StartSigning:output_type -> tss.v1.StartSigningResponse
-	9,  // 22: tss.v1.TSSService.StartResharing:output_type -> tss.v1.StartResharingResponse
-	11, // 23: tss.v1.TSSService.GetOperation:output_type -> tss.v1.GetOperationResponse
-	20, // [20:24] is the sub-list for method output_type
-	16, // [16:20] is the sub-list for method input_type
+	12, // 19: tss.v1.TSSService.GetOperation:input_type -> tss.v1.GetOperationRequest
+	10, // 20: tss.v1.TSSService.GetKeyMetadata:input_type -> tss.v1.GetKeyMetadataRequest
+	3,  // 21: tss.v1.TSSService.StartKeygen:output_type -> tss.v1.StartKeygenResponse
+	6,  // 22: tss.v1.TSSService.StartSigning:output_type -> tss.v1.StartSigningResponse
+	9,  // 23: tss.v1.TSSService.StartResharing:output_type -> tss.v1.StartResharingResponse
+	13, // 24: tss.v1.TSSService.GetOperation:output_type -> tss.v1.GetOperationResponse
+	11, // 25: tss.v1.TSSService.GetKeyMetadata:output_type -> tss.v1.GetKeyMetadataResponse
+	21, // [21:26] is the sub-list for method output_type
+	16, // [16:21] is the sub-list for method input_type
 	16, // [16:16] is the sub-list for extension type_name
 	16, // [16:16] is the sub-list for extension extendee
 	0,  // [0:16] is the sub-list for field type_name
@@ -1110,7 +1230,7 @@ func file_proto_tss_v1_tss_proto_init() {
 	if File_proto_tss_v1_tss_proto != nil {
 		return
 	}
-	file_proto_tss_v1_tss_proto_msgTypes[9].OneofWrappers = []any{
+	file_proto_tss_v1_tss_proto_msgTypes[11].OneofWrappers = []any{
 		(*GetOperationResponse_KeygenResult)(nil),
 		(*GetOperationResponse_SigningResult)(nil),
 		(*GetOperationResponse_ResharingResult)(nil),
@@ -1124,7 +1244,7 @@ func file_proto_tss_v1_tss_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_tss_v1_tss_proto_rawDesc), len(file_proto_tss_v1_tss_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   10,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -181,6 +181,23 @@ func (g *gRPCTSSServer) GetOperation(ctx context.Context, req *tssv1.GetOperatio
 	return buildOperationResponseFromStorage(operationData), nil
 }
 
+// GetKeyMetadata implements TSSService.GetKeyMetadata
+func (g *gRPCTSSServer) GetKeyMetadata(ctx context.Context, req *tssv1.GetKeyMetadataRequest) (*tssv1.GetKeyMetadataResponse, error) {
+	// Get key metadata
+	metadata, err := g.tssService.LoadKeyMetadata(ctx, req.KeyId)
+	if err != nil {
+		g.logger.Error("Failed to get key metadata", zap.Error(err))
+		return nil, status.Errorf(codes.Internal, "failed to get key metadata: %v", err)
+	}
+
+	// Convert to proto response
+	return &tssv1.GetKeyMetadataResponse{
+		Moniker:      metadata.Moniker,
+		Threshold:    int32(metadata.Threshold),
+		Participants: metadata.Participants,
+	}, nil
+}
+
 // Check implements HealthService.Check
 func (g *gRPCHealthServer) Check(ctx context.Context, req *healthv1.CheckRequest) (*healthv1.CheckResponse, error) {
 	return &healthv1.CheckResponse{

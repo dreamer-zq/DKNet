@@ -77,8 +77,8 @@ func (s *Server) setupHTTPRoutes(router *gin.Engine) {
 	api.POST(SignPath, s.signHandler)
 	api.POST(ResharePath, s.reshareHandler)
 
-	// Operations
 	api.GET(OperationPathPattern, s.getOperationHandler)
+	api.GET(KeyMetadataPath, s.getKeyMetadataHandler)
 }
 
 // healthHandler handles health check requests
@@ -215,4 +215,22 @@ func (s *Server) getOperationHandler(c *gin.Context) {
 	resp := buildOperationResponseFromStorage(operationData)
 
 	c.JSON(http.StatusOK, resp)
+}
+
+// getKeyMetadataHandler handles get key metadata requests
+func (s *Server) getKeyMetadataHandler(c *gin.Context) {
+	keyID := c.Param("key_id")
+
+	metadata, err := s.tssService.LoadKeyMetadata(context.Background(), keyID)
+	if err != nil {
+		s.logger.Error("Failed to get key metadata", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, &tssv1.GetKeyMetadataResponse{
+		Moniker:      metadata.Moniker,
+		Threshold:    int32(metadata.Threshold),
+		Participants: metadata.Participants,
+	})
 }

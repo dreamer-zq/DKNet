@@ -19,6 +19,8 @@ service TSSService {
     
     // GetOperation gets the status and result of an operation
     rpc GetOperation(GetOperationRequest) returns (GetOperationResponse);
+
+    rpc GetKeyMetadata(GetKeyMetadataRequest) returns (GetKeyMetadataResponse);
 }
 
 // Operation status enumeration
@@ -143,6 +145,23 @@ message StartResharingResponse {
     
     // Timestamp when operation was created
     google.protobuf.Timestamp created_at = 3;
+}
+
+// GetKeyMetadataRequest represents a request to get key metadata
+
+message GetKeyMetadataRequest {
+    // Key ID to query
+    string key_id = 1;
+}
+
+// GetKeyMetadataResponse represents the response to a key metadata request
+message GetKeyMetadataResponse {
+    // Key ID
+    string moniker = 1;
+    // Threshold
+    int32 threshold = 2;
+    // Participants
+    repeated string participants = 3;
 }
 
 // GetOperationRequest represents a request to get operation status

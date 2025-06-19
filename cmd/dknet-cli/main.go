@@ -79,6 +79,7 @@ func main() {
 		createSignCommand(),
 		createReshareCommand(),
 		createGetOperationCommand(),
+		createGetKeyMetadataCommand(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
@@ -279,6 +280,28 @@ func createGetOperationCommand() *cobra.Command {
 	return cmd
 }
 
+func createGetKeyMetadataCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "key-metadata <key-id>",
+		Short: "Get key metadata",
+		Long:  "Retrieve the metadata of a specific key by its ID.",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			keyID := args[0]
+
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+
+			if useGRPC {
+				return getKeyMetadataGRPC(ctx, keyID)
+			}
+			return getKeyMetadataHTTP(ctx, keyID)
+		},
+	}
+
+	return cmd
+}
+
 // gRPC implementations
 func keygenGRPC(ctx context.Context, threshold int, participants []string) error {
 	// Add authentication to context
@@ -348,6 +371,41 @@ func getOperationGRPC(ctx context.Context, operationID string) error {
 	}
 
 	return outputGetOperationResponse(resp)
+}
+
+func getKeyMetadataGRPC(ctx context.Context, keyID string) error {
+	// Add authentication to context
+	ctx = addAuthToContext(ctx)
+
+	req := &tssv1.GetKeyMetadataRequest{
+		KeyId: keyID,
+	}
+
+	resp, err := tssClient.GetKeyMetadata(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to get key metadata: %w", err)
+	}
+
+	return outputGetKeyMetadataResponse(resp)
+}
+
+func getKeyMetadataHTTP(ctx context.Context, keyID string) error {
+
+	req := &tssv1.GetKeyMetadataRequest{
+		KeyId: keyID,
+	}
+
+	resp, err := makeHTTPRequest(ctx, "GET", api.KeyMetadataPath, req)
+	if err != nil {
+		return err
+	}
+
+	var opResp tssv1.GetKeyMetadataResponse
+	if err := json.Unmarshal(resp, &opResp); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return outputGetKeyMetadataResponse(&opResp)
 }
 
 // HTTP implementations

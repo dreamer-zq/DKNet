@@ -23,6 +23,7 @@ const (
 	TSSService_StartSigning_FullMethodName   = "/tss.v1.TSSService/StartSigning"
 	TSSService_StartResharing_FullMethodName = "/tss.v1.TSSService/StartResharing"
 	TSSService_GetOperation_FullMethodName   = "/tss.v1.TSSService/GetOperation"
+	TSSService_GetKeyMetadata_FullMethodName = "/tss.v1.TSSService/GetKeyMetadata"
 )
 
 // TSSServiceClient is the client API for TSSService service.
@@ -39,6 +40,7 @@ type TSSServiceClient interface {
 	StartResharing(ctx context.Context, in *StartResharingRequest, opts ...grpc.CallOption) (*StartResharingResponse, error)
 	// GetOperation gets the status and result of an operation
 	GetOperation(ctx context.Context, in *GetOperationRequest, opts ...grpc.CallOption) (*GetOperationResponse, error)
+	GetKeyMetadata(ctx context.Context, in *GetKeyMetadataRequest, opts ...grpc.CallOption) (*GetKeyMetadataResponse, error)
 }
 
 type tSSServiceClient struct {
@@ -89,6 +91,16 @@ func (c *tSSServiceClient) GetOperation(ctx context.Context, in *GetOperationReq
 	return out, nil
 }
 
+func (c *tSSServiceClient) GetKeyMetadata(ctx context.Context, in *GetKeyMetadataRequest, opts ...grpc.CallOption) (*GetKeyMetadataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetKeyMetadataResponse)
+	err := c.cc.Invoke(ctx, TSSService_GetKeyMetadata_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TSSServiceServer is the server API for TSSService service.
 // All implementations must embed UnimplementedTSSServiceServer
 // for forward compatibility.
@@ -103,6 +115,7 @@ type TSSServiceServer interface {
 	StartResharing(context.Context, *StartResharingRequest) (*StartResharingResponse, error)
 	// GetOperation gets the status and result of an operation
 	GetOperation(context.Context, *GetOperationRequest) (*GetOperationResponse, error)
+	GetKeyMetadata(context.Context, *GetKeyMetadataRequest) (*GetKeyMetadataResponse, error)
 	mustEmbedUnimplementedTSSServiceServer()
 }
 
@@ -124,6 +137,9 @@ func (UnimplementedTSSServiceServer) StartResharing(context.Context, *StartResha
 }
 func (UnimplementedTSSServiceServer) GetOperation(context.Context, *GetOperationRequest) (*GetOperationResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOperation not implemented")
+}
+func (UnimplementedTSSServiceServer) GetKeyMetadata(context.Context, *GetKeyMetadataRequest) (*GetKeyMetadataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetKeyMetadata not implemented")
 }
 func (UnimplementedTSSServiceServer) mustEmbedUnimplementedTSSServiceServer() {}
 func (UnimplementedTSSServiceServer) testEmbeddedByValue()                    {}
@@ -218,6 +234,24 @@ func _TSSService_GetOperation_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TSSService_GetKeyMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetKeyMetadataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TSSServiceServer).GetKeyMetadata(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TSSService_GetKeyMetadata_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TSSServiceServer).GetKeyMetadata(ctx, req.(*GetKeyMetadataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TSSService_ServiceDesc is the grpc.ServiceDesc for TSSService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -240,6 +274,10 @@ var TSSService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetOperation",
 			Handler:    _TSSService_GetOperation_Handler,
+		},
+		{
+			MethodName: "GetKeyMetadata",
+			Handler:    _TSSService_GetKeyMetadata_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
