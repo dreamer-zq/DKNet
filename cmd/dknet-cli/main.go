@@ -97,7 +97,7 @@ func outputJSON(data interface{}) error {
 }
 
 func createKeygenCommand() *cobra.Command {
-	var threshold, parties int
+	var threshold int
 	var participants []string
 
 	cmd := &cobra.Command{
@@ -105,35 +105,32 @@ func createKeygenCommand() *cobra.Command {
 		Short: "Start a key generation operation",
 		Long:  "Start a new threshold key generation operation with specified parameters.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if threshold <= 0 || parties <= 0 {
-				return fmt.Errorf("threshold and parties must be positive integers")
+			if threshold < 0 {
+				return fmt.Errorf("threshold must be non-negative")
 			}
-			if threshold > parties {
-				return fmt.Errorf("threshold cannot be greater than parties")
+			if len(participants) == 0 {
+				return fmt.Errorf("participants list cannot be empty")
 			}
-			if len(participants) != parties {
-				return fmt.Errorf("number of participants (%d) must equal parties (%d)", len(participants), parties)
+			if threshold >= len(participants) {
+				return fmt.Errorf("threshold must be less than total participants (t+1 <= n required)")
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
 			if useGRPC {
-				return keygenGRPC(ctx, threshold, parties, participants)
+				return keygenGRPC(ctx, threshold, participants)
 			}
-			return keygenHTTP(ctx, threshold, parties, participants)
+			return keygenHTTP(ctx, threshold, participants)
 		},
 	}
 
-	cmd.Flags().IntVarP(&threshold, "threshold", "r", 0, "Threshold number of parties required for signing (required)")
-	cmd.Flags().IntVarP(&parties, "parties", "p", 0, "Total number of parties (required)")
+	cmd.Flags().IntVarP(&threshold, "threshold", "r", 0,
+		"Fault tolerance threshold (t in (t+1)-of-n scheme). Max number of parties that can fail. Minimum signers required = t+1 (required)")
 	cmd.Flags().StringSliceVarP(&participants, "participants", "P", nil, "List of participant IDs (required)")
 
 	if err := cmd.MarkFlagRequired("threshold"); err != nil {
 		panic(fmt.Sprintf("Failed to mark threshold flag as required: %v", err))
-	}
-	if err := cmd.MarkFlagRequired("parties"); err != nil {
-		panic(fmt.Sprintf("Failed to mark parties flag as required: %v", err))
 	}
 	if err := cmd.MarkFlagRequired("participants"); err != nil {
 		panic(fmt.Sprintf("Failed to mark participants flag as required: %v", err))
@@ -204,7 +201,7 @@ func createSignCommand() *cobra.Command {
 
 func createReshareCommand() *cobra.Command {
 	var keyID string
-	var newThreshold, newParties int
+	var newThreshold int
 	var oldParticipants, newParticipants []string
 
 	cmd := &cobra.Command{
@@ -215,32 +212,32 @@ func createReshareCommand() *cobra.Command {
 			if keyID == "" {
 				return fmt.Errorf("key-id is required")
 			}
-			if newThreshold <= 0 || newParties <= 0 {
-				return fmt.Errorf("new-threshold and new-parties must be positive integers")
-			}
-			if newThreshold > newParties {
-				return fmt.Errorf("new-threshold cannot be greater than new-parties")
+			if newThreshold < 0 {
+				return fmt.Errorf("new-threshold must be a non-negative integer")
 			}
 			if len(oldParticipants) == 0 {
 				return fmt.Errorf("old-participants list cannot be empty")
 			}
-			if len(newParticipants) != newParties {
-				return fmt.Errorf("number of new-participants (%d) must equal new-parties (%d)", len(newParticipants), newParties)
+			if len(newParticipants) == 0 {
+				return fmt.Errorf("new-participants list cannot be empty")
+			}
+			if newThreshold >= len(newParticipants) {
+				return fmt.Errorf("new-threshold (%d) must be less than number of new-participants (%d)", newThreshold, len(newParticipants))
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
 			if useGRPC {
-				return reshareGRPC(ctx, keyID, newThreshold, newParties, oldParticipants, newParticipants)
+				return reshareGRPC(ctx, keyID, newThreshold, oldParticipants, newParticipants)
 			}
-			return reshareHTTP(ctx, keyID, newThreshold, newParties, oldParticipants, newParticipants)
+			return reshareHTTP(ctx, keyID, newThreshold, oldParticipants, newParticipants)
 		},
 	}
 
 	cmd.Flags().StringVarP(&keyID, "key-id", "k", "", "Key ID to reshare (required)")
-	cmd.Flags().IntVar(&newThreshold, "new-threshold", 0, "New threshold number (required)")
-	cmd.Flags().IntVar(&newParties, "new-parties", 0, "New total number of parties (required)")
+	cmd.Flags().IntVar(&newThreshold, "new-threshold", 0,
+		"New fault tolerance threshold (t in (t+1)-of-n scheme). Max number of parties that can fail. Minimum signers required = t+1 (required)")
 	cmd.Flags().StringSliceVar(&oldParticipants, "old-participants", nil, "List of old participant IDs (required)")
 	cmd.Flags().StringSliceVar(&newParticipants, "new-participants", nil, "List of new participant IDs (required)")
 
@@ -249,9 +246,6 @@ func createReshareCommand() *cobra.Command {
 	}
 	if err := cmd.MarkFlagRequired("new-threshold"); err != nil {
 		panic(fmt.Sprintf("Failed to mark new-threshold flag as required: %v", err))
-	}
-	if err := cmd.MarkFlagRequired("new-parties"); err != nil {
-		panic(fmt.Sprintf("Failed to mark new-parties flag as required: %v", err))
 	}
 	if err := cmd.MarkFlagRequired("old-participants"); err != nil {
 		panic(fmt.Sprintf("Failed to mark old-participants flag as required: %v", err))
@@ -286,13 +280,12 @@ func createGetOperationCommand() *cobra.Command {
 }
 
 // gRPC implementations
-func keygenGRPC(ctx context.Context, threshold, parties int, participants []string) error {
+func keygenGRPC(ctx context.Context, threshold int, participants []string) error {
 	// Add authentication to context
 	ctx = addAuthToContext(ctx)
 
 	req := &tssv1.StartKeygenRequest{
 		Threshold:    int32(threshold),
-		Parties:      int32(parties),
 		Participants: participants,
 	}
 
@@ -322,14 +315,13 @@ func signGRPC(ctx context.Context, message []byte, keyID string, participants []
 	return outputStartSigningResponse(resp)
 }
 
-func reshareGRPC(ctx context.Context, keyID string, newThreshold, newParties int, oldParticipants, newParticipants []string) error {
+func reshareGRPC(ctx context.Context, keyID string, newThreshold int, oldParticipants, newParticipants []string) error {
 	// Add authentication to context
 	ctx = addAuthToContext(ctx)
 
 	req := &tssv1.StartResharingRequest{
 		KeyId:           keyID,
 		NewThreshold:    int32(newThreshold),
-		NewParties:      int32(newParties),
 		OldParticipants: oldParticipants,
 		NewParticipants: newParticipants,
 	}
@@ -359,10 +351,9 @@ func getOperationGRPC(ctx context.Context, operationID string) error {
 }
 
 // HTTP implementations
-func keygenHTTP(ctx context.Context, threshold, parties int, participants []string) error {
+func keygenHTTP(ctx context.Context, threshold int, participants []string) error {
 	req := &tssv1.StartKeygenRequest{
 		Threshold:    int32(threshold),
-		Parties:      int32(parties),
 		Participants: participants,
 	}
 
@@ -399,11 +390,10 @@ func signHTTP(ctx context.Context, message []byte, keyID string, participants []
 	return outputStartSigningResponse(&opResp)
 }
 
-func reshareHTTP(ctx context.Context, keyID string, newThreshold, newParties int, oldParticipants, newParticipants []string) error {
+func reshareHTTP(ctx context.Context, keyID string, newThreshold int, oldParticipants, newParticipants []string) error {
 	req := &tssv1.StartResharingRequest{
 		KeyId:           keyID,
 		NewThreshold:    int32(newThreshold),
-		NewParties:      int32(newParties),
 		OldParticipants: oldParticipants,
 		NewParticipants: newParticipants,
 	}

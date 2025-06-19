@@ -128,12 +128,10 @@ func registerTSSTools(s *server.MCPServer, tssClient tssv1.TSSServiceClient) err
 		mcp.WithDescription("Generate a new distributed threshold signature key using DKNet cluster"),
 		mcp.WithNumber("threshold",
 			mcp.Required(),
-			mcp.Description("Minimum number of parties required to sign (t in t-of-n)"),
+			mcp.Description(`Fault tolerance threshold (t in (t+1)-of-n scheme). 
+			Max number of parties that can fail. Minimum signers required = t+1`),
 		),
-		mcp.WithNumber("parties",
-			mcp.Required(),
-			mcp.Description("Total number of parties in the key generation (n in t-of-n)"),
-		),
+
 		mcp.WithString("participants",
 			mcp.Required(),
 			mcp.Description("Comma-separated list of peer IDs that should participate in key generation"),
@@ -155,11 +153,6 @@ func registerTSSTools(s *server.MCPServer, tssClient tssv1.TSSServiceClient) err
 			return mcp.NewToolResultError("threshold must be a number"), nil
 		}
 
-		parties, ok := args["parties"].(float64)
-		if !ok {
-			return mcp.NewToolResultError("parties must be a number"), nil
-		}
-
 		participantsStr, ok := args["participants"].(string)
 		if !ok {
 			return mcp.NewToolResultError("participants must be a string"), nil
@@ -179,12 +172,15 @@ func registerTSSTools(s *server.MCPServer, tssClient tssv1.TSSServiceClient) err
 		}
 
 		// Validate parameters
-		if int(threshold) > int(parties) {
-			return mcp.NewToolResultError("threshold cannot be greater than total parties"), nil
+		if int(threshold) < 0 {
+			return mcp.NewToolResultError("threshold must be non-negative"), nil
+		}
+		if int(threshold) >= len(participants) {
+			return mcp.NewToolResultError("threshold must be less than total parties (t+1 <= n required)"), nil
 		}
 
-		if len(participants) != int(parties) {
-			return mcp.NewToolResultError("number of participants must match total parties"), nil
+		if len(participants) == 0 {
+			return mcp.NewToolResultError("participants list cannot be empty"), nil
 		}
 
 		// Start keygen operation via gRPC
@@ -192,7 +188,6 @@ func registerTSSTools(s *server.MCPServer, tssClient tssv1.TSSServiceClient) err
 		resp, err := tssClient.StartKeygen(authCtx, &tssv1.StartKeygenRequest{
 			OperationId:  operationID,
 			Threshold:    int32(threshold),
-			Parties:      int32(parties),
 			Participants: participants,
 		})
 		if err != nil {
@@ -213,7 +208,7 @@ func registerTSSTools(s *server.MCPServer, tssClient tssv1.TSSServiceClient) err
 **Operation Details:**
 - Operation ID: %s
 - Status: %s
-- Threshold: %d of %d
+- Scheme: (%d+1)-of-%d (fault tolerance: %d, minimum signers: %d)
 - Participants: %s
 - Created: %s
 
@@ -225,7 +220,9 @@ The distributed key has been securely generated and stored across the DKNet clus
 			result.OperationId,
 			result.Status.String(),
 			int(threshold),
-			int(parties),
+			len(participants),
+			int(threshold),
+			int(threshold)+1,
 			strings.Join(participants, ", "),
 			result.CreatedAt.AsTime().Format(time.RFC3339),
 			extractKeyID(result),

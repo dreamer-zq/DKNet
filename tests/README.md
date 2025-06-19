@@ -188,7 +188,7 @@ export TSS_ENCRYPTION_PASSWORD="MySecurePassword123!"
 
 - **节点 1**: <http://localhost:8081> (gRPC: 9095)
 - **节点 2**: <http://localhost:8082> (gRPC: 9096)
-- **节点 3**: <http://localhost:8083> (gRPC: 9097)
+- **节点 3**: <http://localhost:8083> (gRPC: 9098)
 
 每个节点都配置了验证服务集成，在签名前会调用验证服务进行请求验证。
 
@@ -270,7 +270,7 @@ export TSS_ENCRYPTION_PASSWORD="MySecurePassword123!"
    - 查看节点日志确认错误详情
 
 4. **端口冲突**
-   - 确保端口 8081-8083, 8888, 9095-9097 没有被其他服务占用
+   - 确保端口 8081-8083, 8888, 9095-9096, 9098 没有被其他服务占用
 
 5. **Docker 相关问题**
 

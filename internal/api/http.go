@@ -109,7 +109,6 @@ func (s *Server) keygenHandler(c *gin.Context) {
 		context.Background(),
 		req.OperationId,
 		int(req.Threshold),
-		int(req.Parties),
 		req.Participants,
 	)
 	if err != nil {
@@ -172,7 +171,6 @@ func (s *Server) reshareHandler(c *gin.Context) {
 		req.OperationId,
 		req.KeyId,
 		int(req.NewThreshold),
-		int(req.NewParties),
 		req.OldParticipants,
 		req.NewParticipants,
 	)

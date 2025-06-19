@@ -208,8 +208,8 @@ func outputGetOperationResponse(resp *tssv1.GetOperationResponse) error {
 		switch request := resp.Request.(type) {
 		case *tssv1.GetOperationResponse_KeygenRequest:
 			fmt.Printf("  Threshold: %d\n", request.KeygenRequest.Threshold)
-			fmt.Printf("  Parties: %d\n", request.KeygenRequest.Parties)
 			fmt.Printf("  Participants: %s\n", strings.Join(request.KeygenRequest.Participants, ", "))
+			fmt.Printf("  Parties: %d\n", len(request.KeygenRequest.Participants))
 		case *tssv1.GetOperationResponse_SigningRequest:
 			fmt.Printf("  Key ID: %s\n", request.SigningRequest.KeyId)
 			fmt.Printf("  Message: %x\n", request.SigningRequest.Message)
@@ -217,9 +217,9 @@ func outputGetOperationResponse(resp *tssv1.GetOperationResponse) error {
 		case *tssv1.GetOperationResponse_ResharingRequest:
 			fmt.Printf("  Key ID: %s\n", request.ResharingRequest.KeyId)
 			fmt.Printf("  New Threshold: %d\n", request.ResharingRequest.NewThreshold)
-			fmt.Printf("  New Parties: %d\n", request.ResharingRequest.NewParties)
 			fmt.Printf("  Old Participants: %s\n", strings.Join(request.ResharingRequest.OldParticipants, ", "))
 			fmt.Printf("  New Participants: %s\n", strings.Join(request.ResharingRequest.NewParticipants, ", "))
+			fmt.Printf("  New Parties: %d\n", len(request.ResharingRequest.NewParticipants))
 		}
 	}
 
@@ -330,9 +330,6 @@ func outputRawOperationResponse(resp map[string]interface{}) error {
 				if threshold, ok := keygenReq["threshold"].(float64); ok {
 					fmt.Printf("  Threshold: %d\n", int(threshold))
 				}
-				if parties, ok := keygenReq["parties"].(float64); ok {
-					fmt.Printf("  Parties: %d\n", int(parties))
-				}
 				if participants, ok := keygenReq["participants"].([]interface{}); ok {
 					var participantStrs []string
 					for _, p := range participants {
@@ -341,6 +338,7 @@ func outputRawOperationResponse(resp map[string]interface{}) error {
 						}
 					}
 					fmt.Printf("  Participants: %s\n", strings.Join(participantStrs, ", "))
+					fmt.Printf("  Parties: %d\n", len(participantStrs))
 				}
 			}
 			if signingReq, ok := requestMap["SigningRequest"].(map[string]interface{}); ok {

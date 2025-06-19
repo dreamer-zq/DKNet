@@ -32,7 +32,7 @@
 | tss-node2 | 9090 | 9096 | gRPC | TSS gRPC API |
 | tss-node2 | 4001 | 4002 | TCP | P2P 通信 |
 | tss-node3 | 8080 | 8083 | HTTP | TSS HTTP API |
-| tss-node3 | 9090 | 9097 | gRPC | TSS gRPC API |
+| tss-node3 | 9090 | 9098 | gRPC | TSS gRPC API |
 | tss-node3 | 4001 | 4003 | TCP | P2P 通信 |
 
 ## 部署步骤
@@ -211,4 +211,4 @@ docker system prune -f
 4. **性能优化**:
    - 调整资源限制
    - 优化网络配置
-   - 监控性能指标 
+   - 监控性能指标

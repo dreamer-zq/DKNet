@@ -157,7 +157,6 @@ curl -X POST \
   -H "Content-Type: application/json" \
   -d '{
     "threshold": 2,
-    "parties": 3,
     "participants": ["12D3KooWGZCnvk6cX2UUhc1SHhkGvdfJNZicx4uXEb3niyHHN7ch", "12D3KooWEMke2yrVjg4nadKBBCZrWeZtxD4KucM4QzgH24JMo6JU", "12D3KooWT3TACsUvszChWcQwT7YpPa1udfwpb5k5qQ8zrBw4VqZ7"]
   }' \
   http://localhost:8081/api/v1/keygen
@@ -197,7 +196,7 @@ security:
 - **Validation Service**: 8888
 - **TSS Node 1**: HTTP 8081, gRPC 9095
 - **TSS Node 2**: HTTP 8082, gRPC 9096
-- **TSS Node 3**: HTTP 8083, gRPC 9097
+- **TSS Node 3**: HTTP 8083, gRPC 9098
 
 ### 环境变量
 

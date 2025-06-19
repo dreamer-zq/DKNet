@@ -21,8 +21,7 @@ import (
 func (s *Service) StartKeygen(
 	ctx context.Context,
 	operationID string,
-	threshold,
-	parties int,
+	threshold int,
 	participants []string,
 ) (*Operation, error) {
 	// Check for existing operation (idempotency)
@@ -59,7 +58,7 @@ func (s *Service) StartKeygen(
 
 	// Create TSS parameters
 	peerCtx := tss.NewPeerContext(participantList)
-	params := tss.NewParameters(tss.S256(), peerCtx, ourPartyID, parties, threshold)
+	params := tss.NewParameters(tss.S256(), peerCtx, ourPartyID, len(participants), threshold)
 
 	// Create channels
 	outCh := make(chan tss.Message, 100)
@@ -76,7 +75,7 @@ func (s *Service) StartKeygen(
 	req := &KeygenRequest{
 		OperationID:  operationID,
 		Threshold:    threshold,
-		Parties:      parties,
+		Parties:      len(participants),
 		Participants: participants,
 	}
 
@@ -103,21 +102,21 @@ func (s *Service) StartKeygen(
 	go s.runKeygenOperation(operationCtx, operation, endCh)
 
 	// Broadcast keygen operation sync message to other participants
-	go s.broadcastKeygenOperation(operationID, sessionID, threshold, parties, participants)
+	go s.broadcastKeygenOperation(operationID, sessionID, threshold, participants)
 
 	return operation, nil
 }
 
 func (s *Service) broadcastKeygenOperation(
 	operationID, sessionID string,
-	threshold, parties int,
+	threshold int,
 	participants []string,
 ) {
 	s.logger.Info("Broadcast keygen operation",
 		zap.String("operation_id", operationID),
 		zap.String("session_id", sessionID),
 		zap.Int("threshold", threshold),
-		zap.Int("parties", parties),
+		zap.Int("parties", len(participants)),
 	)
 
 	syncCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -128,7 +127,7 @@ func (s *Service) broadcastKeygenOperation(
 			OperationType: "keygen",
 			SessionID:     sessionID,
 			Threshold:     threshold,
-			Parties:       parties,
+			Parties:       len(participants),
 			Participants:  participants,
 		},
 	}

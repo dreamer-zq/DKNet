@@ -44,14 +44,12 @@ message StartKeygenRequest {
     // Optional operation ID provided by client for idempotency
     string operation_id = 1;
     
-    // Number of parties required to sign (threshold)
+    // Fault tolerance threshold (t in (t+1)-of-n scheme)
+    // Max number of parties that can fail. Minimum signers required = t+1
     int32 threshold = 2;
     
-    // Total number of parties involved
-    int32 parties = 3;
-    
-    // List of participant peer IDs
-    repeated string participants = 4;
+    // List of participant peer IDs (n = len(participants))
+    repeated string participants = 3;
 }
 
 // StartKeygenResponse represents the response when starting keygen operation
@@ -125,17 +123,14 @@ message StartResharingRequest {
     // Key ID to reshare
     string key_id = 2;
     
-    // New threshold value
+    // New fault tolerance threshold (t in (t+1)-of-n scheme)
     int32 new_threshold = 3;
     
-    // New total number of parties
-    int32 new_parties = 4;
-    
     // List of old participant peer IDs
-    repeated string old_participants = 5;
+    repeated string old_participants = 4;
     
-    // List of new participant peer IDs
-    repeated string new_participants = 6;
+    // List of new participant peer IDs (new_parties = len(new_participants))
+    repeated string new_participants = 5;
 }
 
 // StartResharingResponse represents the response when starting resharing operation

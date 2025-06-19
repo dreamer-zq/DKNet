@@ -17,8 +17,7 @@ func (s *Service) StartResharing(
 	ctx context.Context,
 	operationID,
 	keyID string,
-	newThreshold,
-	newParties int,
+	newThreshold int,
 	oldParticipants,
 	newParticipants []string,
 ) (*Operation, error) {
@@ -97,7 +96,7 @@ func (s *Service) StartResharing(
 		OperationID:     operationID,
 		KeyID:           keyID,
 		NewThreshold:    newThreshold,
-		NewParties:      newParties,
+		NewParties:      len(newParticipants),
 		OldParticipants: oldParticipants,
 		NewParticipants: newParticipants,
 	}

@@ -106,7 +106,6 @@ func buildOperationResponse(operation *tss.Operation) *tssv1.GetOperationRespons
 			response.Request = &tssv1.GetOperationResponse_KeygenRequest{
 				KeygenRequest: &tssv1.StartKeygenRequest{
 					Threshold:    int32(req.Threshold),
-					Parties:      int32(req.Parties),
 					Participants: req.Participants,
 				},
 			}
@@ -123,7 +122,6 @@ func buildOperationResponse(operation *tss.Operation) *tssv1.GetOperationRespons
 				ResharingRequest: &tssv1.StartResharingRequest{
 					KeyId:           req.KeyID,
 					NewThreshold:    int32(req.NewThreshold),
-					NewParties:      int32(req.NewParties),
 					OldParticipants: req.OldParticipants,
 					NewParticipants: req.NewParticipants,
 				},
@@ -198,7 +196,6 @@ func buildOperationResponseFromStorage(data *tss.OperationData) *tssv1.GetOperat
 			response.Request = &tssv1.GetOperationResponse_KeygenRequest{
 				KeygenRequest: &tssv1.StartKeygenRequest{
 					Threshold:    int32(req.Threshold),
-					Parties:      int32(req.Parties),
 					Participants: req.Participants,
 				},
 			}
@@ -215,7 +212,6 @@ func buildOperationResponseFromStorage(data *tss.OperationData) *tssv1.GetOperat
 				ResharingRequest: &tssv1.StartResharingRequest{
 					KeyId:           req.KeyID,
 					NewThreshold:    int32(req.NewThreshold),
-					NewParties:      int32(req.NewParties),
 					OldParticipants: req.OldParticipants,
 					NewParticipants: req.NewParticipants,
 				},

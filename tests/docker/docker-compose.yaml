@@ -87,7 +87,7 @@ services:
     command: ["start", "--config", "/app/node/config.yaml"]
     ports:
       - "8083:8080"  # HTTP API
-      - "9097:9090"  # gRPC API
+      - "9098:9090"  # gRPC API
       - "4003:4001"   # P2P
     volumes:
       - ./node3:/app/node

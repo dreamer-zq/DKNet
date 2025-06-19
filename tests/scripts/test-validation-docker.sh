@@ -284,7 +284,6 @@ print_status "INFO" "Testing TSS integration with validation service..."
 print_status "INFO" "Generating TSS key..."
 keygen_response=$(authenticated_curl "POST" "http://localhost:8081/api/v1/keygen" '{
     "threshold": 1,
-    "parties": 3,
     "participants": ["'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"]
 }')
 

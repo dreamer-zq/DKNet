@@ -224,7 +224,6 @@ test_tss() {
     print_status "Testing keygen operation with authentication..."
     local keygen_data='{
         "threshold": 2,
-        "parties": 3,
         "participants": ["'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"]
     }'
     

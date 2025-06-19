@@ -139,12 +139,11 @@ type StartKeygenRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional operation ID provided by client for idempotency
 	OperationId string `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
-	// Number of parties required to sign (threshold)
+	// Fault tolerance threshold (t in (t+1)-of-n scheme)
+	// Max number of parties that can fail. Minimum signers required = t+1
 	Threshold int32 `protobuf:"varint,2,opt,name=threshold,proto3" json:"threshold,omitempty"`
-	// Total number of parties involved
-	Parties int32 `protobuf:"varint,3,opt,name=parties,proto3" json:"parties,omitempty"`
-	// List of participant peer IDs
-	Participants  []string `protobuf:"bytes,4,rep,name=participants,proto3" json:"participants,omitempty"`
+	// List of participant peer IDs (n = len(participants))
+	Participants  []string `protobuf:"bytes,3,rep,name=participants,proto3" json:"participants,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -189,13 +188,6 @@ func (x *StartKeygenRequest) GetOperationId() string {
 func (x *StartKeygenRequest) GetThreshold() int32 {
 	if x != nil {
 		return x.Threshold
-	}
-	return 0
-}
-
-func (x *StartKeygenRequest) GetParties() int32 {
-	if x != nil {
-		return x.Parties
 	}
 	return 0
 }
@@ -543,14 +535,12 @@ type StartResharingRequest struct {
 	OperationId string `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
 	// Key ID to reshare
 	KeyId string `protobuf:"bytes,2,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
-	// New threshold value
+	// New fault tolerance threshold (t in (t+1)-of-n scheme)
 	NewThreshold int32 `protobuf:"varint,3,opt,name=new_threshold,json=newThreshold,proto3" json:"new_threshold,omitempty"`
-	// New total number of parties
-	NewParties int32 `protobuf:"varint,4,opt,name=new_parties,json=newParties,proto3" json:"new_parties,omitempty"`
 	// List of old participant peer IDs
-	OldParticipants []string `protobuf:"bytes,5,rep,name=old_participants,json=oldParticipants,proto3" json:"old_participants,omitempty"`
-	// List of new participant peer IDs
-	NewParticipants []string `protobuf:"bytes,6,rep,name=new_participants,json=newParticipants,proto3" json:"new_participants,omitempty"`
+	OldParticipants []string `protobuf:"bytes,4,rep,name=old_participants,json=oldParticipants,proto3" json:"old_participants,omitempty"`
+	// List of new participant peer IDs (new_parties = len(new_participants))
+	NewParticipants []string `protobuf:"bytes,5,rep,name=new_participants,json=newParticipants,proto3" json:"new_participants,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -602,13 +592,6 @@ func (x *StartResharingRequest) GetKeyId() string {
 func (x *StartResharingRequest) GetNewThreshold() int32 {
 	if x != nil {
 		return x.NewThreshold
-	}
-	return 0
-}
-
-func (x *StartResharingRequest) GetNewParties() int32 {
-	if x != nil {
-		return x.NewParties
 	}
 	return 0
 }
@@ -978,12 +961,11 @@ var File_proto_tss_v1_tss_proto protoreflect.FileDescriptor
 
 const file_proto_tss_v1_tss_proto_rawDesc = "" +
 	"\n" +
-	"\x16proto/tss/v1/tss.proto\x12\x06tss.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x93\x01\n" +
+	"\x16proto/tss/v1/tss.proto\x12\x06tss.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"y\n" +
 	"\x12StartKeygenRequest\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x1c\n" +
-	"\tthreshold\x18\x02 \x01(\x05R\tthreshold\x12\x18\n" +
-	"\aparties\x18\x03 \x01(\x05R\aparties\x12\"\n" +
-	"\fparticipants\x18\x04 \x03(\tR\fparticipants\"\xa4\x01\n" +
+	"\tthreshold\x18\x02 \x01(\x05R\tthreshold\x12\"\n" +
+	"\fparticipants\x18\x03 \x03(\tR\fparticipants\"\xa4\x01\n" +
 	"\x13StartKeygenResponse\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12/\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x17.tss.v1.OperationStatusR\x06status\x129\n" +
@@ -1007,15 +989,13 @@ const file_proto_tss_v1_tss_proto_rawDesc = "" +
 	"\tsignature\x18\x01 \x01(\tR\tsignature\x12\f\n" +
 	"\x01r\x18\x02 \x01(\tR\x01r\x12\f\n" +
 	"\x01s\x18\x03 \x01(\tR\x01s\x12\f\n" +
-	"\x01v\x18\x04 \x01(\x05R\x01v\"\xed\x01\n" +
+	"\x01v\x18\x04 \x01(\x05R\x01v\"\xcc\x01\n" +
 	"\x15StartResharingRequest\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x15\n" +
 	"\x06key_id\x18\x02 \x01(\tR\x05keyId\x12#\n" +
-	"\rnew_threshold\x18\x03 \x01(\x05R\fnewThreshold\x12\x1f\n" +
-	"\vnew_parties\x18\x04 \x01(\x05R\n" +
-	"newParties\x12)\n" +
-	"\x10old_participants\x18\x05 \x03(\tR\x0foldParticipants\x12)\n" +
-	"\x10new_participants\x18\x06 \x03(\tR\x0fnewParticipants\"\xa7\x01\n" +
+	"\rnew_threshold\x18\x03 \x01(\x05R\fnewThreshold\x12)\n" +
+	"\x10old_participants\x18\x04 \x03(\tR\x0foldParticipants\x12)\n" +
+	"\x10new_participants\x18\x05 \x03(\tR\x0fnewParticipants\"\xa7\x01\n" +
 	"\x16StartResharingResponse\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12/\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x17.tss.v1.OperationStatusR\x06status\x129\n" +

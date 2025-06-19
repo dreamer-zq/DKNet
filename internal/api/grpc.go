@@ -96,7 +96,6 @@ func (g *gRPCTSSServer) StartKeygen(ctx context.Context, req *tssv1.StartKeygenR
 		ctx,
 		req.OperationId,
 		int(req.Threshold),
-		int(req.Parties),
 		req.Participants,
 	)
 	if err != nil {
@@ -143,7 +142,6 @@ func (g *gRPCTSSServer) StartResharing(ctx context.Context, req *tssv1.StartResh
 		req.OperationId,
 		req.KeyId,
 		int(req.NewThreshold),
-		int(req.NewParties),
 		req.OldParticipants,
 		req.NewParticipants,
 	)
