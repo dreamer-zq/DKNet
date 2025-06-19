@@ -390,7 +390,6 @@ func getKeyMetadataGRPC(ctx context.Context, keyID string) error {
 }
 
 func getKeyMetadataHTTP(ctx context.Context, keyID string) error {
-
 	req := &tssv1.GetKeyMetadataRequest{
 		KeyId: keyID,
 	}

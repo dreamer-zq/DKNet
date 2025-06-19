@@ -354,7 +354,7 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 }
 
 // loadKeyData loads and decrypts key data from storage
-func (s *Service) loadKeyData(ctx context.Context, keyID string) (*keyData,*keygen.LocalPartySaveData, error) {
+func (s *Service) loadKeyData(ctx context.Context, keyID string) (*keyData, *keygen.LocalPartySaveData, error) {
 	data, err := s.storage.Load(ctx, keyID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load key data: %w", err)
