@@ -32,7 +32,7 @@ func (s *Service) StartResharing(
 	}
 
 	// Load key data
-	keyData, err := s.loadKeyData(ctx, keyID)
+	_, localParty, err := s.loadKeyData(ctx, keyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load key data: %w", err)
 	}
@@ -85,7 +85,7 @@ func (s *Service) StartResharing(
 	endCh := make(chan *keygen.LocalPartySaveData, 1)
 
 	// Create resharing party
-	party := resharing.NewLocalParty(params, *keyData, outCh, endCh)
+	party := resharing.NewLocalParty(params, *localParty, outCh, endCh)
 
 	// Create operation context with cancellation - use background context to avoid HTTP timeout
 	// Set a longer timeout for resharing operations (15 minutes)

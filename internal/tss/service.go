@@ -354,26 +354,26 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 }
 
 // loadKeyData loads and decrypts key data from storage
-func (s *Service) loadKeyData(ctx context.Context, keyID string) (*keygen.LocalPartySaveData, error) {
+func (s *Service) loadKeyData(ctx context.Context, keyID string) (*keyData,*keygen.LocalPartySaveData, error) {
 	data, err := s.storage.Load(ctx, keyID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load key data: %w", err)
+		return nil, nil, fmt.Errorf("failed to load key data: %w", err)
 	}
 
 	var keyDataStruct keyData
 	if unmarshalErr := json.Unmarshal(data, &keyDataStruct); unmarshalErr != nil {
-		return nil, fmt.Errorf("failed to unmarshal key data struct: %w", unmarshalErr)
+		return nil, nil, fmt.Errorf("failed to unmarshal key data struct: %w", unmarshalErr)
 	}
 
 	// Decrypt the key data
 	decryptedKeyData, err := s.encryption.Decrypt(keyDataStruct.KeyData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt key data: %w", err)
+		return nil, nil, fmt.Errorf("failed to decrypt key data: %w", err)
 	}
 
 	var saveData keygen.LocalPartySaveData
 	if err := json.Unmarshal(decryptedKeyData, &saveData); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal save data: %w", err)
+		return nil, nil, fmt.Errorf("failed to unmarshal save data: %w", err)
 	}
 
 	s.logger.Debug("Successfully loaded and decrypted key data",
@@ -381,24 +381,7 @@ func (s *Service) loadKeyData(ctx context.Context, keyID string) (*keygen.LocalP
 		zap.Int("encrypted_size", len(keyDataStruct.KeyData)),
 		zap.Int("decrypted_size", len(decryptedKeyData)))
 
-	return &saveData, nil
-}
-
-// loadKeyDataStruct loads the full KeyData structure from storage (metadata only, KeyData remains encrypted)
-func (s *Service) loadKeyDataStruct(ctx context.Context, keyID string) (*keyData, error) {
-	data, err := s.storage.Load(ctx, keyID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load key data: %w", err)
-	}
-
-	var keyDataStruct keyData
-	if err := json.Unmarshal(data, &keyDataStruct); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal key data struct: %w", err)
-	}
-
-	// Note: KeyData field remains encrypted in this function
-	// Use loadKeyData() if you need the decrypted key data
-	return &keyDataStruct, nil
+	return &keyDataStruct, &saveData, nil
 }
 
 // createParticipantList creates a list of party IDs from peer IDs

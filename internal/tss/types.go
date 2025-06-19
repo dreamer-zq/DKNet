@@ -95,7 +95,6 @@ const (
 type KeygenRequest struct {
 	OperationID  string   `json:"operation_id,omitempty"` // Optional operation ID for idempotency
 	Threshold    int      `json:"threshold"`
-	Parties      int      `json:"parties"`
 	Participants []string `json:"participants"` // peer IDs
 }
 
@@ -200,12 +199,10 @@ func (o *OperationData) IsActive() bool {
 
 // keyData represents the TSS key data that needs to be stored
 type keyData struct {
-	Moniker   string `json:"moniker"`
-	KeyData   []byte `json:"key_data"`
-	Threshold int    `json:"threshold"`
-	Parties   int    `json:"parties"`
-	CreatedAt int64  `json:"created_at"`
-	UpdatedAt int64  `json:"updated_at"`
+	Moniker      string   `json:"moniker"`
+	KeyData      []byte   `json:"key_data"`
+	Threshold    int      `json:"threshold"`
+	Participants []string `json:"participants"` // peer IDs
 }
 
 // hashMessageForEthereum creates an Ethereum-compatible hash that can be verified with ecrecover

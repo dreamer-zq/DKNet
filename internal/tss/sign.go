@@ -52,15 +52,9 @@ func (s *Service) StartSigning(
 	}
 
 	// Load key data and metadata
-	keyData, err := s.loadKeyData(ctx, keyID)
+	keyData, localParty, err := s.loadKeyData(ctx, keyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load key data: %w", err)
-	}
-
-	// Load key metadata to get original threshold
-	keyMetadata, err := s.loadKeyDataStruct(ctx, keyID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load key metadata: %w", err)
 	}
 
 	// Generate or use provided operation ID
@@ -87,7 +81,7 @@ func (s *Service) StartSigning(
 
 	// Create TSS parameters - use the original threshold from keygen
 	ctx2 := tss.NewPeerContext(participantList)
-	threshold := keyMetadata.Threshold // Use the original threshold from stored metadata
+	threshold := keyData.Threshold // Use the original threshold from stored metadata
 	params := tss.NewParameters(tss.S256(), ctx2, ourPartyID, len(participantList), threshold)
 
 	// Create channels
@@ -98,7 +92,7 @@ func (s *Service) StartSigning(
 	hash := hashMessageForEthereum(message)
 
 	// Create signing party
-	party := signing.NewLocalParty(new(big.Int).SetBytes(hash), params, *keyData, outCh, endCh)
+	party := signing.NewLocalParty(new(big.Int).SetBytes(hash), params, *localParty, outCh, endCh)
 
 	// Create operation context with cancellation - use background context to avoid HTTP timeout
 	// Set a shorter timeout for signing operations (5 minutes)
@@ -213,17 +207,10 @@ func (s *Service) createSyncedSigningOperation(ctx context.Context, msg *p2p.Mes
 	}
 
 	// Load key data and metadata
-	keyData, err := s.loadKeyData(ctx, syncData.KeyID)
+	keyData, localParty, err := s.loadKeyData(ctx, syncData.KeyID)
 	if err != nil {
 		return fmt.Errorf("failed to load key data for synced signing: %w", err)
 	}
-
-	// Load key metadata to get original threshold
-	keyMetadata, err := s.loadKeyDataStruct(ctx, syncData.KeyID)
-	if err != nil {
-		return fmt.Errorf("failed to load key metadata for synced signing: %w", err)
-	}
-
 	// Create participant list
 	participants, err := s.createParticipantList(syncData.Participants)
 	if err != nil {
@@ -244,7 +231,7 @@ func (s *Service) createSyncedSigningOperation(ctx context.Context, msg *p2p.Mes
 
 	// Create TSS parameters - use the original threshold from keygen
 	ctx2 := tss.NewPeerContext(participants)
-	threshold := keyMetadata.Threshold // Use the original threshold from stored metadata
+	threshold := keyData.Threshold // Use the original threshold from stored metadata
 	params := tss.NewParameters(tss.S256(), ctx2, ourPartyID, len(participants), threshold)
 
 	// Create channels
@@ -255,7 +242,7 @@ func (s *Service) createSyncedSigningOperation(ctx context.Context, msg *p2p.Mes
 	hash := hashMessageForEthereum(syncData.Message)
 
 	// Create signing party
-	party := signing.NewLocalParty(new(big.Int).SetBytes(hash), params, *keyData, outCh, endCh)
+	party := signing.NewLocalParty(new(big.Int).SetBytes(hash), params, *localParty, outCh, endCh)
 
 	// Create operation context with cancellation - use background context to avoid HTTP timeout
 	operationCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)

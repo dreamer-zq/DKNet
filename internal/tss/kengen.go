@@ -75,7 +75,6 @@ func (s *Service) StartKeygen(
 	req := &KeygenRequest{
 		OperationID:  operationID,
 		Threshold:    threshold,
-		Parties:      len(participants),
 		Participants: participants,
 	}
 
@@ -236,12 +235,10 @@ func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, re
 
 	// Store key data with encrypted KeyData field
 	keyDataStruct := &keyData{
-		Moniker:   s.moniker,
-		KeyData:   encryptedKeyData,      // Store encrypted data
-		Threshold: originalReq.Threshold, // Store the original threshold from request
-		Parties:   len(result.Ks),
-		CreatedAt: time.Now().Unix(),
-		UpdatedAt: time.Now().Unix(),
+		Moniker:      s.moniker,
+		KeyData:      encryptedKeyData,      // Store encrypted data
+		Threshold:    originalReq.Threshold, // Store the original threshold from request
+		Participants: originalReq.Participants,
 	}
 
 	keyDataStorageBytes, err := json.Marshal(keyDataStruct)
@@ -315,8 +312,8 @@ func (s *Service) createSyncedKeygenOperation(ctx context.Context, msg *p2p.Mess
 	}
 
 	// Create TSS parameters
-	ctx2 := tss.NewPeerContext(participants)
-	params := tss.NewParameters(tss.S256(), ctx2, ourPartyID, len(participants), syncData.Threshold)
+	peerCtx := tss.NewPeerContext(participants)
+	params := tss.NewParameters(tss.S256(), peerCtx, ourPartyID, len(participants), syncData.Threshold)
 
 	// Create channels
 	outCh := make(chan tss.Message, 100)
@@ -331,7 +328,6 @@ func (s *Service) createSyncedKeygenOperation(ctx context.Context, msg *p2p.Mess
 	// Reconstruct request from sync data
 	request := &KeygenRequest{
 		Threshold:    syncData.Threshold,
-		Parties:      syncData.Parties,
 		Participants: syncData.Participants,
 	}
 
