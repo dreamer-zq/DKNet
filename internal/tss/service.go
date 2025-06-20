@@ -587,25 +587,6 @@ func (s *Service) moveCompletedOperationToStorage(ctx context.Context, operation
 	return nil
 }
 
-// handleOperationFailure handles operation failure by setting status and moving to persistent storage
-func (s *Service) handleOperationFailure(ctx context.Context, operation *Operation, err error) {
-	operation.Lock()
-	operation.Status = StatusFailed
-	operation.Error = err
-	now := time.Now()
-	operation.CompletedAt = &now
-	operation.Unlock()
-
-	// Move failed operation to persistent storage
-	go func() {
-		if moveErr := s.moveCompletedOperationToStorage(ctx, operation.ID); moveErr != nil {
-			s.logger.Error("Failed to move failed operation to persistent storage",
-				zap.Error(moveErr),
-				zap.String("operation_id", operation.ID))
-		}
-	}()
-}
-
 // checkIdempotency checks if an operation with the given ID already exists
 // Returns the existing operation if found, nil if not found, and an error if there's an issue
 func (s *Service) checkIdempotency(ctx context.Context, operationID string) (*Operation, error) {

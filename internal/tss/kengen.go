@@ -155,7 +155,13 @@ func (s *Service) runKeygenOperation(ctx context.Context, operation *Operation, 
 		s.logger.Info("Starting TSS party", zap.String("operation_id", operation.ID))
 		if err := operation.Party.Start(); err != nil {
 			s.logger.Error("Keygen party failed", zap.Error(err), zap.String("operation_id", operation.ID))
-			s.handleOperationFailure(ctx, operation, err)
+			// Set failure status
+			operation.Lock()
+			operation.Status = StatusFailed
+			operation.Error = err
+			now := time.Now()
+			operation.CompletedAt = &now
+			operation.Unlock()
 			return
 		}
 		s.logger.Info("TSS party started successfully", zap.String("operation_id", operation.ID))
@@ -167,34 +173,50 @@ func (s *Service) runKeygenOperation(ctx context.Context, operation *Operation, 
 	s.logger.Info("Waiting for keygen completion or cancellation", zap.String("operation_id", operation.ID))
 
 	// Wait for completion or cancellation
+	// Ensure operation is always cleaned up regardless of outcome
+	defer func() {
+		// Always move completed operation to persistent storage for cleanup
+		if err := s.moveCompletedOperationToStorage(context.Background(), operation.ID); err != nil {
+			s.logger.Error("Failed to move keygen operation to persistent storage during cleanup",
+				zap.Error(err),
+				zap.String("operation_id", operation.ID))
+		}
+	}()
+
 	select {
 	case result := <-endCh:
 		s.logger.Info("Keygen completed successfully", zap.String("operation_id", operation.ID))
 		// Save result
 		if err := s.saveKeygenResult(ctx, operation, result); err != nil {
 			s.logger.Error("Failed to save keygen result", zap.Error(err))
-			s.handleOperationFailure(ctx, operation, err)
+			// Set failure status
+			operation.Lock()
+			operation.Status = StatusFailed
+			operation.Error = err
+			now := time.Now()
+			operation.CompletedAt = &now
+			operation.Unlock()
 		} else {
 			// Send to generic channel
 			operation.EndCh <- result
+			// Set success status
 			operation.Lock()
 			operation.Status = StatusCompleted
 			now := time.Now()
 			operation.CompletedAt = &now
 			operation.Unlock()
-
-			// Move completed operation to persistent storage
-			go func() {
-				if err := s.moveCompletedOperationToStorage(ctx, operation.ID); err != nil {
-					s.logger.Error("Failed to move completed keygen operation to persistent storage",
-						zap.Error(err),
-						zap.String("operation_id", operation.ID))
-				}
-			}()
 		}
 	case <-ctx.Done():
-		s.logger.Info("Keygen operation canceled",
-			zap.String("operation_id", operation.ID))
+		s.logger.Info("Keygen operation canceled or timed out",
+			zap.String("operation_id", operation.ID),
+			zap.Error(ctx.Err()))
+
+		// Set canceled status
+		operation.Lock()
+		operation.Status = StatusCancelled
+		now := time.Now()
+		operation.CompletedAt = &now
+		operation.Unlock()
 	}
 }
 

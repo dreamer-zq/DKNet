@@ -142,7 +142,13 @@ func (s *Service) runResharingOperation(ctx context.Context, operation *Operatio
 	go func() {
 		if err := operation.Party.Start(); err != nil {
 			s.logger.Error("Resharing party failed", zap.Error(err))
-			s.handleOperationFailure(ctx, operation, err)
+			// Set failure status
+			operation.Lock()
+			operation.Status = StatusFailed
+			operation.Error = err
+			now := time.Now()
+			operation.CompletedAt = &now
+			operation.Unlock()
 		}
 	}()
 
@@ -150,32 +156,49 @@ func (s *Service) runResharingOperation(ctx context.Context, operation *Operatio
 	go s.handleOutgoingMessages(ctx, operation)
 
 	// Wait for completion or cancellation
+	// Ensure operation is always cleaned up regardless of outcome
+	defer func() {
+		// Always move completed operation to persistent storage for cleanup
+		if err := s.moveCompletedOperationToStorage(context.Background(), operation.ID); err != nil {
+			s.logger.Error("Failed to move resharing operation to persistent storage during cleanup",
+				zap.Error(err),
+				zap.String("operation_id", operation.ID))
+		}
+	}()
+
 	select {
 	case result := <-endCh:
 		// Save result
 		if err := s.saveResharingResult(ctx, operation, result); err != nil {
 			s.logger.Error("Failed to save resharing result", zap.Error(err))
-			s.handleOperationFailure(ctx, operation, err)
+			// Set failure status
+			operation.Lock()
+			operation.Status = StatusFailed
+			operation.Error = err
+			now := time.Now()
+			operation.CompletedAt = &now
+			operation.Unlock()
 		} else {
 			// Send to generic channel
 			operation.EndCh <- result
+			// Set success status
 			operation.Lock()
 			operation.Status = StatusCompleted
 			now := time.Now()
 			operation.CompletedAt = &now
 			operation.Unlock()
-
-			// Move completed operation to persistent storage
-			go func() {
-				if err := s.moveCompletedOperationToStorage(ctx, operation.ID); err != nil {
-					s.logger.Error("Failed to move completed resharing operation to persistent storage",
-						zap.Error(err),
-						zap.String("operation_id", operation.ID))
-				}
-			}()
 		}
 	case <-ctx.Done():
-		s.logger.Info("Resharing operation canceled", zap.String("operation_id", operation.ID))
+		s.logger.Info("Resharing operation canceled or timed out",
+			zap.String("operation_id", operation.ID),
+			zap.Error(ctx.Err()))
+
+		// Set canceled status
+		operation.Lock()
+		operation.Status = StatusCancelled
+		now := time.Now()
+		operation.CompletedAt = &now
+		operation.Unlock()
 	}
 }
 
