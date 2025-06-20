@@ -27,7 +27,7 @@ RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o dknet ./cmd/dknet
 RUN ls -la dknet && echo "Binary built successfully"
 
 # Final stage
-FROM alpine:3.18
+FROM alpine:3.22
 
 # Install required packages
 RUN apk --no-cache add ca-certificates wget
