@@ -148,7 +148,7 @@ export TSS_ENCRYPTION_PASSWORD="YourSecurePassword123!"
 - `GET /health` - 健康检查
 - `POST /api/v1/keygen` - 密钥生成
 - `POST /api/v1/sign` - 签名操作
-- `POST /api/v1/reshare` - 密钥重分享
+- `POST /api/v1/reshare` - 密钥重分享(**暂不可用**)
 - `GET /api/v1/operations/{id}` - 查询操作状态
 
 ### gRPC API
@@ -165,8 +165,8 @@ make test
 make test-integration
 
 # 启动测试环境
-./tests/scripts/start-test-env.sh start
-./tests/scripts/start-test-env.sh test
+./tests/scripts/test-all.sh start
+./tests/scripts/test-all.sh test
 ```
 
 ## 贡献
