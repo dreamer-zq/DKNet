@@ -17,6 +17,15 @@ import (
 	"github.com/dreamer-zq/DKNet/internal/p2p"
 )
 
+// signingOperationParams contains parameters for creating a signing operation
+type signingOperationParams struct {
+	OperationID  string
+	SessionID    string
+	Message      []byte
+	KeyID        string
+	Participants []string
+}
+
 // StartSigning starts a new signing operation
 func (s *Service) StartSigning(
 	ctx context.Context,
@@ -51,20 +60,43 @@ func (s *Service) StartSigning(
 		return nil, fmt.Errorf("signing request validation failed: %w", err)
 	}
 
-	// Load key data and metadata
-	keyData, localParty, err := s.loadKeyData(ctx, keyID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load key data: %w", err)
-	}
-
 	// Generate or use provided operation ID
 	operationID = s.generateOrUseOperationID(operationID)
 	sessionID := uuid.New().String()
 
-	// Create participant list
-	participantList, err := s.createParticipantList(participants)
+	// Create the signing operation using common logic
+	operation, threshold, err := s.createSigningOperation(ctx, &signingOperationParams{
+		OperationID:  operationID,
+		SessionID:    sessionID,
+		Message:      message,
+		KeyID:        keyID,
+		Participants: participants,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create participant list: %w", err)
+		return nil, err
+	}
+
+	// Broadcast signing operation sync message to other participants
+	go s.broadcastSigningOperation(
+		operationID, sessionID,
+		threshold, len(operation.Participants), participants, keyID, message,
+	)
+
+	return operation, nil
+}
+
+// createSigningOperation creates a signing operation with shared logic
+func (s *Service) createSigningOperation(ctx context.Context, params *signingOperationParams) (*Operation, int, error) {
+	// Load key data and metadata
+	keyData, localParty, err := s.loadKeyData(ctx, params.KeyID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to load key data: %w", err)
+	}
+
+	// Create participant list
+	participantList, err := s.createParticipantList(params.Participants)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to create participant list: %w", err)
 	}
 
 	// Find our party ID in the participants list
@@ -76,35 +108,40 @@ func (s *Service) StartSigning(
 		}
 	}
 	if ourPartyID == nil {
-		return nil, fmt.Errorf("this node (%s) is not in the participant list", s.nodeID)
+		return nil, 0, fmt.Errorf("this node (%s) is not in the participant list", s.nodeID)
 	}
 
 	// Create TSS parameters - use the original threshold from keygen
 	ctx2 := tss.NewPeerContext(participantList)
 	threshold := keyData.Threshold // Use the original threshold from stored metadata
-	params := tss.NewParameters(tss.S256(), ctx2, ourPartyID, len(participantList), threshold)
+	tssParams := tss.NewParameters(tss.S256(), ctx2, ourPartyID, len(participantList), threshold)
 
 	// Create channels
 	outCh := make(chan tss.Message, 100)
 	endCh := make(chan *common.SignatureData, 1)
 
 	// Hash the message to sign - use Ethereum-compatible hash for ecrecover verification
-	hash := hashMessageForEthereum(message)
+	hash := hashMessageForEthereum(params.Message)
 
 	// Create signing party
-	party := signing.NewLocalParty(new(big.Int).SetBytes(hash), params, *localParty, outCh, endCh)
+	party := signing.NewLocalParty(new(big.Int).SetBytes(hash), tssParams, *localParty, outCh, endCh)
 
 	// Create operation context with cancellation - use background context to avoid HTTP timeout
 	// Set a shorter timeout for signing operations (5 minutes)
 	operationCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 
-	// Update request with final operation ID
-	req.OperationID = operationID
+	// Create request for storage
+	req := &SigningRequest{
+		OperationID:  params.OperationID,
+		Message:      params.Message,
+		KeyID:        params.KeyID,
+		Participants: params.Participants,
+	}
 
 	operation := &Operation{
-		ID:           operationID,
+		ID:           params.OperationID,
 		Type:         OperationSigning,
-		SessionID:    sessionID,
+		SessionID:    params.SessionID,
 		Participants: participantList,
 		Party:        party,
 		OutCh:        outCh,
@@ -117,19 +154,13 @@ func (s *Service) StartSigning(
 
 	// Store operation
 	s.mutex.Lock()
-	s.operations[operationID] = operation
+	s.operations[params.OperationID] = operation
 	s.mutex.Unlock()
 
 	// Start operation in a goroutine
 	go s.runSigningOperation(operationCtx, operation, endCh)
 
-	// Broadcast signing operation sync message to other participants
-	go s.broadcastSigningOperation(
-		operationID, sessionID,
-		threshold, len(participantList), participants, keyID, message,
-	)
-
-	return operation, nil
+	return operation, threshold, nil
 }
 
 func (s *Service) broadcastSigningOperation(
@@ -206,75 +237,18 @@ func (s *Service) createSyncedSigningOperation(ctx context.Context, msg *p2p.Mes
 		return fmt.Errorf("synced signing request validation failed: %w", err)
 	}
 
-	// Load key data and metadata
-	keyData, localParty, err := s.loadKeyData(ctx, syncData.KeyID)
-	if err != nil {
-		return fmt.Errorf("failed to load key data for synced signing: %w", err)
-	}
-	// Create participant list
-	participants, err := s.createParticipantList(syncData.Participants)
-	if err != nil {
-		return fmt.Errorf("failed to create participant list: %w", err)
-	}
-
-	// Find our party ID in the participants list
-	var ourPartyID *tss.PartyID
-	for _, p := range participants {
-		if p.Id == s.nodeID {
-			ourPartyID = p
-			break
-		}
-	}
-	if ourPartyID == nil {
-		return fmt.Errorf("this node (%s) is not a participant in the signing operation", s.nodeID)
-	}
-
-	// Create TSS parameters - use the original threshold from keygen
-	ctx2 := tss.NewPeerContext(participants)
-	threshold := keyData.Threshold // Use the original threshold from stored metadata
-	params := tss.NewParameters(tss.S256(), ctx2, ourPartyID, len(participants), threshold)
-
-	// Create channels
-	outCh := make(chan tss.Message, 100)
-	endCh := make(chan *common.SignatureData, 1)
-
-	// Hash the message to sign - use Ethereum-compatible hash for ecrecover verification
-	hash := hashMessageForEthereum(syncData.Message)
-
-	// Create signing party
-	party := signing.NewLocalParty(new(big.Int).SetBytes(hash), params, *localParty, outCh, endCh)
-
-	// Create operation context with cancellation - use background context to avoid HTTP timeout
-	operationCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-
-	// Reconstruct request from sync data
-	request := &SigningRequest{
+	// Create the signing operation using common logic
+	_, _, err := s.createSigningOperation(ctx, &signingOperationParams{
+		OperationID:  syncData.OperationID,
+		SessionID:    syncData.SessionID,
 		Message:      syncData.Message,
 		KeyID:        syncData.KeyID,
 		Participants: syncData.Participants,
+	})
+	if err != nil {
+		s.logger.Error("Failed to create synced signing operation", zap.Error(err))
+		return fmt.Errorf("failed to create synced signing operation: %w", err)
 	}
-
-	operation := &Operation{
-		ID:           syncData.OperationID,
-		Type:         OperationSigning,
-		SessionID:    syncData.SessionID,
-		Participants: participants,
-		Party:        party,
-		OutCh:        outCh,
-		EndCh:        make(chan interface{}, 1), // Generic channel for interface{}
-		Status:       StatusPending,
-		CreatedAt:    time.Now(),
-		Request:      request, // Store the reconstructed request
-		cancel:       cancel,
-	}
-
-	// Store operation
-	s.mutex.Lock()
-	s.operations[operation.ID] = operation
-	s.mutex.Unlock()
-
-	// Start the signing operation in a goroutine
-	go s.runSigningOperation(operationCtx, operation, endCh)
 
 	s.logger.Info("Synced signing operation created successfully",
 		zap.String("operation_id", syncData.OperationID),

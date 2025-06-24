@@ -17,6 +17,15 @@ import (
 	"github.com/dreamer-zq/DKNet/internal/p2p"
 )
 
+// keygenOperationParams contains parameters for creating a keygen operation
+type keygenOperationParams struct {
+	OperationID  string
+	SessionID    string
+	Threshold    int
+	Participants []string
+	UsePreParams bool // Whether to use pre-computed parameters for faster keygen
+}
+
 // StartKeygen starts a new keygen operation
 func (s *Service) StartKeygen(
 	ctx context.Context,
@@ -38,8 +47,28 @@ func (s *Service) StartKeygen(
 	operationID = s.generateOrUseOperationID(operationID)
 	sessionID := uuid.New().String()
 
+	// Create the keygen operation using common logic
+	operation, err := s.createKeygenOperation(ctx, &keygenOperationParams{
+		OperationID:  operationID,
+		SessionID:    sessionID,
+		Threshold:    threshold,
+		Participants: participants,
+		UsePreParams: false, // Don't use pre-computed parameters for standard keygen
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Broadcast keygen operation sync message to other participants
+	go s.broadcastKeygenOperation(operationID, sessionID, threshold, participants)
+
+	return operation, nil
+}
+
+// createKeygenOperation creates a keygen operation with shared logic
+func (s *Service) createKeygenOperation(ctx context.Context, params *keygenOperationParams) (*Operation, error) {
 	// Create participant list
-	participantList, err := s.createParticipantList(participants)
+	participantList, err := s.createParticipantList(params.Participants)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create participant list: %w", err)
 	}
@@ -56,16 +85,33 @@ func (s *Service) StartKeygen(
 		return nil, fmt.Errorf("this node (%s) is not in the participant list", s.nodeID)
 	}
 
+	// Log party ID for sync operations
+	if params.UsePreParams {
+		s.logger.Info("Found our party ID for synced operation", zap.String("party_id", ourPartyID.Id))
+	}
+
 	// Create TSS parameters
 	peerCtx := tss.NewPeerContext(participantList)
-	params := tss.NewParameters(tss.S256(), peerCtx, ourPartyID, len(participants), threshold)
+	tssParams := tss.NewParameters(tss.S256(), peerCtx, ourPartyID, len(params.Participants), params.Threshold)
 
 	// Create channels
 	outCh := make(chan tss.Message, 100)
 	endCh := make(chan *keygen.LocalPartySaveData, 1)
 
-	// Create keygen party
-	party := keygen.NewLocalParty(params, outCh, endCh)
+	// Create keygen party - with or without pre-computed parameters
+	var party tss.Party
+	if params.UsePreParams {
+		// Pre-compute parameters for faster keygen (used in sync operations)
+		preParams, err := keygen.GeneratePreParams(1 * time.Minute)
+		if err != nil {
+			s.logger.Error("Failed to generate pre-params for synced operation", zap.Error(err))
+			return nil, fmt.Errorf("failed to generate pre-params: %w", err)
+		}
+		party = keygen.NewLocalParty(tssParams, outCh, endCh, *preParams)
+	} else {
+		// Standard keygen party without pre-computed parameters
+		party = keygen.NewLocalParty(tssParams, outCh, endCh)
+	}
 
 	// Create operation context with cancellation - use background context to avoid HTTP timeout
 	// Set a longer timeout for keygen operations (10 minutes)
@@ -73,15 +119,15 @@ func (s *Service) StartKeygen(
 
 	// Create request for storage
 	req := &KeygenRequest{
-		OperationID:  operationID,
-		Threshold:    threshold,
-		Participants: participants,
+		OperationID:  params.OperationID,
+		Threshold:    params.Threshold,
+		Participants: params.Participants,
 	}
 
 	operation := &Operation{
-		ID:           operationID,
+		ID:           params.OperationID,
 		Type:         OperationKeygen,
-		SessionID:    sessionID,
+		SessionID:    params.SessionID,
 		Participants: participantList,
 		Party:        party,
 		OutCh:        outCh,
@@ -94,14 +140,18 @@ func (s *Service) StartKeygen(
 
 	// Store operation
 	s.mutex.Lock()
-	s.operations[operationID] = operation
+	s.operations[params.OperationID] = operation
 	s.mutex.Unlock()
+
+	// Log for sync operations
+	if params.UsePreParams {
+		s.logger.Info("Synced operation stored, starting keygen goroutine",
+			zap.String("operation_id", params.OperationID),
+			zap.String("session_id", params.SessionID))
+	}
 
 	// Start operation in a goroutine
 	go s.runKeygenOperation(operationCtx, operation, endCh)
-
-	// Broadcast keygen operation sync message to other participants
-	go s.broadcastKeygenOperation(operationID, sessionID, threshold, participants)
 
 	return operation, nil
 }
@@ -304,80 +354,18 @@ func (s *Service) createSyncedKeygenOperation(ctx context.Context, msg *p2p.Mess
 		zap.Int("parties", syncData.Parties),
 		zap.Strings("participants", syncData.Participants))
 
-	// Create participant list
-	participants, err := s.createParticipantList(syncData.Participants)
-	if err != nil {
-		s.logger.Error("Failed to create participant list for synced operation", zap.Error(err))
-		return fmt.Errorf("failed to create participant list: %w", err)
-	}
-
-	// Find our party ID in the participants list
-	var ourPartyID *tss.PartyID
-	for _, p := range participants {
-		if p.Id == s.nodeID {
-			ourPartyID = p
-			break
-		}
-	}
-	if ourPartyID == nil {
-		s.logger.Error("This node not found in participant list for synced operation", zap.String("node_id", s.nodeID))
-		return fmt.Errorf("this node (%s) is not in the participant list", s.nodeID)
-	}
-
-	s.logger.Info("Found our party ID for synced operation", zap.String("party_id", ourPartyID.Id))
-
-	// Pre-compute parameters for faster keygen
-	preParams, err := keygen.GeneratePreParams(1 * time.Minute)
-	if err != nil {
-		s.logger.Error("Failed to generate pre-params for synced operation", zap.Error(err))
-		return fmt.Errorf("failed to generate pre-params: %w", err)
-	}
-
-	// Create TSS parameters
-	peerCtx := tss.NewPeerContext(participants)
-	params := tss.NewParameters(tss.S256(), peerCtx, ourPartyID, len(participants), syncData.Threshold)
-
-	// Create channels
-	outCh := make(chan tss.Message, 100)
-	endCh := make(chan *keygen.LocalPartySaveData, 1)
-
-	// Create keygen party
-	party := keygen.NewLocalParty(params, outCh, endCh, *preParams)
-
-	// Create operation context with cancellation
-	operationCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-
-	// Reconstruct request from sync data
-	request := &KeygenRequest{
+	// Create the keygen operation using common logic with pre-computed parameters
+	_, err := s.createKeygenOperation(ctx, &keygenOperationParams{
+		OperationID:  syncData.OperationID,
+		SessionID:    syncData.SessionID,
 		Threshold:    syncData.Threshold,
 		Participants: syncData.Participants,
+		UsePreParams: true, // Use pre-computed parameters for sync operations
+	})
+	if err != nil {
+		s.logger.Error("Failed to create synced keygen operation", zap.Error(err))
+		return fmt.Errorf("failed to create synced keygen operation: %w", err)
 	}
-
-	operation := &Operation{
-		ID:           syncData.OperationID, // Use the operation ID from sync message
-		Type:         OperationKeygen,
-		SessionID:    syncData.SessionID, // Use the session ID from sync message
-		Participants: participants,
-		Party:        party,
-		OutCh:        outCh,
-		EndCh:        make(chan interface{}, 1),
-		Status:       StatusPending,
-		CreatedAt:    time.Now(),
-		Request:      request, // Store the reconstructed request
-		cancel:       cancel,
-	}
-
-	// Store operation
-	s.mutex.Lock()
-	s.operations[syncData.OperationID] = operation
-	s.mutex.Unlock()
-
-	s.logger.Info("Synced operation stored, starting keygen goroutine",
-		zap.String("operation_id", syncData.OperationID),
-		zap.String("session_id", syncData.SessionID))
-
-	// Start operation in a goroutine
-	go s.runKeygenOperation(operationCtx, operation, endCh)
 
 	s.logger.Info("Started synced keygen operation",
 		zap.String("operation_id", syncData.OperationID),

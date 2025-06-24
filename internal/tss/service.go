@@ -263,9 +263,7 @@ func (s *Service) handleOperationSync(ctx context.Context, msg *p2p.Message) err
 	case OperationSigning:
 		return s.createSyncedSigningOperation(ctx, msg)
 	case OperationResharing:
-		// TODO: implement resharing operation sync
-		s.logger.Warn("Resharing operation sync not implemented yet")
-		return nil
+		return s.createSyncedResharingOperation(ctx, msg)
 	default:
 		return fmt.Errorf("unknown operation type: %s", baseData.OperationType)
 	}

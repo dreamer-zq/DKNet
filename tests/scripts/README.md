@@ -1,246 +1,214 @@
-# DKNet 测试脚本使用指南
+# DKNet TSS Test Scripts
 
-## 概述
+本目录包含DKNet TSS系统的测试脚本，专注于正向测试，用于快速验证系统功能的正确性。
 
-本目录包含了DKNet TSS系统的测试脚本，支持Docker环境下的完整测试流程，包括JWT鉴权功能。
+## 文件结构
 
-## 脚本列表
+- `test-all.sh` - **统一测试入口**，一次性运行keygen、resharing和signing测试（推荐使用）
+- `test-common.sh` - 公共函数库，包含所有测试脚本需要的共用函数
+- `test-keygen.sh` - Keygen操作测试脚本（仅密钥生成）
+- `test-resharing.sh` - Resharing操作测试脚本（密钥重分享）
+- `test-signing.sh` - Signing操作测试脚本
 
-### 1. `start-test-env.sh` - 主要测试环境管理脚本
+## 快速开始
 
-这是主要的测试环境管理脚本，支持启动、停止、测试Docker环境中的DKNet TSS集群。
+### 推荐方式：使用统一测试脚本
 
-#### 新增功能（JWT鉴权支持）
+```bash
+# 运行完整测试套件（keygen + resharing + signing，推荐）
+./tests/scripts/test-all.sh
 
-- **JWT Token生成** - 自动生成用于API鉴权的JWT token
-- **鉴权测试** - 验证API鉴权功能是否正常工作
-- **认证API调用** - 所有TSS API调用都使用JWT鉴权
+# 或者明确指定
+./tests/scripts/test-all.sh all
 
-#### 主要命令
+# 仅运行keygen测试
+./tests/scripts/test-all.sh keygen
+
+# 仅运行resharing测试（需要先运行keygen）
+./tests/scripts/test-all.sh resharing
+
+# 仅运行signing测试（需要先运行keygen和resharing）
+./tests/scripts/test-all.sh signing
+```
+
+### 分别运行测试
+
+#### 1. 运行Keygen测试
+
+```bash
+# 启动测试环境并运行所有keygen测试
+./tests/scripts/test-keygen.sh start
+
+# 或者只运行测试（需要环境已启动）
+./tests/scripts/test-keygen.sh test
+```
+
+#### 2. 运行Resharing测试
+
+```bash
+# 运行所有resharing测试（需要先运行keygen测试）
+./tests/scripts/test-resharing.sh test
+
+# 快速resharing测试（使用指定的key_id和阈值）
+./tests/scripts/test-resharing.sh quick 0x1234567890abcdef 1 2
+```
+
+#### 3. 运行Signing测试
+
+```bash
+# 运行所有signing测试（需要先运行keygen测试）
+./tests/scripts/test-signing.sh test
+
+# 快速签名测试（使用指定的key_id）
+./tests/scripts/test-signing.sh quick 0x1234567890abcdef
+
+# 快速签名测试（使用自定义消息）
+./tests/scripts/test-signing.sh quick 0x1234567890abcdef "My custom message"
+```
+
+## 统一测试脚本特点
+
+`test-all.sh` 提供了最便利的测试体验：
+
+### 功能特点
+
+- **一键运行**：自动启动环境，按顺序执行所有测试
+- **完整覆盖**：包含3个keygen测试 + 6个signing测试 + 2个验证测试，共13个测试（resharing测试暂时跳过）
+- **智能管理**：自动传递密钥ID，无需手动干预
+- **详细输出**：显示所有Operation ID、JWT Token、Key ID和Signature
+- **结果汇总**：提供完整的测试结果摘要
+
+### 测试流程
+
+1. 启动Docker测试环境（3个TSS节点 + 验证服务）
+2. 生成JWT认证令牌
+3. 执行Keygen测试（生成并保存密钥ID）
+4. 跳过Resharing测试（由于TSS库v2.0.2的已知问题）
+5. 执行Signing测试（使用生成的密钥）
+6. 显示完整的测试结果摘要
+
+## 测试覆盖范围
+
+### Keygen测试包括
+
+1. 2-of-3阈值密钥生成
+2. 3-of-3阈值密钥生成  
+3. 2-of-2阈值密钥生成
+
+### Resharing测试（当前跳过）
+
+**注意**: Resharing测试当前被跳过，因为TSS库v2.0.2存在已知的resharing操作问题。
+要启用resharing测试，请在`test-all.sh`中设置`ENABLE_RESHARING_TESTS="true"`。
+
+计划包含的测试：
+
+1. 从2-of-3重分享到3-of-3
+2. 从3-of-3重分享到2-of-3
+3. 从2-of-3重分享到2-of-2（参与者变更）
+4. 从2-of-2重分享到2-of-3（参与者扩展）
+
+### Signing测试包括
+
+1. 使用2-of-3密钥进行签名（不同参与者组合）
+2. 使用3-of-3密钥进行签名
+3. 使用2-of-2密钥进行签名
+4. 不同消息类型的签名测试（文本、交易、JSON等）
+5. 重分享密钥签名测试（当前跳过）
+
+## 输出信息
+
+每个测试都会输出详细信息，包括：
+
+- **Operation ID** - 每个操作的唯一标识符
+- **JWT Token** - 用于API认证的令牌
+- **Key ID** - 生成的密钥标识符
+- **Signature** - 生成的签名结果
+- **请求数据** - 完整的API请求数据（JSON格式）
+
+## 环境管理
+
+### 使用统一测试脚本管理环境（推荐）
+
+```bash
+# 检查环境状态
+./tests/scripts/test-all.sh status
+
+# 查看所有服务日志
+./tests/scripts/test-all.sh logs
+
+# 查看特定服务日志
+./tests/scripts/test-all.sh logs tss-node1
+./tests/scripts/test-all.sh logs validation-service
+
+# 停止环境
+./tests/scripts/test-all.sh stop
+
+# 清理环境
+./tests/scripts/test-all.sh cleanup
+```
+
+### 使用单独脚本管理环境
 
 ```bash
 # 启动测试环境
-./start-test-env.sh start
-
-# 生成JWT token用于手动测试
-./start-test-env.sh generate-token
-
-# 测试JWT鉴权功能
-./start-test-env.sh test-auth
-
-# 运行TSS功能测试（包含鉴权）
-./start-test-env.sh test-tss
-
-# 查看环境状态
-./start-test-env.sh status
-
-# 停止环境
-./start-test-env.sh stop
-
-# 清理环境
-./start-test-env.sh cleanup
-```
-
-#### JWT配置
-
-- **JWT Secret**: `dknet-test-jwt-secret-key-2024`
-- **JWT Issuer**: `dknet-test`
-- **Token有效期**: 24小时
-- **支持角色**: admin, operator
-
-### 2. `test-auth-integration.sh` - JWT鉴权集成测试
-
-专门用于测试JWT鉴权功能的集成测试脚本。
-
-#### 测试内容
-
-1. **环境检查** - 验证测试环境是否正在运行
-2. **未认证请求测试** - 验证未认证请求被正确拒绝（HTTP 401）
-3. **JWT流程测试** - 完整的JWT生成和认证流程
-4. **手动JWT测试** - 测试手动提取和使用JWT token
-
-#### 使用方法
-
-```bash
-# 运行所有集成测试
-./test-auth-integration.sh
-
-# 运行特定测试
-./test-auth-integration.sh test-jwt
-./test-auth-integration.sh test-unauth
-./test-auth-integration.sh test-manual
+./tests/scripts/test-keygen.sh start
 
 # 检查环境状态
-./test-auth-integration.sh check-env
+./tests/scripts/test-keygen.sh status
+# 或
+./tests/scripts/test-signing.sh status
+
+# 查看日志
+./tests/scripts/test-keygen.sh logs
+./tests/scripts/test-keygen.sh logs tss-node1
+
+# 停止环境
+./tests/scripts/test-keygen.sh stop
+
+# 清理环境
+./tests/scripts/test-keygen.sh cleanup
 ```
 
-## 使用流程
+## 测试环境信息
 
-### 1. 启动测试环境
+- **验证服务**: <http://localhost:8888>
+- **TSS节点1**: <http://localhost:8081>  
+- **TSS节点2**: <http://localhost:8082>
+- **TSS节点3**: <http://localhost:8083>
+- **加密密码**: TestPassword123! (默认)
+- **JWT密钥**: dknet-test-jwt-secret-key-2024
+- **JWT签发者**: dknet-test
 
-```bash
-# 启动完整的测试环境
-./start-test-env.sh start
-```
+## 节点ID
 
-输出示例：
+- **节点1**: 12D3KooWGZCnvk6cX2UUhc1SHhkGvdfJNZicx4uXEb3niyHHN7ch
+- **节点2**: 12D3KooWEMke2yrVjg4nadKBBCZrWeZtxD4KucM4QzgH24JMo6JU  
+- **节点3**: 12D3KooWT3TACsUvszChWcQwT7YpPa1udfwpb5k5qQ8zrBw4VqZ7
 
-```text
-[INFO] Starting DKNet TSS test environment...
-[INFO] Building and starting services...
-[SUCCESS] Test environment started successfully!
-[INFO] Services available at:
-  - Validation Service: http://localhost:8888
-  - TSS Node 1: http://localhost:8081
-  - TSS Node 2: http://localhost:8082
-  - TSS Node 3: http://localhost:8083
+## 依赖要求
 
-[INFO] JWT Authentication is enabled for all TSS nodes
-[INFO] JWT Secret: dknet-test-jwt-secret-key-2024
-[INFO] JWT Issuer: dknet-test
-[WARNING] Use './start-test-env.sh generate-token' to get a JWT token for API testing
-```
-
-### 2. 生成JWT Token
-
-```bash
-# 生成JWT token
-./start-test-env.sh generate-token
-```
-
-输出示例：
-
-```text
-[SUCCESS] JWT Token generated:
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTAxNDQxODgsImlhdCI6MTc1MDA1Nzc4OCwiaXNzIjoiZGtuZXQtdGVzdCIsInJvbGVzIjpbImFkbWluIiwib3BlcmF0b3IiXSwic3ViIjoidGVzdC11c2VyIn0.wrl0I29Q8R5zFm8TYUyVyGeyCKDfhCFEQO8k7l2wjU8
-
-[INFO] Usage examples:
-HTTP: curl -H "Authorization: Bearer <token>" http://localhost:8081/health
-gRPC: grpcurl -H "authorization: Bearer <token>" localhost:9095 tss.v1.TSSService/GetOperation
-```
-
-### 3. 测试JWT鉴权
-
-```bash
-# 测试鉴权功能
-./start-test-env.sh test-auth
-```
-
-### 4. 运行TSS功能测试
-
-```bash
-# 运行完整的TSS测试（包含鉴权）
-./start-test-env.sh test-tss
-```
-
-### 5. 运行集成测试
-
-```bash
-# 运行完整的鉴权集成测试
-./test-auth-integration.sh
-```
-
-## 手动API测试
-
-### 使用curl进行HTTP API测试
-
-```bash
-# 1. 生成JWT token
-TOKEN=$(./start-test-env.sh generate-token 2>/dev/null | grep -A1 "JWT Token generated:" | tail -1)
-
-# 2. 测试健康检查
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8081/health
-
-# 3. 启动密钥生成
-curl -X POST \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "threshold": 2,
-    "participants": ["12D3KooWGZCnvk6cX2UUhc1SHhkGvdfJNZicx4uXEb3niyHHN7ch", "12D3KooWEMke2yrVjg4nadKBBCZrWeZtxD4KucM4QzgH24JMo6JU", "12D3KooWT3TACsUvszChWcQwT7YpPa1udfwpb5k5qQ8zrBw4VqZ7"]
-  }' \
-  http://localhost:8081/api/v1/keygen
-
-# 4. 查看操作列表
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8081/api/v1/operations
-```
-
-### 使用grpcurl进行gRPC API测试
-
-```bash
-# 1. 生成JWT token
-TOKEN=$(./start-test-env.sh generate-token 2>/dev/null | grep -A1 "JWT Token generated:" | tail -1)
-
-# 2. 测试gRPC调用
-grpcurl -H "authorization: Bearer $TOKEN" \
-  -d '{"operation_id": "test-id"}' \
-  localhost:9095 tss.v1.TSSService/GetOperation
-```
-
-## 配置说明
-
-### JWT配置
-
-测试环境使用固定的JWT配置以确保一致性：
-
-```yaml
-security:
-  auth:
-    enabled: true
-    jwt_secret: "dknet-test-jwt-secret-key-2024"
-    jwt_issuer: "dknet-test"
-```
-
-### 端口映射
-
-- **Validation Service**: 8888
-- **TSS Node 1**: HTTP 8081, gRPC 9095
-- **TSS Node 2**: HTTP 8082, gRPC 9096
-- **TSS Node 3**: HTTP 8083, gRPC 9098
-
-### 环境变量
-
-- `TSS_ENCRYPTION_PASSWORD`: TSS加密密码（默认：TestPassword123!）
-
-## 安全注意事项
-
-1. **测试环境专用**: 这些配置和密钥仅用于测试环境
-2. **JWT密钥安全**: 生产环境必须使用强随机密钥
-3. **Token管理**: JWT token有24小时有效期，过期后需重新生成
-4. **网络安全**: 测试环境在本地运行，生产环境需要适当的网络安全配置
+- Docker和docker-compose
+- Go（用于JWT令牌生成）
+- curl和jq（用于API测试）
 
 ## 故障排除
 
-### 查看日志
+1. **环境启动失败**: 检查Docker是否运行，端口是否被占用
+2. **JWT令牌生成失败**: 确保Go已安装且可以访问网络
+3. **Key ID未找到**: 确保先运行keygen测试再运行signing测试
+4. **操作超时**: 检查节点健康状态和网络连接
+
+## 手动验证
+
+所有测试输出的Operation ID和JWT Token都可以用于手动验证：
 
 ```bash
-# 查看所有服务日志
-./start-test-env.sh logs
+# 使用JWT Token查询操作状态
+curl -H "Authorization: Bearer <JWT_TOKEN>" \
+     http://localhost:8081/api/v1/operations/<OPERATION_ID>
 
-# 查看特定服务日志
-./start-test-env.sh logs tss-node1
-./start-test-env.sh logs validation-service
+# 直接调用验证服务
+curl -X POST http://localhost:8888/validate \
+     -H "Content-Type: application/json" \
+     -d '{"message":"SGVsbG8gV29ybGQ=","key_id":"0x123","participants":["node1"],"node_id":"node1","timestamp":1234567890}'
 ```
-
-### 重置环境
-
-```bash
-# 完全清理并重启环境
-./start-test-env.sh cleanup
-./start-test-env.sh start
-```
-
-### 调试JWT问题
-
-```bash
-# 测试JWT生成
-./start-test-env.sh generate-token
-
-# 测试鉴权流程
-./start-test-env.sh test-auth
-
-# 运行集成测试
-./test-auth-integration.sh
-```
-
-这些脚本提供了完整的JWT鉴权测试环境，确保DKNet TSS系统的安全性和功能性。
