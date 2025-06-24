@@ -203,7 +203,7 @@ func createSignCommand() *cobra.Command {
 func createReshareCommand() *cobra.Command {
 	var keyID string
 	var newThreshold int
-	var oldParticipants, newParticipants []string
+	var newParticipants []string
 
 	cmd := &cobra.Command{
 		Use:   "reshare",
@@ -216,9 +216,6 @@ func createReshareCommand() *cobra.Command {
 			if newThreshold < 0 {
 				return fmt.Errorf("new-threshold must be a non-negative integer")
 			}
-			if len(oldParticipants) == 0 {
-				return fmt.Errorf("old-participants list cannot be empty")
-			}
 			if len(newParticipants) == 0 {
 				return fmt.Errorf("new-participants list cannot be empty")
 			}
@@ -230,16 +227,15 @@ func createReshareCommand() *cobra.Command {
 			defer cancel()
 
 			if useGRPC {
-				return reshareGRPC(ctx, keyID, newThreshold, oldParticipants, newParticipants)
+				return reshareGRPC(ctx, keyID, newThreshold, newParticipants)
 			}
-			return reshareHTTP(ctx, keyID, newThreshold, oldParticipants, newParticipants)
+			return reshareHTTP(ctx, keyID, newThreshold, newParticipants)
 		},
 	}
 
 	cmd.Flags().StringVarP(&keyID, "key-id", "k", "", "Key ID to reshare (required)")
 	cmd.Flags().IntVar(&newThreshold, "new-threshold", 0,
 		"New fault tolerance threshold (t in (t+1)-of-n scheme). Max number of parties that can fail. Minimum signers required = t+1 (required)")
-	cmd.Flags().StringSliceVar(&oldParticipants, "old-participants", nil, "List of old participant IDs (required)")
 	cmd.Flags().StringSliceVar(&newParticipants, "new-participants", nil, "List of new participant IDs (required)")
 
 	if err := cmd.MarkFlagRequired("key-id"); err != nil {
@@ -247,9 +243,6 @@ func createReshareCommand() *cobra.Command {
 	}
 	if err := cmd.MarkFlagRequired("new-threshold"); err != nil {
 		panic(fmt.Sprintf("Failed to mark new-threshold flag as required: %v", err))
-	}
-	if err := cmd.MarkFlagRequired("old-participants"); err != nil {
-		panic(fmt.Sprintf("Failed to mark old-participants flag as required: %v", err))
 	}
 	if err := cmd.MarkFlagRequired("new-participants"); err != nil {
 		panic(fmt.Sprintf("Failed to mark new-participants flag as required: %v", err))
@@ -338,14 +331,13 @@ func signGRPC(ctx context.Context, message []byte, keyID string, participants []
 	return outputStartSigningResponse(resp)
 }
 
-func reshareGRPC(ctx context.Context, keyID string, newThreshold int, oldParticipants, newParticipants []string) error {
+func reshareGRPC(ctx context.Context, keyID string, newThreshold int, newParticipants []string) error {
 	// Add authentication to context
 	ctx = addAuthToContext(ctx)
 
 	req := &tssv1.StartResharingRequest{
 		KeyId:           keyID,
 		NewThreshold:    int32(newThreshold),
-		OldParticipants: oldParticipants,
 		NewParticipants: newParticipants,
 	}
 
@@ -447,11 +439,10 @@ func signHTTP(ctx context.Context, message []byte, keyID string, participants []
 	return outputStartSigningResponse(&opResp)
 }
 
-func reshareHTTP(ctx context.Context, keyID string, newThreshold int, oldParticipants, newParticipants []string) error {
+func reshareHTTP(ctx context.Context, keyID string, newThreshold int, newParticipants []string) error {
 	req := &tssv1.StartResharingRequest{
 		KeyId:           keyID,
 		NewThreshold:    int32(newThreshold),
-		OldParticipants: oldParticipants,
 		NewParticipants: newParticipants,
 	}
 

@@ -128,11 +128,8 @@ message StartResharingRequest {
     // New fault tolerance threshold (t in (t+1)-of-n scheme)
     int32 new_threshold = 3;
     
-    // List of old participant peer IDs
-    repeated string old_participants = 4;
-    
     // List of new participant peer IDs (new_parties = len(new_participants))
-    repeated string new_participants = 5;
+    repeated string new_participants = 4;
 }
 
 // StartResharingResponse represents the response when starting resharing operation

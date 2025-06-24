@@ -217,7 +217,6 @@ func outputGetOperationResponse(resp *tssv1.GetOperationResponse) error {
 		case *tssv1.GetOperationResponse_ResharingRequest:
 			fmt.Printf("  Key ID: %s\n", request.ResharingRequest.KeyId)
 			fmt.Printf("  New Threshold: %d\n", request.ResharingRequest.NewThreshold)
-			fmt.Printf("  Old Participants: %s\n", strings.Join(request.ResharingRequest.OldParticipants, ", "))
 			fmt.Printf("  New Participants: %s\n", strings.Join(request.ResharingRequest.NewParticipants, ", "))
 			fmt.Printf("  New Parties: %d\n", len(request.ResharingRequest.NewParticipants))
 		}

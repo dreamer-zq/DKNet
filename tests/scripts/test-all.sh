@@ -11,7 +11,10 @@ source "$SCRIPT_DIR/test-common.sh"
 
 # Configuration: Enable/disable resharing tests
 # Set to "true" to enable resharing tests, "false" to skip them
-ENABLE_RESHARING_TESTS="false"
+# Note: Currently disabled due to TSS library v2.0.2 compatibility issues
+# The panic occurs in round_2_new_step_1.go:46 due to nil pointer dereference
+# This is likely related to Paillier key compatibility between versions
+ENABLE_RESHARING_TESTS="true"
 
 # Function to run complete test suite (test only, requires environment to be started)
 run_complete_tests() {

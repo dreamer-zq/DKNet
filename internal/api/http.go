@@ -171,7 +171,6 @@ func (s *Server) reshareHandler(c *gin.Context) {
 		req.OperationId,
 		req.KeyId,
 		int(req.NewThreshold),
-		req.OldParticipants,
 		req.NewParticipants,
 	)
 	if err != nil {

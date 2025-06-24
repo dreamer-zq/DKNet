@@ -142,7 +142,6 @@ func (g *gRPCTSSServer) StartResharing(ctx context.Context, req *tssv1.StartResh
 		req.OperationId,
 		req.KeyId,
 		int(req.NewThreshold),
-		req.OldParticipants,
 		req.NewParticipants,
 	)
 	if err != nil {

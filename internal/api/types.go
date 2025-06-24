@@ -122,7 +122,6 @@ func buildOperationResponse(operation *tss.Operation) *tssv1.GetOperationRespons
 				ResharingRequest: &tssv1.StartResharingRequest{
 					KeyId:           req.KeyID,
 					NewThreshold:    int32(req.NewThreshold),
-					OldParticipants: req.OldParticipants,
 					NewParticipants: req.NewParticipants,
 				},
 			}
@@ -212,7 +211,6 @@ func buildOperationResponseFromStorage(data *tss.OperationData) *tssv1.GetOperat
 				ResharingRequest: &tssv1.StartResharingRequest{
 					KeyId:           req.KeyID,
 					NewThreshold:    int32(req.NewThreshold),
-					OldParticipants: req.OldParticipants,
 					NewParticipants: req.NewParticipants,
 				},
 			}

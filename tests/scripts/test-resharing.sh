@@ -12,20 +12,16 @@ source "$SCRIPT_DIR/test-common.sh"
 # Function to test resharing operation
 test_resharing() {
     local key_id="$1"
-    local old_threshold="$2"
-    local new_threshold="$3"
-    local old_participants_str="$4"
-    local new_participants_str="$5"
-    local test_name="$6"
+    local new_threshold="$2"
+    local new_participants_str="$3"
+    local test_name="$4"
     
     print_status "Testing resharing operation: $test_name"
     
     local resharing_data=$(cat <<EOF
 {
     "key_id": "$key_id",
-    "old_threshold": $old_threshold,
     "new_threshold": $new_threshold,
-    "old_participants": [$old_participants_str],
     "new_participants": [$new_participants_str]
 }
 EOF
@@ -116,7 +112,7 @@ run_resharing_tests() {
     
     # Test 1: Resharing from 2-of-3 to 3-of-3
     local new_key_id_1
-    if new_key_id_1=$(test_resharing "$KEY_ID_1" 1 2 '"'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"' '"'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"' "Resharing 2-of-3 to 3-of-3"); then
+    if new_key_id_1=$(test_resharing "$KEY_ID_1" 2 '"'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"' "Resharing 2-of-3 to 3-of-3"); then
         print_success "✓ Test 1 passed"
     else
         print_error "✗ Test 1 failed"
@@ -127,7 +123,7 @@ run_resharing_tests() {
     
     # Test 2: Resharing from 3-of-3 to 2-of-3
     local new_key_id_2
-    if new_key_id_2=$(test_resharing "$KEY_ID_2" 2 1 '"'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"' '"'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"' "Resharing 3-of-3 to 2-of-3"); then
+    if new_key_id_2=$(test_resharing "$KEY_ID_2" 1 '"'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"' "Resharing 3-of-3 to 2-of-3"); then
         print_success "✓ Test 2 passed"
     else
         print_error "✗ Test 2 failed"
@@ -138,7 +134,7 @@ run_resharing_tests() {
     
     # Test 3: Resharing with participant change (2-of-3 to 2-of-2)
     local new_key_id_3
-    if new_key_id_3=$(test_resharing "$new_key_id_2" 1 1 '"'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"' '"'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'"' "Resharing 2-of-3 to 2-of-2 with participant change"); then
+    if new_key_id_3=$(test_resharing "$new_key_id_2" 1 '"'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'"' "Resharing 2-of-3 to 2-of-2 with participant change"); then
         print_success "✓ Test 3 passed"
     else
         print_error "✗ Test 3 failed"
@@ -149,7 +145,7 @@ run_resharing_tests() {
     
     # Test 4: Resharing with participant expansion (2-of-2 back to 2-of-3)
     local new_key_id_4
-    if new_key_id_4=$(test_resharing "$new_key_id_3" 1 1 '"'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'"' '"'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"' "Resharing 2-of-2 to 2-of-3 with participant expansion"); then
+    if new_key_id_4=$(test_resharing "$new_key_id_3" 1 '"'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"' "Resharing 2-of-2 to 2-of-3 with participant expansion"); then
         print_success "✓ Test 4 passed"
     else
         print_error "✗ Test 4 failed"
@@ -181,11 +177,10 @@ run_resharing_tests() {
 # Function to run quick resharing test with provided key
 quick_resharing_test() {
     local key_id="$1"
-    local old_threshold="$2"
-    local new_threshold="$3"
+    local new_threshold="$2"
     
-    if [ -z "$key_id" ] || [ -z "$old_threshold" ] || [ -z "$new_threshold" ]; then
-        print_error "Usage: quick_resharing_test <key_id> <old_threshold> <new_threshold>"
+    if [ -z "$key_id" ] || [ -z "$new_threshold" ]; then
+        print_error "Usage: quick_resharing_test <key_id> <new_threshold>"
         exit 1
     fi
     
@@ -196,7 +191,7 @@ quick_resharing_test() {
     
     # Test resharing
     local new_key_id
-    if new_key_id=$(test_resharing "$key_id" "$old_threshold" "$new_threshold" '"'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"' '"'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"' "Quick resharing test"); then
+    if new_key_id=$(test_resharing "$key_id" "$new_threshold" '"'$NODE1_PEER_ID'", "'$NODE2_PEER_ID'", "'$NODE3_PEER_ID'"' "Quick resharing test"); then
         print_success "✓ Quick resharing test passed"
         print_result "New Key ID: $new_key_id"
         print_result "JWT Token: $JWT_TOKEN"
@@ -214,7 +209,7 @@ show_help() {
     echo ""
     echo "Commands:"
     echo "  test               Run all resharing tests (requires keygen tests first)"
-    echo "  quick <key_id> <old_threshold> <new_threshold>  Run quick resharing test"
+    echo "  quick <key_id> <new_threshold>  Run quick resharing test"
     echo "  status             Show environment status"
     echo "  logs               Show logs for all services"
     echo "  logs <service>     Show logs for specific service"
@@ -228,7 +223,7 @@ show_help() {
     echo ""
     echo "Examples:"
     echo "  $0 test                                        # Run all resharing tests"
-    echo "  $0 quick 0x1234567890abcdef 1 2               # Quick test: 2-of-3 to 3-of-3"
+    echo "  $0 quick 0x1234567890abcdef 2                 # Quick test: reshare to 3-of-3"
     echo "  $0 status                                      # Check environment status"
     echo "  $0 logs tss-node1                             # Show node1 logs"
     echo ""
@@ -249,7 +244,7 @@ main() {
             run_resharing_tests
             ;;
         quick)
-            quick_resharing_test "$2" "$3" "$4"
+            quick_resharing_test "$2" "$3"
             ;;
         status)
             show_test_env_status

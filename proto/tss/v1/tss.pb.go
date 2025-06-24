@@ -537,10 +537,8 @@ type StartResharingRequest struct {
 	KeyId string `protobuf:"bytes,2,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
 	// New fault tolerance threshold (t in (t+1)-of-n scheme)
 	NewThreshold int32 `protobuf:"varint,3,opt,name=new_threshold,json=newThreshold,proto3" json:"new_threshold,omitempty"`
-	// List of old participant peer IDs
-	OldParticipants []string `protobuf:"bytes,4,rep,name=old_participants,json=oldParticipants,proto3" json:"old_participants,omitempty"`
 	// List of new participant peer IDs (new_parties = len(new_participants))
-	NewParticipants []string `protobuf:"bytes,5,rep,name=new_participants,json=newParticipants,proto3" json:"new_participants,omitempty"`
+	NewParticipants []string `protobuf:"bytes,4,rep,name=new_participants,json=newParticipants,proto3" json:"new_participants,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -594,13 +592,6 @@ func (x *StartResharingRequest) GetNewThreshold() int32 {
 		return x.NewThreshold
 	}
 	return 0
-}
-
-func (x *StartResharingRequest) GetOldParticipants() []string {
-	if x != nil {
-		return x.OldParticipants
-	}
-	return nil
 }
 
 func (x *StartResharingRequest) GetNewParticipants() []string {
@@ -1098,13 +1089,12 @@ const file_proto_tss_v1_tss_proto_rawDesc = "" +
 	"\tsignature\x18\x01 \x01(\tR\tsignature\x12\f\n" +
 	"\x01r\x18\x02 \x01(\tR\x01r\x12\f\n" +
 	"\x01s\x18\x03 \x01(\tR\x01s\x12\f\n" +
-	"\x01v\x18\x04 \x01(\x05R\x01v\"\xcc\x01\n" +
+	"\x01v\x18\x04 \x01(\x05R\x01v\"\xa1\x01\n" +
 	"\x15StartResharingRequest\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x15\n" +
 	"\x06key_id\x18\x02 \x01(\tR\x05keyId\x12#\n" +
 	"\rnew_threshold\x18\x03 \x01(\x05R\fnewThreshold\x12)\n" +
-	"\x10old_participants\x18\x04 \x03(\tR\x0foldParticipants\x12)\n" +
-	"\x10new_participants\x18\x05 \x03(\tR\x0fnewParticipants\"\xa7\x01\n" +
+	"\x10new_participants\x18\x04 \x03(\tR\x0fnewParticipants\"\xa7\x01\n" +
 	"\x16StartResharingResponse\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12/\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x17.tss.v1.OperationStatusR\x06status\x129\n" +
