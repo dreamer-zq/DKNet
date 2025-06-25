@@ -159,12 +159,13 @@ func (s *Service) createResharingOperation(ctx context.Context, params *resharin
 		return nil, fmt.Errorf("failed to create new participant list: %w", err)
 	}
 
+	// Find our party ID in the old participant list (since this is always an old participant)
 	idx := slices.IndexFunc(oldParticipantList, func(p *tss.PartyID) bool {
 		return p.Id == s.nodeID
 	})
 
 	if idx == -1 {
-		return nil, fmt.Errorf("this node (%s) is not in either old or new participant lists", s.nodeID)
+		return nil, fmt.Errorf("this node (%s) is not in old participant list", s.nodeID)
 	}
 	ourPartyID := oldParticipantList[idx]
 
@@ -188,10 +189,7 @@ func (s *Service) createResharingOperation(ctx context.Context, params *resharin
 	oldCtx := tss.NewPeerContext(oldParticipantList)
 	newCtx := tss.NewPeerContext(newParticipantList)
 
-	// Based on BNB Chain TSS library v2.0.2 documentation and test cases:
-	// NewReSharingParameters(curve, oldCtx, newCtx, partyID, oldPartyCount, oldThreshold, newPartyCount, newThreshold)
-	// Critical: oldThreshold and newThreshold are the actual threshold values, not counts
-	// Use threshold from key metadata (the actual old threshold) instead of params
+	// Use ReSharingParameters instead of regular Parameters
 	tssParams := tss.NewReSharingParameters(
 		tss.S256(),              // curve
 		oldCtx,                  // old peer context
@@ -401,7 +399,7 @@ func (s *Service) createSyncedResharingOperation(ctx context.Context, msg *p2p.M
 			return p.Id == s.nodeID
 		})
 		if idx == -1 {
-			return fmt.Errorf("this node (%s) is not in either old or new participant lists", s.nodeID)
+			return fmt.Errorf("this node (%s) is not in old participant list", s.nodeID)
 		}
 		ourPartyID = oldParticipantList[idx]
 	} else {
@@ -409,7 +407,7 @@ func (s *Service) createSyncedResharingOperation(ctx context.Context, msg *p2p.M
 			return p.Id == s.nodeID
 		})
 		if idx == -1 {
-			return fmt.Errorf("this node (%s) is not in either old or new participant lists", s.nodeID)
+			return fmt.Errorf("this node (%s) is not in new participant list", s.nodeID)
 		}
 		ourPartyID = newParticipantList[idx]
 	}
@@ -418,13 +416,14 @@ func (s *Service) createSyncedResharingOperation(ctx context.Context, msg *p2p.M
 	oldCtx := tss.NewPeerContext(oldParticipantList)
 	newCtx := tss.NewPeerContext(newParticipantList)
 
+	// Use ReSharingParameters instead of regular Parameters
 	tssParams := tss.NewReSharingParameters(
 		tss.S256(),              // curve
 		oldCtx,                  // old peer context
 		newCtx,                  // new peer context
 		ourPartyID,              // our party ID
 		len(oldParticipantList), // old party count
-		syncData.OldThreshold,   // old threshold from metadata or sync data
+		syncData.OldThreshold,   // old threshold from sync data
 		len(newParticipantList), // new party count
 		syncData.NewThreshold,   // new threshold
 	)

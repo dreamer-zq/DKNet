@@ -112,6 +112,16 @@ func (s *Service) HandleMessage(ctx context.Context, msg *p2p.Message) error {
 		zap.String("operation_id", operation.ID),
 		zap.String("from", msg.From))
 
+	// Skip messages from ourselves to avoid self-processing
+	if msg.From == s.nodeID {
+		s.logger.Debug("Skipping message from self",
+			zap.String("session_id", msg.SessionID),
+			zap.String("operation_id", operation.ID),
+			zap.String("from", msg.From),
+			zap.String("our_node_id", s.nodeID))
+		return nil
+	}
+
 	// Find sender party ID
 	var fromParty *tss.PartyID
 	for _, p := range operation.Participants {
@@ -300,6 +310,7 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 				SessionID:   operation.SessionID,
 				Type:        string(operation.Type), // Set the message type based on operation type
 				From:        s.nodeID,
+				To:          make([]string, 0, len(routing.To)),
 				Data:        wireBytes,
 				IsBroadcast: routing.IsBroadcast,
 				Timestamp:   time.Now(),
@@ -320,26 +331,24 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 				}
 			} else {
 				// Use gossip routing for point-to-point messages
-				var targetPeers []string
 				for _, to := range routing.To {
-					targetPeers = append(targetPeers, to.Id)
+					p2pMsg.To = append(p2pMsg.To, to.Id)
 				}
-				p2pMsg.To = targetPeers
 
 				s.logger.Info("Sending point-to-point message with gossip routing",
 					zap.String("operation_id", operation.ID),
 					zap.String("session_id", operation.SessionID),
-					zap.Strings("targets", targetPeers))
+					zap.Strings("targets", p2pMsg.To))
 
 				if err := s.network.SendWithGossip(ctx, p2pMsg); err != nil {
 					s.logger.Error("Failed to send message with gossip routing",
 						zap.Error(err),
 						zap.String("operation_id", operation.ID),
-						zap.Strings("targets", targetPeers))
+						zap.Strings("targets", p2pMsg.To))
 				} else {
 					s.logger.Info("Point-to-point message sent successfully with gossip routing",
 						zap.String("operation_id", operation.ID),
-						zap.Strings("targets", targetPeers))
+						zap.Strings("targets", p2pMsg.To))
 				}
 			}
 		case <-ctx.Done():
