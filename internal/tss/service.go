@@ -310,9 +310,9 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 				zap.Bool("is_broadcast", routing.IsBroadcast),
 				zap.Int("wire_bytes_len", len(wireBytes)),
 				zap.Int("routing_to_count", len(routing.To)))
-
 			// Create p2p message
 			p2pMsg := &p2p.Message{
+				ProtocolID:              p2p.TssPartyProtocolId,
 				SessionID:               operation.SessionID,
 				Type:                    string(operation.Type), // Set the message type based on operation type
 				From:                    s.nodeID,
@@ -324,40 +324,31 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 				IsToOldAndNewCommittees: msg.IsToOldAndNewCommittees(),
 			}
 
-			// Send message through network
+			var to []*tss.PartyID
 			if routing.IsBroadcast {
-				s.logger.Info("Sending broadcast message",
-					zap.String("operation_id", operation.ID),
-					zap.String("session_id", operation.SessionID))
-				if err := s.network.Send(ctx, p2pMsg); err != nil {
-					s.logger.Error("Failed to broadcast message",
-						zap.Error(err),
-						zap.String("operation_id", operation.ID))
-				} else {
-					s.logger.Info("Broadcast message sent successfully",
-						zap.String("operation_id", operation.ID))
-				}
+				to = operation.Participants
 			} else {
-				// Use gossip routing for point-to-point messages
-				for _, to := range routing.To {
-					p2pMsg.To = append(p2pMsg.To, to.Id)
-				}
+				to = routing.To
+			}
 
-				s.logger.Info("Sending point-to-point message with gossip routing",
+			for _, to := range to {
+				p2pMsg.To = append(p2pMsg.To, to.Id)
+			}
+
+			s.logger.Info("Sending point-to-point message with gossip routing",
+				zap.String("operation_id", operation.ID),
+				zap.String("session_id", operation.SessionID),
+				zap.Strings("targets", p2pMsg.To))
+
+			if err := s.network.SendWithGossip(ctx, p2pMsg); err != nil {
+				s.logger.Error("Failed to send message with gossip routing",
+					zap.Error(err),
 					zap.String("operation_id", operation.ID),
-					zap.String("session_id", operation.SessionID),
 					zap.Strings("targets", p2pMsg.To))
-
-				if err := s.network.SendWithGossip(ctx, p2pMsg); err != nil {
-					s.logger.Error("Failed to send message with gossip routing",
-						zap.Error(err),
-						zap.String("operation_id", operation.ID),
-						zap.Strings("targets", p2pMsg.To))
-				} else {
-					s.logger.Info("Point-to-point message sent successfully with gossip routing",
-						zap.String("operation_id", operation.ID),
-						zap.Strings("targets", p2pMsg.To))
-				}
+			} else {
+				s.logger.Info("Point-to-point message sent successfully with gossip routing",
+					zap.String("operation_id", operation.ID),
+					zap.Strings("targets", p2pMsg.To))
 			}
 		case <-ctx.Done():
 			s.logger.Info("Outgoing message handler stopped",
@@ -467,15 +458,16 @@ func (s *Service) broadcastOperationSync(ctx context.Context, syncData Message) 
 	}
 
 	msg := &p2p.Message{
+		ProtocolID:  p2p.TssPartyProtocolId,
 		SessionID:   syncData.ID(),
 		Type:        string(OperationSync),
 		From:        s.nodeID,
-		To:          []string{},
+		To:          syncData.To(),
 		IsBroadcast: true,
 		Data:        data, // Serialized operation sync data
 		Timestamp:   time.Now(),
 	}
-	return s.network.Send(ctx, msg)
+	return s.network.SendWithGossip(ctx, msg)
 }
 
 // saveOperation saves an operation to persistent storage

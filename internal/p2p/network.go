@@ -33,8 +33,6 @@ type Network struct {
 	messageHandler MessageHandler
 	mu             sync.RWMutex
 
-	// Topics for different purposes
-	topics map[string]*pubsub.Topic
 	// Connected peers tracking
 	connectedPeers map[peer.ID]bool
 	bootstrapPeers []string
@@ -107,12 +105,11 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		host:              h,
 		pubsub:            ps,
 		logger:            logger,
-		topics:            make(map[string]*pubsub.Topic),
 		connectedPeers:    make(map[peer.ID]bool),
 		accessController:  security.NewController(cfg.AccessControl, logger.Named("access_control")),
 		messageEncryption: messageEncryption,
 		bootstrapPeers:    cfg.BootstrapPeers,
-		connectTicker:     time.NewTicker(time.Minute * 1),
+		connectTicker:     time.NewTicker(time.Second * 10),
 	}
 
 	// Set up protocol handlers
@@ -130,11 +127,6 @@ func (n *Network) Start(ctx context.Context) error {
 
 	// Connect to bootstrap peers
 	go n.tryConnect()
-
-	// Subscribe to discovery and broadcast topics
-	if err := n.subscribeToTopics(ctx); err != nil {
-		return fmt.Errorf("failed to subscribe to topics: %w", err)
-	}
 
 	n.logger.Info("P2P network started successfully")
 	return nil
@@ -160,25 +152,19 @@ func (n *Network) SetMessageHandler(handler MessageHandler) {
 	n.messageHandler = handler
 }
 
-// Send sends a message to specific peers or broadcasts it
-func (n *Network) Send(ctx context.Context, msg *Message) error {
+// SendWithGossip sends a message using gossip routing as fallback
+func (n *Network) SendWithGossip(ctx context.Context, msg *Message) error {
+	return n.gossipRouter.SendWithGossip(ctx, msg)
+}
+
+// send sends a message to specific peers
+func (n *Network) send(ctx context.Context, msg *Message) error {
 	// Apply encryption before sending
 	if err := n.encryptMessage(msg); err != nil {
 		return fmt.Errorf("failed to encrypt message: %w", err)
 	}
 
-	// Route based on message type
-	if msg.IsBroadcast {
-		return n.broadcast(ctx, msg)
-	}
-
-	msg.ProtocolID = typeToProtocol[msg.Type]
 	return n.sendDirect(ctx, msg)
-}
-
-// SendWithGossip sends a message using gossip routing as fallback
-func (n *Network) SendWithGossip(ctx context.Context, msg *Message) error {
-	return n.gossipRouter.SendWithGossip(ctx, msg)
 }
 
 // encryptMessage applies encryption to a message using unified encryption interface
@@ -273,49 +259,6 @@ func (n *Network) sendDirect(ctx context.Context, msg *Message) error {
 	return nil
 }
 
-// broadcast broadcasts a message using PubSub
-func (n *Network) broadcast(ctx context.Context, msg *Message) error {
-	// Fill in the sender's actual PeerID
-	msg.SenderPeerID = n.host.ID().String()
-
-	data, err := msg.Compresses()
-	if err != nil {
-		n.logger.Error("Failed to marshal broadcast message", zap.Error(err))
-		return fmt.Errorf("failed to marshal message: %w", err)
-	}
-
-	// Get the stored broadcast topic
-	n.mu.RLock()
-	topic := n.topics[tssBroadcastTopic]
-	n.mu.RUnlock()
-
-	if topic == nil {
-		n.logger.Error("Broadcast topic not initialized")
-		return fmt.Errorf("broadcast topic not initialized")
-	}
-
-	n.logger.Debug("Using existing broadcast topic", zap.String("topic", tssBroadcastTopic))
-
-	// Get current connected peers
-	connectedPeers := n.getConnectedPeers()
-	n.logger.Debug("Broadcasting to connected peers",
-		zap.Int("connected_peer_count", len(connectedPeers)),
-		zap.String("session_id", msg.SessionID))
-
-	if err := topic.Publish(ctx, data); err != nil {
-		n.logger.Error("Failed to publish broadcast message",
-			zap.Error(err),
-			zap.String("session_id", msg.SessionID))
-		return fmt.Errorf("failed to publish message: %w", err)
-	}
-
-	n.logger.Info("Broadcast message published successfully",
-		zap.String("session_id", msg.SessionID),
-		zap.Int("message_size", len(data)))
-
-	return nil
-}
-
 // getConnectedPeers returns the list of connected peers
 func (n *Network) getConnectedPeers() []peer.ID {
 	// Get connected peers directly from libp2p host
@@ -325,10 +268,8 @@ func (n *Network) getConnectedPeers() []peer.ID {
 // setupProtocolHandlers sets up handlers for TSS protocols
 func (n *Network) setupProtocolHandlers() {
 	protocols := []protocol.ID{
-		tssKeygenProtocol,
-		tssSigningProtocol,
-		tssResharingProtocol,
-		tssGossipProtocol,
+		TssPartyProtocolId,
+		TssGossipProtocol,
 	}
 
 	for _, p := range protocols {
@@ -376,7 +317,7 @@ func (n *Network) handleStream(stream network.Stream) {
 	}
 
 	// Handle gossip routing messages
-	if msg.Type == "gossip_route" {
+	if msg.ProtocolID == TssGossipProtocol {
 		if err := n.gossipRouter.HandleRoutedMessage(context.Background(), &msg); err != nil {
 			n.logger.Error("Failed to handle gossip routed message", zap.Error(err))
 		}
@@ -419,115 +360,9 @@ func loadPrivateKey(keyFile string, logger *zap.Logger) (crypto.PrivKey, error) 
 	return privKey, nil
 }
 
-// JoinTopic implements networkTransport interface
-func (n *Network) JoinTopic(topicName string) (*pubsub.Topic, error) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-
-	// Check if topic already exists
-	if topic, exists := n.topics[topicName]; exists && topic != nil {
-		return topic, nil
-	}
-
-	// Join the topic
-	topic, err := n.pubsub.Join(topicName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to join topic %s: %w", topicName, err)
-	}
-
-	// Store the topic
-	n.topics[topicName] = topic
-
-	n.logger.Debug("Joined topic", zap.String("topic", topicName))
-	return topic, nil
-}
-
 // GetHostID implements NetworkTransport interface
-func (n *Network) GetHostID() peer.ID {
-	return n.host.ID()
-}
-
-// subscribeToTopics subscribes to the necessary topics for TSS operations
-func (n *Network) subscribeToTopics(ctx context.Context) error {
-	// Subscribe to broadcast topic for TSS messages
-	if err := n.subscribeToBroadcast(ctx); err != nil {
-		return fmt.Errorf("failed to subscribe to broadcast: %w", err)
-	}
-
-	return nil
-}
-
-// subscribeToBroadcast subscribes to the TSS broadcast topic
-func (n *Network) subscribeToBroadcast(ctx context.Context) error {
-	// Subscribe to broadcast topic for TSS messages
-	broadcastTopic, err := n.pubsub.Join(tssBroadcastTopic)
-	if err != nil {
-		return fmt.Errorf("failed to join broadcast topic: %w", err)
-	}
-
-	// Store topic reference
-	n.mu.Lock()
-	n.topics[tssBroadcastTopic] = broadcastTopic
-	n.mu.Unlock()
-
-	broadcastSub, err := broadcastTopic.Subscribe()
-	if err != nil {
-		return fmt.Errorf("failed to subscribe to broadcast topic: %w", err)
-	}
-
-	n.logger.Info("Subscribed to broadcast topic", zap.String("topic", tssBroadcastTopic))
-
-	// Handle broadcast messages in a separate goroutine
-	go func() {
-		defer broadcastSub.Cancel()
-		for {
-			msg, err := broadcastSub.Next(ctx)
-			if err != nil {
-				if ctx.Err() != nil {
-					return // Context canceled
-				}
-				n.logger.Error("Error reading broadcast message", zap.Error(err))
-				continue
-			}
-
-			n.logger.Info("Received broadcast message",
-				zap.String("from", msg.ReceivedFrom.String()),
-				zap.Int("data_len", len(msg.Data)))
-
-			// Parse the message
-			var tssMsg Message
-			if err := tssMsg.Decompresses(msg.Data); err != nil {
-				n.logger.Error("Failed to unmarshal broadcast message", zap.Error(err))
-				continue
-			}
-
-			// Apply decryption if needed
-			if err := n.decryptMessage(&tssMsg); err != nil {
-				n.logger.Error("Failed to decrypt broadcast message", zap.Error(err))
-				continue
-			}
-
-			n.logger.Info("Parsed broadcast TSS message",
-				zap.String("session_id", tssMsg.SessionID),
-				zap.String("type", tssMsg.Type),
-				zap.String("from", tssMsg.From),
-				zap.Bool("is_broadcast", tssMsg.IsBroadcast))
-
-			// Handle the message if we have a handler
-			if n.messageHandler != nil {
-				if err := n.messageHandler.HandleMessage(ctx, &tssMsg); err != nil {
-					n.logger.Error("Failed to handle broadcast message",
-						zap.Error(err),
-						zap.String("session_id", tssMsg.SessionID))
-				}
-			} else {
-				n.logger.Warn("No message handler set for broadcast message",
-					zap.String("session_id", tssMsg.SessionID))
-			}
-		}
-	}()
-
-	return nil
+func (n *Network) GetHostID() string {
+	return n.host.ID().String()
 }
 
 func (n *Network) tryConnect() {
@@ -559,4 +394,10 @@ func (n *Network) tryConnect() {
 		<-n.connectTicker.C
 		connect()
 	}
+}
+
+func (n *Network) connected(peerID peer.ID) bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.connectedPeers[peerID]
 }

@@ -11,19 +11,9 @@ import (
 )
 
 const (
-	tssKeygenProtocol    = "/tss/keygen/1.0.0"
-	tssSigningProtocol   = "/tss/signing/1.0.0"
-	tssResharingProtocol = "/tss/resharing/1.0.0"
-	tssGossipProtocol    = "/tss/gossip/1.0.0"
-	tssBroadcastTopic    = "tss-broadcast"
+	TssPartyProtocolId     = "/tss/party/0.0.1"
+	TssGossipProtocol    = "/tss/gossip/1.0.0"
 )
-
-var typeToProtocol = map[string]protocol.ID{
-	"keygen":       tssKeygenProtocol,
-	"signing":      tssSigningProtocol,
-	"resharing":    tssResharingProtocol,
-	"gossip_route": tssGossipProtocol,
-}
 
 // Message represents a generic message sent over the network
 type Message struct {

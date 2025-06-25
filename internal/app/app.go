@@ -49,7 +49,7 @@ func New(cfg *config.NodeConfig, logger *zap.Logger, password string) (*App, err
 	}
 
 	// Use peer ID as node ID for TSS service
-	peerID := network.GetHostID().String()
+	peerID := network.GetHostID()
 	logger.Info("Using peer ID as TSS node ID",
 		zap.String("peer_id", peerID),
 		zap.String("moniker", cfg.TSS.Moniker))
