@@ -333,7 +333,8 @@ func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, re
 	s.logger.Info("Saved encrypted keygen result",
 		zap.String("key_id", keyID),
 		zap.Int("encrypted_size", len(encryptedKeyData)),
-		zap.Int("original_size", len(keyDataBytes)))
+		zap.Int("original_size", len(keyDataBytes)),
+	)
 
 	return nil
 }
@@ -360,7 +361,7 @@ func (s *Service) createSyncedKeygenOperation(ctx context.Context, msg *p2p.Mess
 		SessionID:    syncData.SessionID,
 		Threshold:    syncData.Threshold,
 		Participants: syncData.Participants,
-		UsePreParams: true, // Use pre-computed parameters for sync operations
+		UsePreParams: false, // Use pre-computed parameters for sync operations
 	})
 	if err != nil {
 		s.logger.Error("Failed to create synced keygen operation", zap.Error(err))

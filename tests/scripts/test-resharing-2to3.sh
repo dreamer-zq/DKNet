@@ -25,7 +25,7 @@ print_info() {
 }
 
 # JWT token for authentication (generated with generate-jwt.go)
-JWT_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTA4MzEwMTQsImlhdCI6MTc1MDc0NDYxNCwiaXNzIjoiZGtuZXQtdGVzdCIsInJvbGVzIjpbImFkbWluIiwib3BlcmF0b3IiXSwic3ViIjoidGVzdC11c2VyIn0.VdmO9xJbkGBE1FbhwvsqxX1hD708COOaMXT4qVEsSzg"
+JWT_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NTA4Mzc2MDAsImlzcyI6ImRrbmV0LXRlc3QiLCJyb2xlcyI6WyJhZG1pbiIsIm9wZXJhdG9yIl0sInN1YiI6InRlc3QtdXNlciJ9.TW57-Ufg9RYUONiKqCUchBRxOl1oiJlB0YLrzLpyVxg"
 
 # Base URLs
 NODE1_URL="http://localhost:8081"

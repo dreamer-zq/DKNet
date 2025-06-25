@@ -123,20 +123,16 @@ func (s *Service) HandleMessage(ctx context.Context, msg *p2p.Message) error {
 	}
 
 	// Find sender party ID
-	var fromParty *tss.PartyID
-	for _, p := range operation.Participants {
-		if p.Id == msg.From {
-			fromParty = p
-			break
-		}
-	}
-
-	if fromParty == nil {
+	idx := slices.IndexFunc(operation.Participants, func(op *tss.PartyID) bool {
+		return op.Id == msg.From
+	})
+	if idx == -1 {
 		s.logger.Error("Unknown sender",
 			zap.String("from", msg.From),
 			zap.String("session_id", msg.SessionID))
 		return fmt.Errorf("unknown sender: %s", msg.From)
 	}
+	fromParty := operation.Participants[idx]
 
 	s.logger.Info("Found sender party",
 		zap.String("session_id", msg.SessionID),
@@ -150,6 +146,16 @@ func (s *Service) HandleMessage(ctx context.Context, msg *p2p.Message) error {
 			zap.String("session_id", msg.SessionID),
 			zap.String("operation_id", operation.ID),
 			zap.String("from", msg.From))
+
+		if operation.Type == OperationResharing {
+			if operation.isNewParticipant() && msg.IsToOldCommittee || !operation.isNewParticipant() && !msg.IsToOldCommittee {
+				s.logger.Info("Skipping message to old participant",
+					zap.String("session_id", msg.SessionID),
+					zap.String("operation_id", operation.ID),
+					zap.String("from", msg.From))
+				return
+			}
+		}
 
 		ok, err := operation.Party.UpdateFromBytes(msg.Data, fromParty, msg.IsBroadcast)
 		if err != nil {
@@ -307,13 +313,15 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 
 			// Create p2p message
 			p2pMsg := &p2p.Message{
-				SessionID:   operation.SessionID,
-				Type:        string(operation.Type), // Set the message type based on operation type
-				From:        s.nodeID,
-				To:          make([]string, 0, len(routing.To)),
-				Data:        wireBytes,
-				IsBroadcast: routing.IsBroadcast,
-				Timestamp:   time.Now(),
+				SessionID:               operation.SessionID,
+				Type:                    string(operation.Type), // Set the message type based on operation type
+				From:                    s.nodeID,
+				To:                      make([]string, 0, len(routing.To)),
+				Data:                    wireBytes,
+				IsBroadcast:             routing.IsBroadcast,
+				Timestamp:               time.Now(),
+				IsToOldCommittee:        msg.IsToOldCommittee(),
+				IsToOldAndNewCommittees: msg.IsToOldAndNewCommittees(),
 			}
 
 			// Send message through network

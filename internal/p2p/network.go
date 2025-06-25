@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -23,9 +24,10 @@ import (
 
 // Network handles P2P networking for TSS operations
 type Network struct {
-	host   host.Host
-	pubsub *pubsub.PubSub
-	logger *zap.Logger
+	host          host.Host
+	pubsub        *pubsub.PubSub
+	logger        *zap.Logger
+	connectTicker *time.Ticker
 
 	// Message handling
 	messageHandler MessageHandler
@@ -35,6 +37,7 @@ type Network struct {
 	topics map[string]*pubsub.Topic
 	// Connected peers tracking
 	connectedPeers map[peer.ID]bool
+	bootstrapPeers []string
 	// Gossip routing for point-to-point messages
 	gossipRouter *GossipRouter
 	// Access control
@@ -108,6 +111,8 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		connectedPeers:    make(map[peer.ID]bool),
 		accessController:  security.NewController(cfg.AccessControl, logger.Named("access_control")),
 		messageEncryption: messageEncryption,
+		bootstrapPeers:    cfg.BootstrapPeers,
+		connectTicker:     time.NewTicker(time.Minute * 1),
 	}
 
 	// Set up protocol handlers
@@ -120,31 +125,11 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 }
 
 // Start starts the P2P network
-func (n *Network) Start(ctx context.Context, bootstrapPeers []string) error {
-	n.logger.Info("Starting P2P network", zap.Strings("bootstrap_peers", bootstrapPeers))
+func (n *Network) Start(ctx context.Context) error {
+	n.logger.Info("Starting P2P network")
 
 	// Connect to bootstrap peers
-	for _, peerAddr := range bootstrapPeers {
-		go func(addr string) {
-			peerInfo, err := peer.AddrInfoFromString(addr)
-			if err != nil {
-				n.logger.Error("Invalid bootstrap peer address", zap.String("addr", addr), zap.Error(err))
-				return
-			}
-
-			if err := n.host.Connect(ctx, *peerInfo); err != nil {
-				n.logger.Warn("Failed to connect to bootstrap peer", zap.String("addr", addr), zap.Error(err))
-				return
-			}
-
-			n.logger.Info("Connected to bootstrap peer", zap.String("peer", peerInfo.ID.String()))
-
-			// Update connected peers
-			n.mu.Lock()
-			n.connectedPeers[peerInfo.ID] = true
-			n.mu.Unlock()
-		}(peerAddr)
-	}
+	go n.tryConnect()
 
 	// Subscribe to discovery and broadcast topics
 	if err := n.subscribeToTopics(ctx); err != nil {
@@ -161,6 +146,7 @@ func (n *Network) Stop() error {
 	if n.gossipRouter != nil {
 		n.gossipRouter.Stop()
 	}
+	n.connectTicker.Stop()
 
 	if err := n.host.Close(); err != nil {
 		return fmt.Errorf("failed to close host: %w", err)
@@ -542,4 +528,35 @@ func (n *Network) subscribeToBroadcast(ctx context.Context) error {
 	}()
 
 	return nil
+}
+
+func (n *Network) tryConnect() {
+	// Connect to bootstrap peers
+	connect := func() {
+		for _, peerAddr := range n.bootstrapPeers {
+			go func(addr string) {
+				peerInfo, err := peer.AddrInfoFromString(addr)
+				if err != nil {
+					n.logger.Error("Invalid bootstrap peer address", zap.String("addr", addr), zap.Error(err))
+					return
+				}
+
+				if err := n.host.Connect(context.Background(), *peerInfo); err != nil {
+					n.logger.Warn("Failed to connect to bootstrap peer", zap.String("addr", addr), zap.Error(err))
+					return
+				}
+
+				n.logger.Info("Connected to bootstrap peer", zap.String("peer", peerInfo.ID.String()))
+
+				// Update connected peers
+				n.mu.Lock()
+				n.connectedPeers[peerInfo.ID] = true
+				n.mu.Unlock()
+			}(peerAddr)
+		}
+	}
+	for {
+		<-n.connectTicker.C
+		connect()
+	}
 }

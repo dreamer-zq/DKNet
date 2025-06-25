@@ -3,6 +3,7 @@ package tss
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -73,6 +74,26 @@ func (o *Operation) RLock() {
 // RUnlock unlocks the operation for reading
 func (o *Operation) RUnlock() {
 	o.mutex.RUnlock()
+}
+
+func (o *Operation) isOldParticipant() bool {
+	req, ok := o.Request.(*ResharingRequest)
+	if !ok {
+		return false
+	}
+	return slices.IndexFunc(req.OldParticipants, func(p string) bool {
+		return p == o.Party.PartyID().GetId()
+	}) != -1
+}
+
+func (o *Operation) isNewParticipant() bool {
+	req, ok := o.Request.(*ResharingRequest)
+	if !ok {
+		return false
+	}
+	return slices.IndexFunc(req.NewParticipants, func(p string) bool {
+		return p == o.Party.PartyID().GetId()
+	}) != -1
 }
 
 // OperationStatus defines operation status

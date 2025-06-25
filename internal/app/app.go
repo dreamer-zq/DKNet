@@ -101,7 +101,7 @@ func (a *App) Start(ctx context.Context) error {
 	a.logger.Info("Starting DKNet application")
 
 	// Start P2P network
-	if err := a.network.Start(ctx, a.config.P2P.BootstrapPeers); err != nil {
+	if err := a.network.Start(ctx); err != nil {
 		return fmt.Errorf("failed to start P2P network: %w", err)
 	}
 

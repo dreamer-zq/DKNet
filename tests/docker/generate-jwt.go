@@ -16,7 +16,6 @@ func main() {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":   "test-user",
 		"iss":   issuer,
-		"exp":   time.Now().Add(24 * time.Hour).Unix(), // Expires in 24 hours
 		"iat":   time.Now().Unix(),
 		"roles": []string{"admin", "operator"},
 	})
