@@ -268,7 +268,7 @@ func (n *Network) getConnectedPeers() []peer.ID {
 // setupProtocolHandlers sets up handlers for TSS protocols
 func (n *Network) setupProtocolHandlers() {
 	protocols := []protocol.ID{
-		TssPartyProtocolId,
+		TssPartyProtocolID,
 		TssGossipProtocol,
 	}
 

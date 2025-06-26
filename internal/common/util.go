@@ -16,7 +16,7 @@ func UniqueSlice[T comparable](input []T) []T {
 }
 
 // Retry retries a function until it returns a non-zero value
-func Retry[T comparable](fun func() T, delaySecond int, tryCnt int) T {
+func Retry[T comparable](fun func() T, delaySecond, tryCnt int) T {
 	var zero T
 	for i := 0; i < tryCnt; i++ {
 		result := fun()

@@ -84,6 +84,12 @@ func (s *Service) HandleMessage(ctx context.Context, msg *p2p.Message) error {
 		zap.Bool("is_broadcast", msg.IsBroadcast),
 		zap.Int("data_len", len(msg.Data)))
 
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Error("Recovered from panic in HandleMessage", zap.Any("error", r))
+		}
+	}()
+
 	// Handle operation synchronization messages
 	if msg.Type == string(OperationSync) {
 		return s.handleOperationSync(ctx, msg)
@@ -133,7 +139,7 @@ func (s *Service) HandleMessage(ctx context.Context, msg *p2p.Message) error {
 		zap.String("from_party_id", fromParty.Id))
 
 	// Send to party's UpdateFromBytes channel
-	go func() {
+	dknetCommon.SafeGo(operation.EndCh, func() any {
 		s.logger.Info("Sending message to TSS party",
 			zap.String("session_id", msg.SessionID),
 			zap.String("operation_id", operation.ID),
@@ -141,15 +147,23 @@ func (s *Service) HandleMessage(ctx context.Context, msg *p2p.Message) error {
 			zap.Bool("isToOldAndNewCommittees", msg.IsToOldAndNewCommittees),
 			zap.String("from", msg.From))
 
-		// if operation.Type == OperationResharing {
-		// 	if operation.isNewParticipant() && msg.IsToOldCommittee || !operation.isNewParticipant() && !msg.IsToOldCommittee {
-		// 		s.logger.Info("Skipping message to old participant",
-		// 			zap.String("session_id", msg.SessionID),
-		// 			zap.String("operation_id", operation.ID),
-		// 			zap.String("from", msg.From))
-		// 		return
-		// 	}
-		// }
+		if operation.Type == OperationResharing {
+			switch {
+			case operation.isNewParticipant() && msg.IsToOldCommittee:
+				s.logger.Info("Skipping message to old participant",
+					zap.String("session_id", msg.SessionID),
+					zap.String("operation_id", operation.ID),
+					zap.String("from", msg.From))
+				return nil
+			case !operation.isNewParticipant() && !msg.IsToOldCommittee:
+				s.logger.Info("Skipping message to new participant",
+					zap.String("session_id", msg.SessionID),
+					zap.String("operation_id", operation.ID),
+					zap.String("from", msg.From))
+				return nil
+			default:
+			}
+		}
 
 		ok, err := operation.Party.UpdateFromBytes(msg.Data, fromParty, msg.IsBroadcast)
 		if err != nil {
@@ -158,24 +172,26 @@ func (s *Service) HandleMessage(ctx context.Context, msg *p2p.Message) error {
 				zap.String("session_id", msg.SessionID),
 				zap.String("operation_id", operation.ID),
 				zap.String("from", msg.From))
+			return err
 		} else if !ok {
 			s.logger.Warn("Message was not processed by party",
 				zap.String("session_id", msg.SessionID),
 				zap.String("operation_id", operation.ID),
 				zap.String("from", msg.From))
-		} else {
-			s.logger.Info("Successfully updated TSS party with message",
-				zap.String("session_id", msg.SessionID),
-				zap.String("operation_id", operation.ID),
-				zap.String("from", msg.From))
+			return fmt.Errorf("message was not processed by party")
 		}
-	}()
+
+		s.logger.Info("Successfully updated TSS party with message",
+			zap.String("session_id", msg.SessionID),
+			zap.String("operation_id", operation.ID),
+			zap.String("from", msg.From))
+		return nil
+	})
 
 	return nil
 }
 
 // GetOperation returns an operation by ID
-// It first checks active operations in memory, then persistent storage for completed operations
 func (s *Service) GetOperation(operationID string) (*Operation, bool) {
 	// First check active operations in memory
 	s.mutex.RLock()
@@ -185,10 +201,6 @@ func (s *Service) GetOperation(operationID string) (*Operation, bool) {
 	if exists {
 		return op, true
 	}
-
-	// If not found in memory, check persistent storage for completed operations
-	// Note: This returns a different data structure (OperationData),
-	// but we can check if the operation exists
 	return nil, false
 }
 
@@ -306,7 +318,7 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 				zap.Int("routing_to_count", len(routing.To)))
 			// Create p2p message
 			p2pMsg := &p2p.Message{
-				ProtocolID:              p2p.TssPartyProtocolId,
+				ProtocolID:              p2p.TssPartyProtocolID,
 				SessionID:               operation.SessionID,
 				Type:                    string(operation.Type), // Set the message type based on operation type
 				From:                    s.nodeID,
@@ -451,7 +463,7 @@ func (s *Service) broadcastOperationSync(ctx context.Context, syncData Message) 
 	}
 
 	msg := &p2p.Message{
-		ProtocolID:  p2p.TssPartyProtocolId,
+		ProtocolID:  p2p.TssPartyProtocolID,
 		SessionID:   syncData.ID(),
 		Type:        string(OperationSync),
 		From:        s.nodeID,

@@ -76,16 +76,6 @@ func (o *Operation) RUnlock() {
 	o.mutex.RUnlock()
 }
 
-func (o *Operation) isOldParticipant() bool {
-	req, ok := o.Request.(*ResharingRequest)
-	if !ok {
-		return false
-	}
-	return slices.IndexFunc(req.OldParticipants, func(p string) bool {
-		return p == o.Party.PartyID().GetId()
-	}) != -1
-}
-
 func (o *Operation) isNewParticipant() bool {
 	req, ok := o.Request.(*ResharingRequest)
 	if !ok {

@@ -11,8 +11,10 @@ import (
 )
 
 const (
-	TssPartyProtocolId     = "/tss/party/0.0.1"
-	TssGossipProtocol    = "/tss/gossip/1.0.0"
+	// TssPartyProtocolID is the protocol ID for TSS party
+	TssPartyProtocolID = "/tss/party/0.0.1"
+	// TssGossipProtocol is the protocol ID for TSS gossip
+	TssGossipProtocol = "/tss/gossip/1.0.0"
 )
 
 // Message represents a generic message sent over the network

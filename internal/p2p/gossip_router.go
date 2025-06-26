@@ -13,10 +13,6 @@ import (
 const (
 	// Message types
 	gossipRouteMessageType = "gossip_route"
-
-	// Connection states
-	connectedState = 1
-
 	// Configuration defaults
 	defaultMaxTTL          = 10
 	defaultCleanupInterval = 5 * time.Minute
