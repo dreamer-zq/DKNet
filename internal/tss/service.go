@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	dknetCommon "github.com/dreamer-zq/DKNet/internal/common"
 	"github.com/dreamer-zq/DKNet/internal/p2p"
 	"github.com/dreamer-zq/DKNet/internal/plugin"
 	"github.com/dreamer-zq/DKNet/internal/storage"
@@ -90,16 +91,7 @@ func (s *Service) HandleMessage(ctx context.Context, msg *p2p.Message) error {
 
 	// Handle regular TSS messages
 	// Find operation by session ID
-	s.mutex.RLock()
-	var operation *Operation
-	for _, op := range s.operations {
-		if op.SessionID == msg.SessionID {
-			operation = op
-			break
-		}
-	}
-	s.mutex.RUnlock()
-
+	operation := s.getOperation(msg.SessionID)
 	if operation == nil {
 		s.logger.Warn("No operation found for session ID",
 			zap.String("session_id", msg.SessionID),
@@ -145,17 +137,19 @@ func (s *Service) HandleMessage(ctx context.Context, msg *p2p.Message) error {
 		s.logger.Info("Sending message to TSS party",
 			zap.String("session_id", msg.SessionID),
 			zap.String("operation_id", operation.ID),
+			zap.Bool("isToOldCommittee", msg.IsToOldCommittee),
+			zap.Bool("isToOldAndNewCommittees", msg.IsToOldAndNewCommittees),
 			zap.String("from", msg.From))
 
-		if operation.Type == OperationResharing {
-			if operation.isNewParticipant() && msg.IsToOldCommittee || !operation.isNewParticipant() && !msg.IsToOldCommittee {
-				s.logger.Info("Skipping message to old participant",
-					zap.String("session_id", msg.SessionID),
-					zap.String("operation_id", operation.ID),
-					zap.String("from", msg.From))
-				return
-			}
-		}
+		// if operation.Type == OperationResharing {
+		// 	if operation.isNewParticipant() && msg.IsToOldCommittee || !operation.isNewParticipant() && !msg.IsToOldCommittee {
+		// 		s.logger.Info("Skipping message to old participant",
+		// 			zap.String("session_id", msg.SessionID),
+		// 			zap.String("operation_id", operation.ID),
+		// 			zap.String("from", msg.From))
+		// 		return
+		// 	}
+		// }
 
 		ok, err := operation.Party.UpdateFromBytes(msg.Data, fromParty, msg.IsBroadcast)
 		if err != nil {
@@ -286,7 +280,7 @@ func (s *Service) handleOperationSync(ctx context.Context, msg *p2p.Message) err
 }
 
 // handleOutgoingMessages handles outgoing TSS messages
-func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operation) {
+func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operation) error {
 	s.logger.Info("Starting outgoing message handler", zap.String("operation_id", operation.ID))
 
 	for {
@@ -302,7 +296,7 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 				s.logger.Error("Failed to get wire bytes",
 					zap.Error(err),
 					zap.String("operation_id", operation.ID))
-				continue
+				return err
 			}
 
 			s.logger.Info("Processing message routing",
@@ -324,21 +318,20 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 				IsToOldAndNewCommittees: msg.IsToOldAndNewCommittees(),
 			}
 
-			var to []*tss.PartyID
-			if routing.IsBroadcast {
-				to = operation.Participants
-			} else {
-				to = routing.To
+			to, err := s.toParticipants(operation, msg, routing)
+			if err != nil {
+				s.logger.Error("get participants failed", zap.Error(err))
+				return err
 			}
 
-			for _, to := range to {
-				p2pMsg.To = append(p2pMsg.To, to.Id)
-			}
-
+			p2pMsg.To = to
 			s.logger.Info("Sending point-to-point message with gossip routing",
 				zap.String("operation_id", operation.ID),
 				zap.String("session_id", operation.SessionID),
-				zap.Strings("targets", p2pMsg.To))
+				zap.Strings("targets", p2pMsg.To),
+				zap.Bool("IsToOldCommittee", p2pMsg.IsToOldCommittee),
+				zap.Bool("IsToOldAndNewCommittees", p2pMsg.IsToOldAndNewCommittees),
+			)
 
 			if err := s.network.SendWithGossip(ctx, p2pMsg); err != nil {
 				s.logger.Error("Failed to send message with gossip routing",
@@ -354,7 +347,7 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 			s.logger.Info("Outgoing message handler stopped",
 				zap.String("operation_id", operation.ID),
 				zap.Error(ctx.Err()))
-			return
+			return ctx.Err()
 		}
 	}
 }
@@ -646,4 +639,105 @@ func (s *Service) generateOrUseOperationID(providedID string) string {
 		return providedID
 	}
 	return uuid.New().String()
+}
+
+func (s *Service) toParticipants(operation *Operation, msg tss.Message, routing *tss.MessageRouting) ([]string, error) {
+	var (
+		to           []*tss.PartyID
+		participants []string
+	)
+
+	switch {
+	case msg.IsToOldCommittee():
+		req, ok := operation.Request.(*ResharingRequest)
+		if !ok {
+			return nil, fmt.Errorf("invalid resharing request")
+		}
+		return req.OldParticipants, nil
+	case msg.IsToOldAndNewCommittees():
+		req, ok := operation.Request.(*ResharingRequest)
+		if !ok {
+			return nil, fmt.Errorf("invalid resharing request")
+		}
+		participants = append(participants, req.OldParticipants...)
+		participants = append(participants, req.NewParticipants...)
+		participants = dknetCommon.UniqueSlice(participants)
+		return participants, nil
+	case routing.IsBroadcast:
+		to = operation.Participants
+	default:
+		to = routing.To
+	}
+
+	for _, to := range to {
+		participants = append(participants, to.Id)
+	}
+	return participants, nil
+}
+
+func (s *Service) watchOperation(ctx context.Context, op *Operation) {
+	s.logger.Info("Waiting for operation completion or cancellation", zap.String("operation_id", op.ID))
+
+	// Always move completed operation to persistent storage for cleanup
+	defer func() {
+		if err := s.moveCompletedOperationToStorage(ctx, op.ID); err != nil {
+			s.logger.Error("Failed to move operation to persistent storage during cleanup",
+				zap.Error(err),
+				zap.String("operation_id", op.ID),
+				zap.String("type", string(op.Type)))
+		}
+		s.logger.Info("Operation completed",
+			zap.String("operation_id", op.ID),
+			zap.String("type", string(op.Type)),
+			zap.String("status", string(op.Status)),
+		)
+	}()
+
+	// Wait for operation completion or cancellation
+	select {
+	case <-ctx.Done():
+		s.logger.Info("Operation canceled or timed out", zap.String("operation_id", op.ID), zap.Error(ctx.Err()))
+		op.Status = StatusCancelled
+		op.CompletedAt = dknetCommon.Now()
+	case result := <-op.EndCh:
+		op.CompletedAt = dknetCommon.Now()
+		switch r := result.(type) {
+		case error:
+			op.Error = r
+			op.Status = StatusFailed
+		case *keygen.LocalPartySaveData:
+			op.Status = StatusCompleted
+			if err := s.saveKeygenResult(ctx, op, r); err != nil {
+				s.logger.Error("Failed to save signing result", zap.Error(err))
+				op.Error = err
+				op.Status = StatusFailed
+			}
+		case *common.SignatureData:
+			op.Status = StatusCompleted
+			if err := s.saveSigningResult(ctx, op, r); err != nil {
+				s.logger.Error("Failed to save signing result", zap.Error(err))
+				op.Error = err
+				op.Status = StatusFailed
+			}
+		default:
+			s.logger.Error("Unknown operation result type", zap.Any("result", result))
+			op.Status = StatusFailed
+		}
+	}
+}
+
+func (s *Service) getOperation(sessionID string) *Operation {
+	find := func() *Operation {
+		s.mutex.RLock()
+		defer s.mutex.RUnlock()
+
+		for _, op := range s.operations {
+			if op.SessionID == sessionID {
+				return op
+			}
+		}
+		return nil
+	}
+
+	return dknetCommon.Retry(find, 1, 10)
 }

@@ -43,13 +43,13 @@ type Operation struct {
 	Participants []*tss.PartyID
 	Party        tss.Party
 	OutCh        chan tss.Message
-	EndCh        chan interface{}
+	EndCh        chan any
 	Status       OperationStatus
 	CreatedAt    time.Time
 	CompletedAt  *time.Time
-	Result       interface{}
+	Result       any
 	Error        error
-	Request      interface{} // Store the original request (KeygenRequest, SigningRequest, etc.)
+	Request      any // Store the original request (KeygenRequest, SigningRequest, etc.)
 
 	// Synchronization
 	mutex  sync.RWMutex

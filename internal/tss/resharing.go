@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/dreamer-zq/DKNet/internal/common"
 	"github.com/dreamer-zq/DKNet/internal/p2p"
 )
 
@@ -66,15 +67,17 @@ func (s *Service) StartResharing(
 	}
 
 	// Broadcast resharing operation sync message to other participants
-	go s.broadcastResharingOperation(
-		operationID,
-		sessionID,
-		keyID,
-		keyData.Threshold,
-		newThreshold,
-		keyData.Participants,
-		newParticipants,
-	)
+	common.SafeGo(operation.EndCh, func() any {
+		return s.broadcastResharingOperation(
+			operationID,
+			sessionID,
+			keyID,
+			keyData.Threshold,
+			newThreshold,
+			keyData.Participants,
+			newParticipants,
+		)
+	})
 
 	s.logger.Info("Started resharing operation",
 		zap.String("operation_id", operationID),
@@ -90,7 +93,7 @@ func (s *Service) broadcastResharingOperation(
 	oldThreshold int,
 	newThreshold int,
 	oldParticipants, newParticipants []string,
-) {
+) error {
 	s.logger.Info("Broadcast resharing operation",
 		zap.String("operation_id", operationID),
 		zap.String("session_id", sessionID),
@@ -124,10 +127,13 @@ func (s *Service) broadcastResharingOperation(
 		s.logger.Error("Failed to broadcast resharing operation sync",
 			zap.Error(err),
 			zap.String("operation_id", operationID))
-	} else {
-		s.logger.Info("Resharing operation sync broadcasted successfully",
-			zap.String("operation_id", operationID))
+		return err
 	}
+
+	s.logger.Info("Resharing operation sync broadcasted successfully",
+		zap.String("operation_id", operationID),
+		zap.String("key_id", keyID))
+	return nil
 }
 
 // createResharingOperation creates a resharing operation with common logic
@@ -240,7 +246,7 @@ func (s *Service) createResharingOperation(ctx context.Context, params *resharin
 		Participants: newParticipantList, // Use new participants for message handling
 		Party:        party,
 		OutCh:        outCh,
-		EndCh:        make(chan interface{}, channelSize), // Generic channel for interface{}
+		EndCh:        common.ConvertToAnyCh(endCh), // Generic channel for interface{}
 		Status:       StatusPending,
 		CreatedAt:    time.Now(),
 		Request:      req, // Store the request for persistence
@@ -252,88 +258,35 @@ func (s *Service) createResharingOperation(ctx context.Context, params *resharin
 	s.operations[params.OperationID] = operation
 	s.mutex.Unlock()
 
+	// Wait for operation completion or cancellation
+	go s.watchOperation(operationCtx, operation)
 	// Start operation in a goroutine
-	go s.runResharingOperation(operationCtx, operation, endCh)
+	go s.runResharingOperation(operationCtx, operation)
 
 	return operation, nil
 }
 
 // runResharingOperation runs a resharing operation
-func (s *Service) runResharingOperation(ctx context.Context, operation *Operation, endCh <-chan *keygen.LocalPartySaveData) {
+func (s *Service) runResharingOperation(ctx context.Context, operation *Operation) {
 	// Update status
 	operation.Lock()
 	operation.Status = StatusInProgress
 	operation.Unlock()
 
 	// Start the party
-	go func() {
+	common.SafeGo(operation.EndCh, func() any {
+		s.logger.Info("Starting TSS party", zap.String("operation_id", operation.ID))
 		if err := operation.Party.Start(); err != nil {
-			s.logger.Error("Resharing party failed", zap.Error(err))
-			// Set failure status
-			operation.Lock()
-			operation.Status = StatusFailed
-			operation.Error = err
-			now := time.Now()
-			operation.CompletedAt = &now
-			operation.Unlock()
+			return err
 		}
-	}()
+		s.logger.Info("TSS party started successfully", zap.String("operation_id", operation.ID))
+		return nil
+	})
 
 	// Handle outgoing messages
-	go s.handleOutgoingMessages(ctx, operation)
-
-	// Wait for completion or cancellation
-	// Ensure operation is always cleaned up regardless of outcome
-	defer func() {
-		// Always move completed operation to persistent storage for cleanup
-		if err := s.moveCompletedOperationToStorage(context.Background(), operation.ID); err != nil {
-			s.logger.Error("Failed to move resharing operation to persistent storage during cleanup",
-				zap.Error(err),
-				zap.String("operation_id", operation.ID))
-		}
-	}()
-
-	select {
-	case result := <-endCh:
-		// Save result
-		if err := s.saveResharingResult(ctx, operation, result); err != nil {
-			s.logger.Error("Failed to save resharing result", zap.Error(err))
-			// Set failure status
-			operation.Lock()
-			operation.Status = StatusFailed
-			operation.Error = err
-			now := time.Now()
-			operation.CompletedAt = &now
-			operation.Unlock()
-		} else {
-			// Send to generic channel
-			operation.EndCh <- result
-			// Set success status
-			operation.Lock()
-			operation.Status = StatusCompleted
-			now := time.Now()
-			operation.CompletedAt = &now
-			operation.Unlock()
-		}
-	case <-ctx.Done():
-		s.logger.Info("Resharing operation canceled or timed out",
-			zap.String("operation_id", operation.ID),
-			zap.Error(ctx.Err()))
-
-		// Set canceled status
-		operation.Lock()
-		operation.Status = StatusCancelled
-		now := time.Now()
-		operation.CompletedAt = &now
-		operation.Unlock()
-	}
-}
-
-// saveResharingResult saves resharing result
-func (s *Service) saveResharingResult(ctx context.Context, operation *Operation, result *keygen.LocalPartySaveData) error {
-	// This would update the existing key with new shares
-	// For simplicity, we'll just store as a new key
-	return s.saveKeygenResult(ctx, operation, result)
+	common.SafeGo(operation.EndCh, func() any {
+		return s.handleOutgoingMessages(ctx, operation)
+	})
 }
 
 // createSyncedResharingOperation creates a resharing operation from a sync message
@@ -455,7 +408,7 @@ func (s *Service) createSyncedResharingOperation(ctx context.Context, msg *p2p.M
 		Participants: newParticipantList, // Use new participants for message handling
 		Party:        party,
 		OutCh:        outCh,
-		EndCh:        make(chan interface{}, channelSize), // Generic channel for interface{}
+		EndCh:        common.ConvertToAnyCh(endCh), // Generic channel for interface{}
 		Status:       StatusPending,
 		CreatedAt:    time.Now(),
 		Request:      req, // Store the request for persistence
@@ -467,8 +420,10 @@ func (s *Service) createSyncedResharingOperation(ctx context.Context, msg *p2p.M
 	s.operations[syncData.OperationID] = operation
 	s.mutex.Unlock()
 
+	// Wait for operation completion or cancellation
+	go s.watchOperation(operationCtx, operation)
 	// Start operation in a goroutine
-	go s.runResharingOperation(operationCtx, operation, endCh)
+	go s.runResharingOperation(operationCtx, operation)
 
 	s.logger.Info("Started synced resharing operation",
 		zap.String("operation_id", syncData.OperationID),
