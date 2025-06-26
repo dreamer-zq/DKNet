@@ -726,6 +726,31 @@ func (s *Service) watchOperation(ctx context.Context, op *Operation) {
 	}
 }
 
+// runOperation runs a TSS operation
+func (s *Service) runOperation(ctx context.Context, operation *Operation) {
+	s.logger.Info("Starting TSS operation goroutine", zap.String("operation_id", operation.ID))
+
+	// Update status
+	operation.Lock()
+	operation.Status = StatusInProgress
+	operation.Unlock()
+
+	// Start the party
+	dknetCommon.SafeGo(operation.EndCh, func() any {
+		s.logger.Info("Starting TSS party", zap.String("operation_id", operation.ID))
+		if err := operation.Party.Start(); err != nil {
+			return err
+		}
+		s.logger.Info("TSS party started successfully", zap.String("operation_id", operation.ID))
+		return nil
+	})
+
+	// Handle outgoing messages
+	dknetCommon.SafeGo(operation.EndCh, func() any {
+		return s.handleOutgoingMessages(ctx, operation)
+	})
+}
+
 func (s *Service) getOperation(sessionID string) *Operation {
 	find := func() *Operation {
 		s.mutex.RLock()

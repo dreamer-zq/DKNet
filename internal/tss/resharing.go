@@ -261,32 +261,9 @@ func (s *Service) createResharingOperation(ctx context.Context, params *resharin
 	// Wait for operation completion or cancellation
 	go s.watchOperation(operationCtx, operation)
 	// Start operation in a goroutine
-	go s.runResharingOperation(operationCtx, operation)
+	go s.runOperation(operationCtx, operation)
 
 	return operation, nil
-}
-
-// runResharingOperation runs a resharing operation
-func (s *Service) runResharingOperation(ctx context.Context, operation *Operation) {
-	// Update status
-	operation.Lock()
-	operation.Status = StatusInProgress
-	operation.Unlock()
-
-	// Start the party
-	common.SafeGo(operation.EndCh, func() any {
-		s.logger.Info("Starting TSS party", zap.String("operation_id", operation.ID))
-		if err := operation.Party.Start(); err != nil {
-			return err
-		}
-		s.logger.Info("TSS party started successfully", zap.String("operation_id", operation.ID))
-		return nil
-	})
-
-	// Handle outgoing messages
-	common.SafeGo(operation.EndCh, func() any {
-		return s.handleOutgoingMessages(ctx, operation)
-	})
 }
 
 // createSyncedResharingOperation creates a resharing operation from a sync message
@@ -423,7 +400,7 @@ func (s *Service) createSyncedResharingOperation(ctx context.Context, msg *p2p.M
 	// Wait for operation completion or cancellation
 	go s.watchOperation(operationCtx, operation)
 	// Start operation in a goroutine
-	go s.runResharingOperation(operationCtx, operation)
+	go s.runOperation(operationCtx, operation)
 
 	s.logger.Info("Started synced resharing operation",
 		zap.String("operation_id", syncData.OperationID),

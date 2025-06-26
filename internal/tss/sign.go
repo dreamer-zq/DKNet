@@ -162,7 +162,7 @@ func (s *Service) createSigningOperation(ctx context.Context, params *signingOpe
 	// Wait for operation completion or cancellation
 	go s.watchOperation(operationCtx, operation)
 	// Start operation in a goroutine
-	go s.runSigningOperation(operationCtx, operation)
+	go s.runOperation(operationCtx, operation)
 
 	return operation, threshold, nil
 }
@@ -260,28 +260,6 @@ func (s *Service) createSyncedSigningOperation(ctx context.Context, msg *p2p.Mes
 		zap.String("key_id", syncData.KeyID))
 
 	return nil
-}
-
-// runSigningOperation runs a signing operation
-func (s *Service) runSigningOperation(ctx context.Context, operation *Operation) {
-	// Update status
-	operation.Lock()
-	operation.Status = StatusInProgress
-	operation.Unlock()
-
-	// Start the party
-	dknetCommon.SafeGo(operation.EndCh, func() any {
-		if err := operation.Party.Start(); err != nil {
-			return err
-		}
-		s.logger.Info("TSS party started successfully", zap.String("operation_id", operation.ID))
-		return nil
-	})
-
-	// Handle outgoing messages
-	dknetCommon.SafeGo(operation.EndCh, func() any {
-		return s.handleOutgoingMessages(ctx, operation)
-	})
 }
 
 // saveSigningResult saves signing result with Ethereum-compatible format

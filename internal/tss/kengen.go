@@ -155,7 +155,7 @@ func (s *Service) createKeygenOperation(params *keygenOperationParams) (*Operati
 	// Wait for operation completion or cancellation
 	go s.watchOperation(operationCtx, operation)
 	// Start operation in a goroutine
-	go s.runKeygenOperation(operationCtx, operation)
+	go s.runOperation(operationCtx, operation)
 
 	return operation, nil
 }
@@ -194,31 +194,6 @@ func (s *Service) broadcastKeygenOperation(
 	s.logger.Info("Keygen operation sync broadcasted successfully",
 		zap.String("operation_id", operationID))
 	return nil
-}
-
-// runKeygenOperation runs a keygen operation
-func (s *Service) runKeygenOperation(ctx context.Context, operation *Operation) {
-	s.logger.Info("Starting keygen operation goroutine", zap.String("operation_id", operation.ID))
-
-	// Update status
-	operation.Lock()
-	operation.Status = StatusInProgress
-	operation.Unlock()
-
-	// Start the party
-	common.SafeGo(operation.EndCh, func() any {
-		s.logger.Info("Starting TSS party", zap.String("operation_id", operation.ID))
-		if err := operation.Party.Start(); err != nil {
-			return err
-		}
-		s.logger.Info("TSS party started successfully", zap.String("operation_id", operation.ID))
-		return nil
-	})
-
-	// Handle outgoing messages
-	common.SafeGo(operation.EndCh, func() any {
-		return s.handleOutgoingMessages(ctx, operation)
-	})
 }
 
 // saveKeygenResult saves keygen result with encryption
