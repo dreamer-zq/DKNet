@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"slices"
 	"time"
 
 	"github.com/bnb-chain/tss-lib/v2/common"
@@ -14,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	dknetCommon "github.com/dreamer-zq/DKNet/internal/common"
 	"github.com/dreamer-zq/DKNet/internal/p2p"
 )
 
@@ -77,10 +79,13 @@ func (s *Service) StartSigning(
 	}
 
 	// Broadcast signing operation sync message to other participants
-	go s.broadcastSigningOperation(
-		operationID, sessionID,
-		threshold, len(operation.Participants), participants, keyID, message,
-	)
+	dknetCommon.SafeGo(operation.EndCh, func() any {
+		return s.broadcastSigningOperation(
+			operationID, sessionID,
+			threshold, len(operation.Participants),
+			participants, keyID, message,
+		)
+	})
 
 	return operation, nil
 }
@@ -100,17 +105,14 @@ func (s *Service) createSigningOperation(ctx context.Context, params *signingOpe
 	}
 
 	// Find our party ID in the participants list
-	var ourPartyID *tss.PartyID
-	for _, p := range participantList {
-		if p.Id == s.nodeID {
-			ourPartyID = p
-			break
-		}
-	}
-	if ourPartyID == nil {
+	ourPartyIndex := slices.IndexFunc(participantList, func(p *tss.PartyID) bool {
+		return p.Id == s.nodeID
+	})
+	if ourPartyIndex == -1 {
 		return nil, 0, fmt.Errorf("this node (%s) is not in the participant list", s.nodeID)
 	}
 
+	ourPartyID := participantList[ourPartyIndex]
 	// Create TSS parameters - use the original threshold from keygen
 	ctx2 := tss.NewPeerContext(participantList)
 	threshold := keyData.Threshold // Use the original threshold from stored metadata
@@ -145,7 +147,7 @@ func (s *Service) createSigningOperation(ctx context.Context, params *signingOpe
 		Participants: participantList,
 		Party:        party,
 		OutCh:        outCh,
-		EndCh:        make(chan interface{}, 1), // Generic channel for interface{}
+		EndCh:        dknetCommon.ConvertToAnyCh(endCh), // Generic channel for interface{}
 		Status:       StatusPending,
 		CreatedAt:    time.Now(),
 		Request:      req, // Store the request for persistence
@@ -157,8 +159,10 @@ func (s *Service) createSigningOperation(ctx context.Context, params *signingOpe
 	s.operations[params.OperationID] = operation
 	s.mutex.Unlock()
 
+	// Wait for operation completion or cancellation
+	go s.watchOperation(operationCtx, operation)
 	// Start operation in a goroutine
-	go s.runSigningOperation(operationCtx, operation, endCh)
+	go s.runOperation(operationCtx, operation)
 
 	return operation, threshold, nil
 }
@@ -169,7 +173,7 @@ func (s *Service) broadcastSigningOperation(
 	participants []string,
 	keyID string,
 	message []byte,
-) {
+) error {
 	syncCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -190,11 +194,12 @@ func (s *Service) broadcastSigningOperation(
 		s.logger.Error("Failed to broadcast signing operation sync",
 			zap.Error(err),
 			zap.String("operation_id", operationID))
-	} else {
-		s.logger.Info("Signing operation sync broadcasted successfully",
-			zap.String("operation_id", operationID),
-			zap.String("key_id", keyID))
+		return err
 	}
+	s.logger.Info("Signing operation sync broadcasted successfully",
+		zap.String("operation_id", operationID),
+		zap.String("key_id", keyID))
+	return nil
 }
 
 func (s *Service) createSyncedSigningOperation(ctx context.Context, msg *p2p.Message) error {
@@ -255,77 +260,6 @@ func (s *Service) createSyncedSigningOperation(ctx context.Context, msg *p2p.Mes
 		zap.String("key_id", syncData.KeyID))
 
 	return nil
-}
-
-// runSigningOperation runs a signing operation
-func (s *Service) runSigningOperation(ctx context.Context, operation *Operation, endCh <-chan *common.SignatureData) {
-	// Update status
-	operation.Lock()
-	operation.Status = StatusInProgress
-	operation.Unlock()
-
-	// Start the party
-	go func() {
-		if err := operation.Party.Start(); err != nil {
-			s.logger.Error("Signing party failed", zap.Error(err))
-			// Set failure status
-			operation.Lock()
-			operation.Status = StatusFailed
-			operation.Error = err
-			now := time.Now()
-			operation.CompletedAt = &now
-			operation.Unlock()
-		}
-	}()
-
-	// Handle outgoing messages
-	go s.handleOutgoingMessages(ctx, operation)
-
-	// Wait for completion or cancellation
-	// Ensure operation is always cleaned up regardless of outcome
-	defer func() {
-		// Always move completed operation to persistent storage for cleanup
-		if err := s.moveCompletedOperationToStorage(context.Background(), operation.ID); err != nil {
-			s.logger.Error("Failed to move signing operation to persistent storage during cleanup",
-				zap.Error(err),
-				zap.String("operation_id", operation.ID))
-		}
-	}()
-
-	select {
-	case result := <-endCh:
-		// Save result
-		if err := s.saveSigningResult(ctx, operation, result); err != nil {
-			s.logger.Error("Failed to save signing result", zap.Error(err))
-			// Set failure status
-			operation.Lock()
-			operation.Status = StatusFailed
-			operation.Error = err
-			now := time.Now()
-			operation.CompletedAt = &now
-			operation.Unlock()
-		} else {
-			// Send to generic channel
-			operation.EndCh <- result
-			// Set success status
-			operation.Lock()
-			operation.Status = StatusCompleted
-			now := time.Now()
-			operation.CompletedAt = &now
-			operation.Unlock()
-		}
-	case <-ctx.Done():
-		s.logger.Info("Signing operation canceled or timed out",
-			zap.String("operation_id", operation.ID),
-			zap.Error(ctx.Err()))
-
-		// Set canceled status
-		operation.Lock()
-		operation.Status = StatusCancelled
-		now := time.Now()
-		operation.CompletedAt = &now
-		operation.Unlock()
-	}
 }
 
 // saveSigningResult saves signing result with Ethereum-compatible format

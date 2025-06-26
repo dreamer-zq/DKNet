@@ -3,6 +3,7 @@ package tss
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -42,13 +43,13 @@ type Operation struct {
 	Participants []*tss.PartyID
 	Party        tss.Party
 	OutCh        chan tss.Message
-	EndCh        chan interface{}
+	EndCh        chan any
 	Status       OperationStatus
 	CreatedAt    time.Time
 	CompletedAt  *time.Time
-	Result       interface{}
+	Result       any
 	Error        error
-	Request      interface{} // Store the original request (KeygenRequest, SigningRequest, etc.)
+	Request      any // Store the original request (KeygenRequest, SigningRequest, etc.)
 
 	// Synchronization
 	mutex  sync.RWMutex
@@ -73,6 +74,16 @@ func (o *Operation) RLock() {
 // RUnlock unlocks the operation for reading
 func (o *Operation) RUnlock() {
 	o.mutex.RUnlock()
+}
+
+func (o *Operation) isNewParticipant() bool {
+	req, ok := o.Request.(*ResharingRequest)
+	if !ok {
+		return false
+	}
+	return slices.IndexFunc(req.NewParticipants, func(p string) bool {
+		return p == o.Party.PartyID().GetId()
+	}) != -1
 }
 
 // OperationStatus defines operation status
@@ -133,6 +144,7 @@ type ResharingRequest struct {
 // Message is the interface for all operation sync data
 type Message interface {
 	ID() string
+	To() []string
 }
 
 // OperationSyncData defines the base structure for operation sync data
@@ -156,11 +168,21 @@ type KeygenSyncData struct {
 	// Add keygen-specific fields if needed in the future
 }
 
+// To implement Message.To
+func (k *KeygenSyncData) To() []string {
+	return k.Participants
+}
+
 // SigningSyncData contains signing-specific sync data
 type SigningSyncData struct {
 	OperationSyncData
 	KeyID   string `json:"key_id"`
 	Message []byte `json:"message"`
+}
+
+// To implement Message.To
+func (s *SigningSyncData) To() []string {
+	return s.Participants
 }
 
 // ResharingSyncData contains resharing-specific sync data
@@ -171,6 +193,11 @@ type ResharingSyncData struct {
 	OldParticipants []string `json:"old_participants"`
 	NewParticipants []string `json:"new_participants"`
 	KeyID           string   `json:"key_id"`
+}
+
+// To implement Message.To
+func (r *ResharingSyncData) To() []string {
+	return r.NewParticipants
 }
 
 // OperationData represents operation data for persistence

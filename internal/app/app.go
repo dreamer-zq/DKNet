@@ -49,7 +49,7 @@ func New(cfg *config.NodeConfig, logger *zap.Logger, password string) (*App, err
 	}
 
 	// Use peer ID as node ID for TSS service
-	peerID := network.GetHostID().String()
+	peerID := network.GetHostID()
 	logger.Info("Using peer ID as TSS node ID",
 		zap.String("peer_id", peerID),
 		zap.String("moniker", cfg.TSS.Moniker))
@@ -101,7 +101,7 @@ func (a *App) Start(ctx context.Context) error {
 	a.logger.Info("Starting DKNet application")
 
 	// Start P2P network
-	if err := a.network.Start(ctx, a.config.P2P.BootstrapPeers); err != nil {
+	if err := a.network.Start(ctx); err != nil {
 		return fmt.Errorf("failed to start P2P network: %w", err)
 	}
 

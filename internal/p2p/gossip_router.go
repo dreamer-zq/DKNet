@@ -13,13 +13,6 @@ import (
 const (
 	// Message types
 	gossipRouteMessageType = "gossip_route"
-
-	// Protocol IDs
-	gossipProtocolID = "/tss/gossip/1.0.0"
-
-	// Connection states
-	connectedState = 1
-
 	// Configuration defaults
 	defaultMaxTTL          = 10
 	defaultCleanupInterval = 5 * time.Minute
@@ -58,11 +51,6 @@ func NewGossipRouter(network *Network, logger *zap.Logger) *GossipRouter {
 
 // SendWithGossip sends a message using gossip routing if direct connection fails
 func (gr *GossipRouter) SendWithGossip(ctx context.Context, msg *Message) error {
-	if msg.IsBroadcast {
-		// Broadcast messages use PubSub gossip (already implemented)
-		return gr.network.Send(ctx, msg)
-	}
-
 	// For point-to-point messages, try direct first, then gossip
 	for _, target := range msg.To {
 		if err := gr.sendToTarget(ctx, msg, target); err != nil {
@@ -84,18 +72,22 @@ func (gr *GossipRouter) SendWithGossip(ctx context.Context, msg *Message) error 
 
 // sendToTarget sends message to a specific target peer
 func (gr *GossipRouter) sendToTarget(ctx context.Context, msg *Message, target string) error {
+	if target == gr.network.GetHostID() {
+		gr.logger.Info("Skipping send message to self", zap.String("target", target))
+		return nil
+	}
+
 	targetPeer, err := peer.Decode(target)
 	if err != nil {
 		return fmt.Errorf("invalid target peer ID: %w", err)
 	}
 
 	// Check if we're directly connected
-	if gr.isDirectlyConnected(targetPeer) {
+	if gr.network.connected(targetPeer) {
 		// Try direct send
 		directMsg := *msg
 		directMsg.To = []string{target}
-		gr.setProtocolID(&directMsg)
-		return gr.network.Send(ctx, &directMsg)
+		return gr.network.send(ctx, &directMsg)
 	}
 
 	return fmt.Errorf("not directly connected to target")
@@ -103,6 +95,11 @@ func (gr *GossipRouter) sendToTarget(ctx context.Context, msg *Message, target s
 
 // sendViaGossip sends message via gossip routing
 func (gr *GossipRouter) sendViaGossip(ctx context.Context, msg *Message, target string) error {
+	if target == gr.network.GetHostID() {
+		gr.logger.Info("Skipping send message to self", zap.String("target", target))
+		return nil
+	}
+
 	// Find connected peers first
 	connectedPeers := gr.network.getConnectedPeers()
 	if len(connectedPeers) == 0 {
@@ -120,8 +117,7 @@ func (gr *GossipRouter) sendViaGossip(ctx context.Context, msg *Message, target 
 
 		directMsg := *msg
 		directMsg.To = []string{target}
-		gr.setProtocolID(&directMsg)
-		return gr.network.Send(ctx, &directMsg)
+		return gr.network.send(ctx, &directMsg)
 	}
 
 	// Target not directly connected, use gossip routing
@@ -131,9 +127,9 @@ func (gr *GossipRouter) sendViaGossip(ctx context.Context, msg *Message, target 
 	// Create routed message
 	routedMsg := &RoutedMessage{
 		Message:        msg,
-		OriginalSender: gr.network.host.ID().String(),
+		OriginalSender: gr.network.GetHostID(),
 		FinalTarget:    target,
-		Path:           []string{gr.network.host.ID().String()},
+		Path:           []string{gr.network.GetHostID()},
 		TTL:            gr.maxTTL,
 		MessageID:      gr.generateMessageID(msg.SessionID),
 	}
@@ -168,15 +164,15 @@ func (gr *GossipRouter) sendRoutedMessage(ctx context.Context, routedMsg *Routed
 	gossipMsg := &Message{
 		SessionID:   routedMsg.SessionID,
 		Type:        gossipRouteMessageType,
-		From:        gr.network.host.ID().String(),
+		From:        gr.network.GetHostID(),
 		To:          []string{peerID.String()},
 		Data:        data,
 		IsBroadcast: false,
 		Timestamp:   time.Now(),
-		ProtocolID:  gossipProtocolID,
+		ProtocolID:  TssGossipProtocol,
 	}
 
-	return gr.network.Send(ctx, gossipMsg)
+	return gr.network.send(ctx, gossipMsg)
 }
 
 // HandleRoutedMessage handles incoming routed messages
@@ -204,7 +200,7 @@ func (gr *GossipRouter) HandleRoutedMessage(ctx context.Context, msg *Message) e
 	}
 
 	// Check if we are the final target
-	if routedMsg.FinalTarget == gr.network.host.ID().String() {
+	if routedMsg.FinalTarget == gr.network.GetHostID() {
 		gr.logger.Info("Received message via gossip routing",
 			zap.String("original_sender", routedMsg.OriginalSender),
 			zap.Strings("path", routedMsg.Path))
@@ -215,7 +211,7 @@ func (gr *GossipRouter) HandleRoutedMessage(ctx context.Context, msg *Message) e
 
 	// Check if we know the target directly
 	targetPeer, err := peer.Decode(routedMsg.FinalTarget)
-	if err == nil && gr.isDirectlyConnected(targetPeer) {
+	if err == nil && gr.network.connected(targetPeer) {
 		// Forward directly to target
 		gr.logger.Info("Forwarding message directly to target",
 			zap.String("target", routedMsg.FinalTarget),
@@ -223,13 +219,12 @@ func (gr *GossipRouter) HandleRoutedMessage(ctx context.Context, msg *Message) e
 
 		directMsg := *routedMsg.Message
 		directMsg.To = []string{routedMsg.FinalTarget}
-		gr.setProtocolID(&directMsg)
-		return gr.network.Send(ctx, &directMsg)
+		return gr.network.send(ctx, &directMsg)
 	}
 
 	// Continue gossip forwarding
 	routedMsg.TTL--
-	routedMsg.Path = append(routedMsg.Path, gr.network.host.ID().String())
+	routedMsg.Path = append(routedMsg.Path, gr.network.GetHostID())
 
 	// Forward to other connected peers (except sender)
 	connectedPeers := gr.network.getConnectedPeers()
@@ -268,22 +263,6 @@ func (gr *GossipRouter) hasSeen(messageID string) bool {
 // generateMessageID generates a unique message ID
 func (gr *GossipRouter) generateMessageID(sessionID string) string {
 	return fmt.Sprintf("%s-%d", sessionID, time.Now().UnixNano())
-}
-
-// isDirectlyConnected checks if a peer is directly connected
-func (gr *GossipRouter) isDirectlyConnected(peerID peer.ID) bool {
-	return gr.network.host.Network().Connectedness(peerID) == connectedState
-}
-
-// setProtocolID sets the protocol ID for a message based on its type
-func (gr *GossipRouter) setProtocolID(msg *Message) {
-	if msg.ProtocolID == "" {
-		if protocolID, exists := typeToProtocol[msg.Type]; exists {
-			msg.ProtocolID = protocolID
-		} else {
-			msg.ProtocolID = tssGossipProtocol // fallback
-		}
-	}
 }
 
 // cleanupSeenMessages periodically cleans up old seen messages

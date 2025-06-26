@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
@@ -12,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/dreamer-zq/DKNet/internal/common"
 	"github.com/dreamer-zq/DKNet/internal/p2p"
 )
 
@@ -65,15 +67,17 @@ func (s *Service) StartResharing(
 	}
 
 	// Broadcast resharing operation sync message to other participants
-	go s.broadcastResharingOperation(
-		operationID,
-		sessionID,
-		keyID,
-		keyData.Threshold,
-		newThreshold,
-		keyData.Participants,
-		newParticipants,
-	)
+	common.SafeGo(operation.EndCh, func() any {
+		return s.broadcastResharingOperation(
+			operationID,
+			sessionID,
+			keyID,
+			keyData.Threshold,
+			newThreshold,
+			keyData.Participants,
+			newParticipants,
+		)
+	})
 
 	s.logger.Info("Started resharing operation",
 		zap.String("operation_id", operationID),
@@ -89,7 +93,7 @@ func (s *Service) broadcastResharingOperation(
 	oldThreshold int,
 	newThreshold int,
 	oldParticipants, newParticipants []string,
-) {
+) error {
 	s.logger.Info("Broadcast resharing operation",
 		zap.String("operation_id", operationID),
 		zap.String("session_id", sessionID),
@@ -123,47 +127,32 @@ func (s *Service) broadcastResharingOperation(
 		s.logger.Error("Failed to broadcast resharing operation sync",
 			zap.Error(err),
 			zap.String("operation_id", operationID))
-	} else {
-		s.logger.Info("Resharing operation sync broadcasted successfully",
-			zap.String("operation_id", operationID))
+		return err
 	}
+
+	s.logger.Info("Resharing operation sync broadcasted successfully",
+		zap.String("operation_id", operationID),
+		zap.String("key_id", keyID))
+	return nil
 }
 
 // createResharingOperation creates a resharing operation with common logic
+// This function should only be called from old participants who have the key data
 func (s *Service) createResharingOperation(ctx context.Context, params *resharingOperationParams) (*Operation, error) {
-	// Load key metadata to get old participants and threshold
-	keyMetadata, err := s.LoadKeyMetadata(ctx, params.KeyID)
+	// Load key data (this node must be an old participant)
+	keyMetadata, localParty, err := s.loadKeyData(ctx, params.KeyID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load key metadata: %w", err)
+		return nil, fmt.Errorf("failed to load key data: %w", err)
 	}
 
-	// Check if this node is an old participant (has existing key data)
-	isOldParticipant := false
-	for _, oldParticipant := range keyMetadata.Participants {
-		if oldParticipant == s.nodeID {
-			isOldParticipant = true
-			break
-		}
+	// Verify this node is an old participant (only old participants can initiate resharing)
+	if !slices.Contains(keyMetadata.Participants, s.nodeID) {
+		return nil, fmt.Errorf("only old participants can initiate resharing operations, node %s is not in old participants", s.nodeID)
 	}
 
-	// Load key data only if this node is an old participant
-	var localParty *keygen.LocalPartySaveData
-	if isOldParticipant {
-		_, loadedParty, err := s.loadKeyData(ctx, params.KeyID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load key data for old participant: %w", err)
-		}
-		localParty = loadedParty
-		s.logger.Info("Loaded existing key data for old participant",
-			zap.String("node_id", s.nodeID),
-			zap.String("key_id", params.KeyID))
-	} else {
-		// New participant - no existing key data
-		localParty = nil
-		s.logger.Info("New participant joining resharing",
-			zap.String("node_id", s.nodeID),
-			zap.String("key_id", params.KeyID))
-	}
+	s.logger.Info("Loaded existing key data for resharing initiation",
+		zap.String("node_id", s.nodeID),
+		zap.String("key_id", params.KeyID))
 
 	// Create old participant list from key metadata (not from params)
 	oldParticipantList, err := s.createParticipantList(keyMetadata.Participants)
@@ -176,27 +165,15 @@ func (s *Service) createResharingOperation(ctx context.Context, params *resharin
 		return nil, fmt.Errorf("failed to create new participant list: %w", err)
 	}
 
-	// Find our party ID in the participant lists
-	var ourPartyID *tss.PartyID
-	// Check if we're in the old participants (for existing shareholder)
-	for _, p := range oldParticipantList {
-		if p.Id == s.nodeID {
-			ourPartyID = p
-			break
-		}
+	// Find our party ID in the old participant list (since this is always an old participant)
+	idx := slices.IndexFunc(oldParticipantList, func(p *tss.PartyID) bool {
+		return p.Id == s.nodeID
+	})
+
+	if idx == -1 {
+		return nil, fmt.Errorf("this node (%s) is not in old participant list", s.nodeID)
 	}
-	// If not found in old, check new participants (for new shareholder)
-	if ourPartyID == nil {
-		for _, p := range newParticipantList {
-			if p.Id == s.nodeID {
-				ourPartyID = p
-				break
-			}
-		}
-	}
-	if ourPartyID == nil {
-		return nil, fmt.Errorf("this node (%s) is not in either old or new participant lists", s.nodeID)
-	}
+	ourPartyID := oldParticipantList[idx]
 
 	// Additional validation for TSS parameters
 	if params.NewThreshold < 0 {
@@ -218,10 +195,7 @@ func (s *Service) createResharingOperation(ctx context.Context, params *resharin
 	oldCtx := tss.NewPeerContext(oldParticipantList)
 	newCtx := tss.NewPeerContext(newParticipantList)
 
-	// Based on BNB Chain TSS library v2.0.2 documentation and test cases:
-	// NewReSharingParameters(curve, oldCtx, newCtx, partyID, oldPartyCount, oldThreshold, newPartyCount, newThreshold)
-	// Critical: oldThreshold and newThreshold are the actual threshold values, not counts
-	// Use threshold from key metadata (the actual old threshold) instead of params
+	// Use ReSharingParameters instead of regular Parameters
 	tssParams := tss.NewReSharingParameters(
 		tss.S256(),              // curve
 		oldCtx,                  // old peer context
@@ -234,8 +208,9 @@ func (s *Service) createResharingOperation(ctx context.Context, params *resharin
 	)
 
 	// Create channels
-	outCh := make(chan tss.Message, 100)
-	endCh := make(chan *keygen.LocalPartySaveData, 1)
+	channelSize := len(newParticipantList) + len(oldParticipantList)
+	outCh := make(chan tss.Message, channelSize)
+	endCh := make(chan *keygen.LocalPartySaveData, channelSize)
 
 	// Create resharing party with additional validation
 	s.logger.Info("Creating resharing party",
@@ -247,16 +222,8 @@ func (s *Service) createResharingOperation(ctx context.Context, params *resharin
 		zap.Int("new_threshold", params.NewThreshold),
 		zap.String("our_party_id", ourPartyID.Id))
 
-	// Create resharing party - pass nil for new participants, actual data for old participants
-	var party tss.Party
-	if localParty != nil {
-		// Old participant with existing key data
-		party = resharing.NewLocalParty(tssParams, *localParty, outCh, endCh)
-	} else {
-		// New participant - pass empty LocalPartySaveData according to TSS lib documentation
-		emptyData := keygen.LocalPartySaveData{}
-		party = resharing.NewLocalParty(tssParams, emptyData, outCh, endCh)
-	}
+	// Create resharing party with existing key data (this node is always an old participant)
+	party := resharing.NewLocalParty(tssParams, *localParty, outCh, endCh)
 
 	// Create operation context with cancellation - use background context to avoid HTTP timeout
 	// Set a longer timeout for resharing operations (15 minutes)
@@ -279,7 +246,7 @@ func (s *Service) createResharingOperation(ctx context.Context, params *resharin
 		Participants: newParticipantList, // Use new participants for message handling
 		Party:        party,
 		OutCh:        outCh,
-		EndCh:        make(chan interface{}, 1), // Generic channel for interface{}
+		EndCh:        common.ConvertToAnyCh(endCh), // Generic channel for interface{}
 		Status:       StatusPending,
 		CreatedAt:    time.Now(),
 		Request:      req, // Store the request for persistence
@@ -291,88 +258,12 @@ func (s *Service) createResharingOperation(ctx context.Context, params *resharin
 	s.operations[params.OperationID] = operation
 	s.mutex.Unlock()
 
+	// Wait for operation completion or cancellation
+	go s.watchOperation(operationCtx, operation)
 	// Start operation in a goroutine
-	go s.runResharingOperation(operationCtx, operation, endCh)
+	go s.runOperation(operationCtx, operation)
 
 	return operation, nil
-}
-
-// runResharingOperation runs a resharing operation
-func (s *Service) runResharingOperation(ctx context.Context, operation *Operation, endCh <-chan *keygen.LocalPartySaveData) {
-	// Update status
-	operation.Lock()
-	operation.Status = StatusInProgress
-	operation.Unlock()
-
-	// Start the party
-	go func() {
-		if err := operation.Party.Start(); err != nil {
-			s.logger.Error("Resharing party failed", zap.Error(err))
-			// Set failure status
-			operation.Lock()
-			operation.Status = StatusFailed
-			operation.Error = err
-			now := time.Now()
-			operation.CompletedAt = &now
-			operation.Unlock()
-		}
-	}()
-
-	// Handle outgoing messages
-	go s.handleOutgoingMessages(ctx, operation)
-
-	// Wait for completion or cancellation
-	// Ensure operation is always cleaned up regardless of outcome
-	defer func() {
-		// Always move completed operation to persistent storage for cleanup
-		if err := s.moveCompletedOperationToStorage(context.Background(), operation.ID); err != nil {
-			s.logger.Error("Failed to move resharing operation to persistent storage during cleanup",
-				zap.Error(err),
-				zap.String("operation_id", operation.ID))
-		}
-	}()
-
-	select {
-	case result := <-endCh:
-		// Save result
-		if err := s.saveResharingResult(ctx, operation, result); err != nil {
-			s.logger.Error("Failed to save resharing result", zap.Error(err))
-			// Set failure status
-			operation.Lock()
-			operation.Status = StatusFailed
-			operation.Error = err
-			now := time.Now()
-			operation.CompletedAt = &now
-			operation.Unlock()
-		} else {
-			// Send to generic channel
-			operation.EndCh <- result
-			// Set success status
-			operation.Lock()
-			operation.Status = StatusCompleted
-			now := time.Now()
-			operation.CompletedAt = &now
-			operation.Unlock()
-		}
-	case <-ctx.Done():
-		s.logger.Info("Resharing operation canceled or timed out",
-			zap.String("operation_id", operation.ID),
-			zap.Error(ctx.Err()))
-
-		// Set canceled status
-		operation.Lock()
-		operation.Status = StatusCancelled
-		now := time.Now()
-		operation.CompletedAt = &now
-		operation.Unlock()
-	}
-}
-
-// saveResharingResult saves resharing result
-func (s *Service) saveResharingResult(ctx context.Context, operation *Operation, result *keygen.LocalPartySaveData) error {
-	// This would update the existing key with new shares
-	// For simplicity, we'll just store as a new key
-	return s.saveKeygenResult(ctx, operation, result)
 }
 
 // createSyncedResharingOperation creates a resharing operation from a sync message
@@ -396,34 +287,25 @@ func (s *Service) createSyncedResharingOperation(ctx context.Context, msg *p2p.M
 		zap.Strings("new_participants", syncData.NewParticipants))
 
 	// Check if this node is an old participant (has existing key data)
-	isOldParticipant := false
-	for _, oldParticipant := range syncData.OldParticipants {
-		if oldParticipant == s.nodeID {
-			isOldParticipant = true
-			break
-		}
-	}
+	isOldParticipant := slices.Contains(syncData.OldParticipants, s.nodeID)
 
 	// Load key data only if this node is an old participant
-	var localParty *keygen.LocalPartySaveData
-	var keyMetadata *keyData
+	var localParty keygen.LocalPartySaveData
+
 	if isOldParticipant {
 		// Old participant - load existing key data
-		var err error
-		keyMetadata, localParty, err = s.loadKeyData(ctx, syncData.KeyID)
+		_, party, err := s.loadKeyData(ctx, syncData.KeyID)
 		if err != nil {
 			return fmt.Errorf("failed to load key data for old participant: %w", err)
 		}
+
+		localParty = *party
+
 		s.logger.Info("Loaded existing key data for old participant",
 			zap.String("node_id", s.nodeID),
 			zap.String("key_id", syncData.KeyID))
 	} else {
-		// New participant - create mock key metadata from sync data
-		keyMetadata = &keyData{
-			Participants: syncData.OldParticipants,
-			Threshold:    syncData.OldThreshold,
-		}
-		localParty = nil
+		localParty = keygen.NewLocalPartySaveData(len(syncData.NewParticipants))
 		s.logger.Info("New participant joining resharing",
 			zap.String("node_id", s.nodeID),
 			zap.String("key_id", syncData.KeyID))
@@ -442,56 +324,47 @@ func (s *Service) createSyncedResharingOperation(ctx context.Context, msg *p2p.M
 
 	// Find our party ID in the participant lists
 	var ourPartyID *tss.PartyID
-	// Check if we're in the old participants (for existing shareholder)
-	for _, p := range oldParticipantList {
-		if p.Id == s.nodeID {
-			ourPartyID = p
-			break
+	if isOldParticipant {
+		idx := slices.IndexFunc(oldParticipantList, func(p *tss.PartyID) bool {
+			return p.Id == s.nodeID
+		})
+		if idx == -1 {
+			return fmt.Errorf("this node (%s) is not in old participant list", s.nodeID)
 		}
-	}
-	// If not found in old, check new participants (for new shareholder)
-	if ourPartyID == nil {
-		for _, p := range newParticipantList {
-			if p.Id == s.nodeID {
-				ourPartyID = p
-				break
-			}
+		ourPartyID = oldParticipantList[idx]
+	} else {
+		idx := slices.IndexFunc(newParticipantList, func(p *tss.PartyID) bool {
+			return p.Id == s.nodeID
+		})
+		if idx == -1 {
+			return fmt.Errorf("this node (%s) is not in new participant list", s.nodeID)
 		}
-	}
-	if ourPartyID == nil {
-		return fmt.Errorf("this node (%s) is not in either old or new participant lists", s.nodeID)
+		ourPartyID = newParticipantList[idx]
 	}
 
 	// Create TSS parameters for resharing
 	oldCtx := tss.NewPeerContext(oldParticipantList)
 	newCtx := tss.NewPeerContext(newParticipantList)
 
+	// Use ReSharingParameters instead of regular Parameters
 	tssParams := tss.NewReSharingParameters(
 		tss.S256(),              // curve
 		oldCtx,                  // old peer context
 		newCtx,                  // new peer context
 		ourPartyID,              // our party ID
 		len(oldParticipantList), // old party count
-		keyMetadata.Threshold,   // old threshold from metadata or sync data
+		syncData.OldThreshold,   // old threshold from sync data
 		len(newParticipantList), // new party count
 		syncData.NewThreshold,   // new threshold
 	)
 
+	channelSize := len(newParticipantList) + len(oldParticipantList)
 	// Create channels
-	outCh := make(chan tss.Message, 100)
-	endCh := make(chan *keygen.LocalPartySaveData, 1)
+	outCh := make(chan tss.Message, channelSize)
+	endCh := make(chan *keygen.LocalPartySaveData, channelSize)
 
 	// Create resharing party
-	var party tss.Party
-	if localParty != nil {
-		// Old participant with existing key data
-		party = resharing.NewLocalParty(tssParams, *localParty, outCh, endCh)
-	} else {
-		// New participant - pass empty LocalPartySaveData
-		emptyData := keygen.LocalPartySaveData{}
-		party = resharing.NewLocalParty(tssParams, emptyData, outCh, endCh)
-	}
-
+	party := resharing.NewLocalParty(tssParams, localParty, outCh, endCh)
 	// Create operation context with cancellation
 	operationCtx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 
@@ -512,7 +385,7 @@ func (s *Service) createSyncedResharingOperation(ctx context.Context, msg *p2p.M
 		Participants: newParticipantList, // Use new participants for message handling
 		Party:        party,
 		OutCh:        outCh,
-		EndCh:        make(chan interface{}, 1), // Generic channel for interface{}
+		EndCh:        common.ConvertToAnyCh(endCh), // Generic channel for interface{}
 		Status:       StatusPending,
 		CreatedAt:    time.Now(),
 		Request:      req, // Store the request for persistence
@@ -524,8 +397,10 @@ func (s *Service) createSyncedResharingOperation(ctx context.Context, msg *p2p.M
 	s.operations[syncData.OperationID] = operation
 	s.mutex.Unlock()
 
+	// Wait for operation completion or cancellation
+	go s.watchOperation(operationCtx, operation)
 	// Start operation in a goroutine
-	go s.runResharingOperation(operationCtx, operation, endCh)
+	go s.runOperation(operationCtx, operation)
 
 	s.logger.Info("Started synced resharing operation",
 		zap.String("operation_id", syncData.OperationID),

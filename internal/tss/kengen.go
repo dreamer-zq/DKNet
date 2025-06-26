@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
@@ -14,6 +15,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/crypto/sha3"
 
+	"github.com/dreamer-zq/DKNet/internal/common"
 	"github.com/dreamer-zq/DKNet/internal/p2p"
 )
 
@@ -48,7 +50,7 @@ func (s *Service) StartKeygen(
 	sessionID := uuid.New().String()
 
 	// Create the keygen operation using common logic
-	operation, err := s.createKeygenOperation(ctx, &keygenOperationParams{
+	operation, err := s.createKeygenOperation(&keygenOperationParams{
 		OperationID:  operationID,
 		SessionID:    sessionID,
 		Threshold:    threshold,
@@ -60,13 +62,15 @@ func (s *Service) StartKeygen(
 	}
 
 	// Broadcast keygen operation sync message to other participants
-	go s.broadcastKeygenOperation(operationID, sessionID, threshold, participants)
+	common.SafeGo(operation.EndCh, func() any {
+		return s.broadcastKeygenOperation(operationID, sessionID, threshold, participants)
+	})
 
 	return operation, nil
 }
 
 // createKeygenOperation creates a keygen operation with shared logic
-func (s *Service) createKeygenOperation(ctx context.Context, params *keygenOperationParams) (*Operation, error) {
+func (s *Service) createKeygenOperation(params *keygenOperationParams) (*Operation, error) {
 	// Create participant list
 	participantList, err := s.createParticipantList(params.Participants)
 	if err != nil {
@@ -74,16 +78,14 @@ func (s *Service) createKeygenOperation(ctx context.Context, params *keygenOpera
 	}
 
 	// Find our party ID in the participants list
-	var ourPartyID *tss.PartyID
-	for _, p := range participantList {
-		if p.Id == s.nodeID {
-			ourPartyID = p
-			break
-		}
-	}
-	if ourPartyID == nil {
+	ourPartyIndex := slices.IndexFunc(participantList, func(p *tss.PartyID) bool {
+		return p.Id == s.nodeID
+	})
+	if ourPartyIndex == -1 {
 		return nil, fmt.Errorf("this node (%s) is not in the participant list", s.nodeID)
 	}
+
+	ourPartyID := participantList[ourPartyIndex]
 
 	// Log party ID for sync operations
 	if params.UsePreParams {
@@ -131,7 +133,7 @@ func (s *Service) createKeygenOperation(ctx context.Context, params *keygenOpera
 		Participants: participantList,
 		Party:        party,
 		OutCh:        outCh,
-		EndCh:        make(chan interface{}, 1), // Generic channel for interface{}
+		EndCh:        common.ConvertToAnyCh(endCh), // Generic channel for interface{}
 		Status:       StatusPending,
 		CreatedAt:    time.Now(),
 		Request:      req, // Store the request for persistence
@@ -150,8 +152,10 @@ func (s *Service) createKeygenOperation(ctx context.Context, params *keygenOpera
 			zap.String("session_id", params.SessionID))
 	}
 
+	// Wait for operation completion or cancellation
+	go s.watchOperation(operationCtx, operation)
 	// Start operation in a goroutine
-	go s.runKeygenOperation(operationCtx, operation, endCh)
+	go s.runOperation(operationCtx, operation)
 
 	return operation, nil
 }
@@ -160,7 +164,7 @@ func (s *Service) broadcastKeygenOperation(
 	operationID, sessionID string,
 	threshold int,
 	participants []string,
-) {
+) error {
 	s.logger.Info("Broadcast keygen operation",
 		zap.String("operation_id", operationID),
 		zap.String("session_id", sessionID),
@@ -185,89 +189,11 @@ func (s *Service) broadcastKeygenOperation(
 		s.logger.Error("Failed to broadcast keygen operation sync",
 			zap.Error(err),
 			zap.String("operation_id", operationID))
-	} else {
-		s.logger.Info("Keygen operation sync broadcasted successfully",
-			zap.String("operation_id", operationID))
+		return err
 	}
-}
-
-// runKeygenOperation runs a keygen operation
-func (s *Service) runKeygenOperation(ctx context.Context, operation *Operation, endCh <-chan *keygen.LocalPartySaveData) {
-	s.logger.Info("Starting keygen operation goroutine", zap.String("operation_id", operation.ID))
-
-	// Update status
-	operation.Lock()
-	operation.Status = StatusInProgress
-	operation.Unlock()
-
-	// Start the party
-	go func() {
-		s.logger.Info("Starting TSS party", zap.String("operation_id", operation.ID))
-		if err := operation.Party.Start(); err != nil {
-			s.logger.Error("Keygen party failed", zap.Error(err), zap.String("operation_id", operation.ID))
-			// Set failure status
-			operation.Lock()
-			operation.Status = StatusFailed
-			operation.Error = err
-			now := time.Now()
-			operation.CompletedAt = &now
-			operation.Unlock()
-			return
-		}
-		s.logger.Info("TSS party started successfully", zap.String("operation_id", operation.ID))
-	}()
-
-	// Handle outgoing messages
-	go s.handleOutgoingMessages(ctx, operation)
-
-	s.logger.Info("Waiting for keygen completion or cancellation", zap.String("operation_id", operation.ID))
-
-	// Wait for completion or cancellation
-	// Ensure operation is always cleaned up regardless of outcome
-	defer func() {
-		// Always move completed operation to persistent storage for cleanup
-		if err := s.moveCompletedOperationToStorage(context.Background(), operation.ID); err != nil {
-			s.logger.Error("Failed to move keygen operation to persistent storage during cleanup",
-				zap.Error(err),
-				zap.String("operation_id", operation.ID))
-		}
-	}()
-
-	select {
-	case result := <-endCh:
-		s.logger.Info("Keygen completed successfully", zap.String("operation_id", operation.ID))
-		// Save result
-		if err := s.saveKeygenResult(ctx, operation, result); err != nil {
-			s.logger.Error("Failed to save keygen result", zap.Error(err))
-			// Set failure status
-			operation.Lock()
-			operation.Status = StatusFailed
-			operation.Error = err
-			now := time.Now()
-			operation.CompletedAt = &now
-			operation.Unlock()
-		} else {
-			// Send to generic channel
-			operation.EndCh <- result
-			// Set success status
-			operation.Lock()
-			operation.Status = StatusCompleted
-			now := time.Now()
-			operation.CompletedAt = &now
-			operation.Unlock()
-		}
-	case <-ctx.Done():
-		s.logger.Info("Keygen operation canceled or timed out",
-			zap.String("operation_id", operation.ID),
-			zap.Error(ctx.Err()))
-
-		// Set canceled status
-		operation.Lock()
-		operation.Status = StatusCancelled
-		now := time.Now()
-		operation.CompletedAt = &now
-		operation.Unlock()
-	}
+	s.logger.Info("Keygen operation sync broadcasted successfully",
+		zap.String("operation_id", operationID))
+	return nil
 }
 
 // saveKeygenResult saves keygen result with encryption
@@ -333,7 +259,8 @@ func (s *Service) saveKeygenResult(ctx context.Context, operation *Operation, re
 	s.logger.Info("Saved encrypted keygen result",
 		zap.String("key_id", keyID),
 		zap.Int("encrypted_size", len(encryptedKeyData)),
-		zap.Int("original_size", len(keyDataBytes)))
+		zap.Int("original_size", len(keyDataBytes)),
+	)
 
 	return nil
 }
@@ -355,12 +282,12 @@ func (s *Service) createSyncedKeygenOperation(ctx context.Context, msg *p2p.Mess
 		zap.Strings("participants", syncData.Participants))
 
 	// Create the keygen operation using common logic with pre-computed parameters
-	_, err := s.createKeygenOperation(ctx, &keygenOperationParams{
+	_, err := s.createKeygenOperation(&keygenOperationParams{
 		OperationID:  syncData.OperationID,
 		SessionID:    syncData.SessionID,
 		Threshold:    syncData.Threshold,
 		Participants: syncData.Participants,
-		UsePreParams: true, // Use pre-computed parameters for sync operations
+		UsePreParams: false, // Use pre-computed parameters for sync operations
 	})
 	if err != nil {
 		s.logger.Error("Failed to create synced keygen operation", zap.Error(err))

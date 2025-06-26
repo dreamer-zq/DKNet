@@ -11,32 +11,26 @@ import (
 )
 
 const (
-	tssKeygenProtocol    = "/tss/keygen/1.0.0"
-	tssSigningProtocol   = "/tss/signing/1.0.0"
-	tssResharingProtocol = "/tss/resharing/1.0.0"
-	tssGossipProtocol    = "/tss/gossip/1.0.0"
-	tssBroadcastTopic    = "tss-broadcast"
+	// TssPartyProtocolID is the protocol ID for TSS party
+	TssPartyProtocolID = "/tss/party/0.0.1"
+	// TssGossipProtocol is the protocol ID for TSS gossip
+	TssGossipProtocol = "/tss/gossip/1.0.0"
 )
-
-var typeToProtocol = map[string]protocol.ID{
-	"keygen":       tssKeygenProtocol,
-	"signing":      tssSigningProtocol,
-	"resharing":    tssResharingProtocol,
-	"gossip_route": tssGossipProtocol,
-}
 
 // Message represents a generic message sent over the network
 type Message struct {
-	ProtocolID    protocol.ID `json:"protocol_id"`
-	SessionID     string      `json:"session_id"`
-	Type          string      `json:"type"` // Message type for routing
-	From          string      `json:"from"` // sender node ID
-	To            []string    `json:"to"`   // recipient node IDs (empty for broadcast)
-	IsBroadcast   bool        `json:"is_broadcast"`
-	Data          []byte      `json:"data"`                     // message payload
-	Encrypted     bool        `json:"encrypted"`                // indicates if data is encrypted
-	PeerEncrypted bool        `json:"peer_encrypted,omitempty"` // indicates if data is encrypted for specific peer(s)
-	Timestamp     time.Time   `json:"timestamp"`
+	ProtocolID              protocol.ID `json:"protocol_id"`
+	SessionID               string      `json:"session_id"`
+	Type                    string      `json:"type"` // Message type for routing
+	From                    string      `json:"from"` // sender node ID
+	To                      []string    `json:"to"`   // recipient node IDs (empty for broadcast)
+	IsBroadcast             bool        `json:"is_broadcast"`
+	Data                    []byte      `json:"data"`                     // message payload
+	Encrypted               bool        `json:"encrypted"`                // indicates if data is encrypted
+	PeerEncrypted           bool        `json:"peer_encrypted,omitempty"` // indicates if data is encrypted for specific peer(s)
+	Timestamp               time.Time   `json:"timestamp"`
+	IsToOldCommittee        bool        `json:"is_to_old_committee,omitempty"`
+	IsToOldAndNewCommittees bool        `json:"is_to_old_and_new_committees,omitempty"`
 
 	// P2P layer information - records original sender's actual PeerID to avoid mapping confusion from forwarding
 	SenderPeerID string `json:"sender_peer_id,omitempty"` // actual P2P peer ID of original sender

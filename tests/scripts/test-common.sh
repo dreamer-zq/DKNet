@@ -236,7 +236,7 @@ start_test_env() {
     
     # Build and start services
     print_status "Building and starting services..."
-    docker-compose -f "$DOCKER_COMPOSE_FILE" up -d --build
+    docker-compose -f "$DOCKER_COMPOSE_FILE" up -d --build --force-recreate
     
     print_status "Waiting for services to be ready..."
     sleep 15
