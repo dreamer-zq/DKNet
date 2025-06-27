@@ -49,8 +49,8 @@ func NewGossipRouter(network *Network, logger *zap.Logger) *GossipRouter {
 	return router
 }
 
-// SendWithGossip sends a message using gossip routing if direct connection fails
-func (gr *GossipRouter) SendWithGossip(ctx context.Context, msg *Message) error {
+// SendMessage sends a message using gossip routing if direct connection fails
+func (gr *GossipRouter) SendMessage(ctx context.Context, msg *Message) error {
 	// For point-to-point messages, try direct first, then gossip
 	for _, target := range msg.To {
 		if err := gr.sendToTarget(ctx, msg, target); err != nil {
@@ -82,15 +82,15 @@ func (gr *GossipRouter) sendToTarget(ctx context.Context, msg *Message, target s
 		return fmt.Errorf("invalid target peer ID: %w", err)
 	}
 
-	// Check if we're directly connected
-	if gr.network.connected(targetPeer) {
-		// Try direct send
-		directMsg := *msg
-		directMsg.To = []string{target}
-		return gr.network.send(ctx, &directMsg)
+	if !gr.network.connected(targetPeer) {
+		return fmt.Errorf("not directly connected to target")
 	}
 
-	return fmt.Errorf("not directly connected to target")
+	gr.logger.Info("Sending message to target directly", zap.String("target", target))
+
+	directMsg := *msg
+	directMsg.To = []string{target}
+	return gr.network.sendDirect(ctx, &directMsg)
 }
 
 // sendViaGossip sends message via gossip routing
@@ -106,23 +106,13 @@ func (gr *GossipRouter) sendViaGossip(ctx context.Context, msg *Message, target 
 		return fmt.Errorf("no connected peers for gossip routing")
 	}
 
-	// Check if target is directly connected before creating routed message
-	for _, peerID := range connectedPeers {
-		if peerID.String() != target {
-			continue
-		}
-		// Direct connection found! Send directly without gossip overhead
-		gr.logger.Info("Found direct connection to target, sending directly",
-			zap.String("target", target))
-
-		directMsg := *msg
-		directMsg.To = []string{target}
-		return gr.network.send(ctx, &directMsg)
-	}
-
 	// Target not directly connected, use gossip routing
 	gr.logger.Info("Target not directly connected, using gossip routing",
-		zap.String("target", target))
+		zap.String("target", target),
+		zap.String("protocol", string(msg.ProtocolID)),
+		zap.String("session_id", msg.SessionID),
+		zap.String("type", msg.Type),
+	)
 
 	// Create routed message
 	routedMsg := &RoutedMessage{
@@ -172,7 +162,7 @@ func (gr *GossipRouter) sendRoutedMessage(ctx context.Context, routedMsg *Routed
 		ProtocolID:  TssGossipProtocol,
 	}
 
-	return gr.network.send(ctx, gossipMsg)
+	return gr.network.sendDirect(ctx, gossipMsg)
 }
 
 // HandleRoutedMessage handles incoming routed messages
@@ -219,7 +209,7 @@ func (gr *GossipRouter) HandleRoutedMessage(ctx context.Context, msg *Message) e
 
 		directMsg := *routedMsg.Message
 		directMsg.To = []string{routedMsg.FinalTarget}
-		return gr.network.send(ctx, &directMsg)
+		return gr.network.sendDirect(ctx, &directMsg)
 	}
 
 	// Continue gossip forwarding

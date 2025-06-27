@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p"
@@ -16,6 +15,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	"go.uber.org/zap"
 
 	"github.com/dreamer-zq/DKNet/internal/config"
@@ -24,17 +24,14 @@ import (
 
 // Network handles P2P networking for TSS operations
 type Network struct {
-	host          host.Host
-	pubsub        *pubsub.PubSub
-	logger        *zap.Logger
-	connectTicker *time.Ticker
+	host   host.Host
+	pubsub *pubsub.PubSub
+	logger *zap.Logger
 
 	// Message handling
 	messageHandler MessageHandler
-	mu             sync.RWMutex
 
 	// Connected peers tracking
-	connectedPeers map[peer.ID]bool
 	bootstrapPeers []string
 	// Gossip routing for point-to-point messages
 	gossipRouter *GossipRouter
@@ -66,9 +63,26 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		return nil, fmt.Errorf("failed to load private key: %w", err)
 	}
 
+	// Create a connection manager
+	lowWater := len(cfg.BootstrapPeers)
+	highWater := cfg.MaxPeers
+	if highWater == 0 {
+		highWater = lowWater + 20 // Default if not set
+	}
+	if highWater < lowWater {
+		logger.Warn("MaxPeers configuration is less than the number of bootstrap peers, setting highWater to lowWater", zap.Int("max_peers", highWater), zap.Int("bootstrap_peers", lowWater))
+		highWater = lowWater
+	}
+
+	cm, err := connmgr.NewConnManager(lowWater, highWater, connmgr.WithGracePeriod(time.Minute))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create connection manager: %w", err)
+	}
+
 	h, err := libp2p.New(
 		libp2p.Identity(privKey),
 		libp2p.ListenAddrStrings(cfg.ListenAddrs...),
+		libp2p.ConnectionManager(cm),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create libp2p host: %w", err)
@@ -105,11 +119,9 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		host:              h,
 		pubsub:            ps,
 		logger:            logger,
-		connectedPeers:    make(map[peer.ID]bool),
 		accessController:  security.NewController(cfg.AccessControl, logger.Named("access_control")),
 		messageEncryption: messageEncryption,
 		bootstrapPeers:    cfg.BootstrapPeers,
-		connectTicker:     time.NewTicker(time.Second * 10),
 	}
 
 	// Set up protocol handlers
@@ -125,8 +137,8 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 func (n *Network) Start(ctx context.Context) error {
 	n.logger.Info("Starting P2P network")
 
-	// Connect to bootstrap peers
-	go n.tryConnect()
+	// Connect to bootstrap peers, the connection manager will handle retries.
+	go n.bootstrapConnect()
 
 	n.logger.Info("P2P network started successfully")
 	return nil
@@ -138,7 +150,6 @@ func (n *Network) Stop() error {
 	if n.gossipRouter != nil {
 		n.gossipRouter.Stop()
 	}
-	n.connectTicker.Stop()
 
 	if err := n.host.Close(); err != nil {
 		return fmt.Errorf("failed to close host: %w", err)
@@ -152,19 +163,9 @@ func (n *Network) SetMessageHandler(handler MessageHandler) {
 	n.messageHandler = handler
 }
 
-// SendWithGossip sends a message using gossip routing as fallback
-func (n *Network) SendWithGossip(ctx context.Context, msg *Message) error {
-	return n.gossipRouter.SendWithGossip(ctx, msg)
-}
-
-// send sends a message to specific peers
-func (n *Network) send(ctx context.Context, msg *Message) error {
-	// Apply encryption before sending
-	if err := n.encryptMessage(msg); err != nil {
-		return fmt.Errorf("failed to encrypt message: %w", err)
-	}
-
-	return n.sendDirect(ctx, msg)
+// SendMessage sends a message using gossip routing as fallback
+func (n *Network) SendMessage(ctx context.Context, msg *Message) error {
+	return n.gossipRouter.SendMessage(ctx, msg)
 }
 
 // encryptMessage applies encryption to a message using unified encryption interface
@@ -220,17 +221,23 @@ func (n *Network) sendDirect(ctx context.Context, msg *Message) error {
 	// Fill in the sender's actual PeerID
 	msg.SenderPeerID = n.host.ID().String()
 
-	// Validate all peer IDs first
-	for _, recipient := range msg.To {
-		if _, err := peer.Decode(recipient); err != nil {
-			return fmt.Errorf("invalid peer ID format: %s, error: %w", recipient, err)
-		}
+	// Apply encryption before sending
+	if err := n.encryptMessage(msg); err != nil {
+		return fmt.Errorf("failed to encrypt message: %w", err)
 	}
 
 	data, err := msg.Compresses()
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
+
+	n.logger.Info("Sending message directly to peers",
+		zap.String("sender", msg.SenderPeerID),
+		zap.Strings("to", msg.To),
+		zap.String("protocol", string(msg.ProtocolID)),
+		zap.String("session_id", msg.SessionID),
+		zap.String("type", msg.Type),
+	)
 
 	// Send to each recipient
 	for _, recipient := range msg.To {
@@ -365,39 +372,31 @@ func (n *Network) GetHostID() string {
 	return n.host.ID().String()
 }
 
-func (n *Network) tryConnect() {
+// bootstrapConnect performs a single connection attempt to each bootstrap peer.
+// This is to seed the peerstore, so the connection manager can take over.
+func (n *Network) bootstrapConnect() {
 	// Connect to bootstrap peers
-	connect := func() {
-		for _, peerAddr := range n.bootstrapPeers {
-			go func(addr string) {
-				peerInfo, err := peer.AddrInfoFromString(addr)
-				if err != nil {
-					n.logger.Error("Invalid bootstrap peer address", zap.String("addr", addr), zap.Error(err))
-					return
-				}
+	for _, peerAddr := range n.bootstrapPeers {
+		go func(addr string) {
+			peerInfo, err := peer.AddrInfoFromString(addr)
+			if err != nil {
+				n.logger.Error("Invalid bootstrap peer address", zap.String("addr", addr), zap.Error(err))
+				return
+			}
+			// Use a timeout for the initial connection attempt
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
 
-				if err := n.host.Connect(context.Background(), *peerInfo); err != nil {
-					n.logger.Warn("Failed to connect to bootstrap peer", zap.String("addr", addr), zap.Error(err))
-					return
-				}
-
-				n.logger.Info("Connected to bootstrap peer", zap.String("peer", peerInfo.ID.String()))
-
-				// Update connected peers
-				n.mu.Lock()
-				n.connectedPeers[peerInfo.ID] = true
-				n.mu.Unlock()
-			}(peerAddr)
-		}
-	}
-	for {
-		<-n.connectTicker.C
-		connect()
+			if err := n.host.Connect(ctx, *peerInfo); err != nil {
+				n.logger.Warn("Failed to connect to bootstrap peer, connection manager will retry", zap.String("addr", addr), zap.Error(err))
+				return
+			}
+			n.logger.Info("Connected to bootstrap peer", zap.String("peer", peerInfo.ID.String()))
+		}(peerAddr)
 	}
 }
 
+// connected checks if the network is directly connected to a given peer.
 func (n *Network) connected(peerID peer.ID) bool {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.connectedPeers[peerID]
+	return n.host.Network().Connectedness(peerID) == network.Connected
 }
