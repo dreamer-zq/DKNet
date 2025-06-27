@@ -16,8 +16,10 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
+	"github.com/libp2p/go-msgio"
 	"go.uber.org/zap"
 
+	"github.com/dreamer-zq/DKNet/internal/common"
 	"github.com/dreamer-zq/DKNet/internal/config"
 	"github.com/dreamer-zq/DKNet/internal/security"
 )
@@ -30,7 +32,8 @@ type Network struct {
 
 	// Message handling
 	messageHandler MessageHandler
-
+	// Stream management for direct messages
+	streamCache *common.SafeMap[peer.ID, network.Stream]
 	// Connected peers tracking
 	bootstrapPeers []string
 	// Gossip routing for point-to-point messages
@@ -119,6 +122,7 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		host:              h,
 		pubsub:            ps,
 		logger:            logger,
+		streamCache:       common.New[peer.ID, network.Stream](),
 		accessController:  security.NewController(cfg.AccessControl, logger.Named("access_control")),
 		messageEncryption: messageEncryption,
 		bootstrapPeers:    cfg.BootstrapPeers,
@@ -243,27 +247,84 @@ func (n *Network) sendDirect(ctx context.Context, msg *Message) error {
 	for _, recipient := range msg.To {
 		peerID, err := peer.Decode(recipient)
 		if err != nil {
-			// This should not happen since we validated above, but keep for safety
-			n.logger.Error("Invalid peer ID", zap.String("peer_id", recipient), zap.Error(err))
+			n.logger.Error("Invalid peer ID, skipping", zap.String("peer_id", recipient), zap.Error(err))
 			continue
 		}
-
-		stream, err := n.host.NewStream(ctx, peerID, msg.ProtocolID)
-		if err != nil {
-			n.logger.Error("Failed to create stream", zap.String("peer_id", recipient), zap.Error(err))
-			continue
-		}
-
-		if _, err := stream.Write(data); err != nil {
-			n.logger.Error("Failed to write to stream", zap.String("peer_id", recipient), zap.Error(err))
-		}
-
-		if err := stream.Close(); err != nil {
-			n.logger.Warn("Failed to close stream", zap.String("peer_id", recipient), zap.Error(err))
+		if err := n.sendToPeer(ctx, peerID, msg.ProtocolID, data); err != nil {
+			n.logger.Error("Failed to send message to peer", zap.String("peer_id", recipient), zap.Error(err))
 		}
 	}
 
 	return nil
+}
+
+// sendToPeer handles sending data to a single peer, reusing streams.
+func (n *Network) sendToPeer(ctx context.Context, peerID peer.ID, proto protocol.ID, data []byte) error {
+	stream, err := n.getStream(ctx, peerID, proto)
+	if err != nil {
+		return fmt.Errorf("failed to get stream for peer %s: %w", peerID, err)
+	}
+
+	// Use msgio to write length-prefixed message
+	writer := msgio.NewWriter(stream)
+	if err := writer.WriteMsg(data); err != nil {
+		// If write fails, the stream is likely broken. Reset it, so a new one is created next time.
+		_ = stream.Reset()
+		n.streamCache.Delete(peerID)
+		return fmt.Errorf("failed to write message to stream for peer %s: %w", peerID, err)
+	}
+	return nil
+}
+
+// getStream gets a cached stream for a peer or creates a new one.
+func (n *Network) getStream(ctx context.Context, peerID peer.ID, proto protocol.ID) (network.Stream, error) {
+	n.logger.Info("Getting stream for peer",
+		zap.String("peer_id", peerID.String()),
+		zap.String("protocol", string(proto)),
+	)
+
+	createStream := func() (network.Stream, error) {
+		n.logger.Debug("Creating new stream for peer",
+			zap.String("peer_id", peerID.String()),
+			zap.String("protocol", string(proto)),
+		)
+
+		stream, err := n.host.NewStream(ctx, peerID, proto)
+		if err != nil {
+			return nil, err
+		}
+		n.streamCache.Set(peerID, stream)
+		return stream, nil
+	}
+
+	// Check if the stream is in the cache
+	stream, ok := n.streamCache.Get(peerID)
+	if !ok {
+		n.logger.Debug("Stream not found in cache, creating new one",
+			zap.String("peer_id", peerID.String()),
+			zap.String("protocol", string(proto)),
+		)
+		return createStream()
+	}
+
+	// If the stream is not closed, return it
+	if !stream.Conn().IsClosed() {
+		n.logger.Debug("Stream found in cache, and it is not closed, returning it",
+			zap.String("peer_id", peerID.String()),
+			zap.String("protocol", string(proto)),
+		)
+		return stream, nil
+	}
+
+	n.logger.Debug("Stream found in cache, but it is closed, resetting it",
+		zap.String("peer_id", peerID.String()),
+		zap.String("protocol", string(proto)),
+	)
+
+	// If the stream is closed, reset it and create a new one
+	_ = stream.Reset()
+	n.streamCache.Delete(peerID)
+	return createStream()
 }
 
 // getConnectedPeers returns the list of connected peers
@@ -284,7 +345,7 @@ func (n *Network) setupProtocolHandlers() {
 	}
 }
 
-// handleStream handles incoming streams
+// handleStream handles incoming streams, reading multiple messages in a loop.
 func (n *Network) handleStream(stream network.Stream) {
 	defer func() {
 		if err := stream.Close(); err != nil {
@@ -292,26 +353,44 @@ func (n *Network) handleStream(stream network.Stream) {
 		}
 	}()
 
-	// Get the remote peer ID
 	remotePeerID := stream.Conn().RemotePeer()
 
-	// Access control check
+	// Access control check once per stream
 	if !n.accessController.IsAuthorized(remotePeerID.String()) {
 		n.logger.Warn("Rejected stream from unauthorized peer",
 			zap.String("peer_id", remotePeerID.String()),
 			zap.String("protocol", string(stream.Protocol())))
+		_ = stream.Reset()
 		return
 	}
 
-	data, err := io.ReadAll(stream)
-	if err != nil {
-		n.logger.Error("Failed to read stream", zap.Error(err))
-		return
-	}
+	reader := msgio.NewReader(stream)
 
+	for {
+		data, err := reader.ReadMsg()
+		if err != nil {
+			if err != io.EOF && err.Error() != "stream reset" {
+				n.logger.Debug("Stream read error", zap.Error(err), zap.String("peer", remotePeerID.String()))
+			}
+			// Stream is closed, exit the loop.
+			return
+		}
+
+		// Process the message in a new goroutine to avoid blocking the read loop.
+		// A copy of the data is created because the buffer is recycled by ReleaseMsg.
+		msgData := make([]byte, len(data))
+		copy(msgData, data)
+		go n.processIncomingMessage(msgData, remotePeerID)
+
+		reader.ReleaseMsg(data)
+	}
+}
+
+// processIncomingMessage handles the logic for a single received message.
+func (n *Network) processIncomingMessage(data []byte, remotePeerID peer.ID) {
 	var msg Message
 	if err := msg.Decompresses(data); err != nil {
-		n.logger.Error("Failed to unmarshal message", zap.Error(err))
+		n.logger.Error("Failed to unmarshal message", zap.Error(err), zap.String("peer", remotePeerID.String()))
 		return
 	}
 
