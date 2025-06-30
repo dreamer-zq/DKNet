@@ -52,7 +52,7 @@ func ensureNodeDirectory(nodeDir string) error {
 // generateAndSaveNodeKey generates P2P key pair and saves private key to file
 func generateAndSaveNodeKey(nodeDir, nodeID string) (crypto.PrivKey, peer.ID, error) {
 	// Generate private key
-	privKey, _, err := crypto.GenerateKeyPairWithReader(crypto.Ed25519, 2048, rand.Reader)
+	privKey, _, err := crypto.GenerateKeyPairWithReader(crypto.Secp256k1, 2048, rand.Reader)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to generate private key for %s: %w", nodeID, err)
 	}
@@ -142,9 +142,9 @@ func generateDockerCompose(outputDir string, nodes int) error {
 			Name:         fmt.Sprintf("Node %d", i),
 			ServiceName:  fmt.Sprintf("tss-node%d", i),
 			NodeDir:      fmt.Sprintf("node%d", i),
-			HTTPPort:     8080 + i,
-			GRPCPort:     9090 + i + 4,
-			P2PPort:      4000 + i,
+			HTTPPort:     18080 + i,
+			GRPCPort:     19090 + i + 4,
+			P2PPort:      14000 + i,
 			IP:           fmt.Sprintf("172.20.0.%d", i+1),
 			StartPeriod:  5 + (i-1)*5,
 			UseCustomIP:  true, // Enable custom IP assignment

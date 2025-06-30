@@ -14,7 +14,7 @@
 - **分布式架构**: 多节点协作，无单点故障
 - **安全存储**: AES-256-GCM 加密存储私钥
 - **多协议支持**: HTTP REST API 和 gRPC
-- **P2P 通信**: 基于 libp2p 的节点间通信
+- **P2P 通信**: 基于 libp2p 的节点间端到端加密通信
 - **验证服务**: 可配置的签名请求验证
 - **容器化部署**: 支持 Docker 和 Kubernetes
 - **MCP 集成**: 支持 Model Context Protocol，允许 LLM 通过自然语言调用 TSS 功能
@@ -125,8 +125,7 @@ make build-mcp
 
 ```bash
 # 使用 Docker Compose 启动测试环境
-cd tests/scripts
-./start-test-env.sh start
+make docker-start
 ```
 
 ### 生产环境
@@ -161,12 +160,8 @@ export TSS_ENCRYPTION_PASSWORD="YourSecurePassword123!"
 # 运行单元测试
 make test
 
-# 运行集成测试
-make test-integration
-
-# 启动测试环境
-./tests/scripts/test-all.sh start
-./tests/scripts/test-all.sh test
+# 运行端到端测试
+make test-e2e
 ```
 
 ## 贡献

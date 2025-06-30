@@ -2,19 +2,19 @@ DKNet Node Information
 ====================
 
 Node Details:
-- Peer ID: 12D3KooWT3TACsUvszChWcQwT7YpPa1udfwpb5k5qQ8zrBw4VqZ7
+- Peer ID: 16Uiu2HAmM4qA4SBRDL3mtUwfqZJEXeS1xuVjrKedBrCS7r1phcQ6
 
 Network Configuration:
 - Listen Address: 0.0.0.0:4001
-- Multiaddr: /ip4/0.0.0.0/tcp/4001/p2p/12D3KooWT3TACsUvszChWcQwT7YpPa1udfwpb5k5qQ8zrBw4VqZ7
+- Multiaddr: /ip4/0.0.0.0/tcp/4001/p2p/16Uiu2HAmM4qA4SBRDL3mtUwfqZJEXeS1xuVjrKedBrCS7r1phcQ6
 
 Generated Files:
 - Configuration: ./config.yaml
 - Private Key: ./node_key
 
 Bootstrap Peers:
-- Peer 1: /ip4/172.20.0.2/tcp/4001/p2p/12D3KooWGZCnvk6cX2UUhc1SHhkGvdfJNZicx4uXEb3niyHHN7ch
-- Peer 2: /ip4/172.20.0.3/tcp/4001/p2p/12D3KooWEMke2yrVjg4nadKBBCZrWeZtxD4KucM4QzgH24JMo6JU
+- Peer 1: /ip4/172.20.0.2/tcp/4001/p2p/16Uiu2HAmUx7q8FPDyEs5pFMm3CPa86oUi1u7539pFBUaZavwMwZ8
+- Peer 2: /ip4/172.20.0.3/tcp/4001/p2p/16Uiu2HAmQDjiQMDSJWYrZ8e6ZKvYb4BT2cGSzU1wSkUzgiDeytEs
 
 Usage:
 1. Copy this entire directory to your deployment location
@@ -23,7 +23,7 @@ Usage:
    ./dknet start --config ./config.yaml
 
 Share with other nodes:
-- Your multiaddr: /ip4/0.0.0.0/tcp/4001/p2p/12D3KooWT3TACsUvszChWcQwT7YpPa1udfwpb5k5qQ8zrBw4VqZ7
+- Your multiaddr: /ip4/0.0.0.0/tcp/4001/p2p/16Uiu2HAmM4qA4SBRDL3mtUwfqZJEXeS1xuVjrKedBrCS7r1phcQ6
 - Use this multiaddr in their bootstrap_peers configuration
 
 Security Note:

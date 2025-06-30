@@ -161,9 +161,9 @@ func generateDefaultSecurityConfig() config.SecurityConfig {
 		CertFile:   "",
 		KeyFile:    "",
 		APIAuth: config.AuthConfig{
-			Enabled:   false,
-			JWTSecret: "",
-			JWTIssuer: "",
+			Enabled:   true,
+			JWTSecret: "dknet-test-jwt-secret-key-2024",
+			JWTIssuer: "dknet-test",
 		},
 		AccessControl: config.AccessControlConfig{
 			Enabled:      false,

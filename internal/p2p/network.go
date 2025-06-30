@@ -78,6 +78,10 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		PrivateKey: privKey,
 		Peerstore:  h.Peerstore(),
 	}
+	messageEncryption, err := security.NewMessageEncryption(encryptionConfig, logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create message encryption")
+	}
 
 	n := &Network{
 		host:              h,
@@ -85,7 +89,7 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		cfg:               cfg,
 		streamManager:     NewStreamManager(h, TssPartyProtocolID),
 		accessControl:     security.NewController(cfg.AccessControl, logger.Named("access-control")),
-		messageEncryption: security.NewMessageEncryption(encryptionConfig, logger),
+		messageEncryption: messageEncryption,
 	}
 	h.SetStreamHandler(TssPartyProtocolID, n.handleStream)
 

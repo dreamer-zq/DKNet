@@ -2,7 +2,7 @@ services:
 {{range .Nodes}}
   # {{.Name}}
   {{.ServiceName}}:
-    image: dknet:latest
+    build: ../..
     container_name: {{.ServiceName}}
     hostname: {{.ServiceName}}
     command: ["start", "--config", "/app/node/config.yaml"]

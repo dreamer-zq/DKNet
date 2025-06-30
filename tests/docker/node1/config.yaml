@@ -9,10 +9,9 @@ p2p:
     listen_addrs:
         - /ip4/0.0.0.0/tcp/4001
     bootstrap_peers:
-        - /ip4/172.20.0.3/tcp/4001/p2p/12D3KooWEMke2yrVjg4nadKBBCZrWeZtxD4KucM4QzgH24JMo6JU
-        - /ip4/172.20.0.4/tcp/4001/p2p/12D3KooWT3TACsUvszChWcQwT7YpPa1udfwpb5k5qQ8zrBw4VqZ7
+        - /ip4/172.20.0.3/tcp/4001/p2p/16Uiu2HAmQDjiQMDSJWYrZ8e6ZKvYb4BT2cGSzU1wSkUzgiDeytEs
+        - /ip4/172.20.0.4/tcp/4001/p2p/16Uiu2HAmM4qA4SBRDL3mtUwfqZJEXeS1xuVjrKedBrCS7r1phcQ6
     private_key_file: /app/node/node_key
-    max_peers: 50
 storage:
     type: leveldb
     path: /app/data/storage
@@ -20,20 +19,18 @@ storage:
 tss:
     moniker: TSS Node 1
     validation_service:
-        enabled: true
-        url: "http://validation-service:8888/validate"
+        enabled: false
+        url: ""
         timeout_seconds: 30
-        headers:
-            "X-Node-ID": "12D3KooWGZCnvk6cX2UUhc1SHhkGvdfJNZicx4uXEb3niyHHN7ch"
-        insecure_skip_verify: true
+        insecure_skip_verify: false
 security:
     tls_enabled: false
     cert_file: ""
     key_file: ""
     api_auth:
         enabled: true
-        jwt_secret: "dknet-test-jwt-secret-key-2024"
-        jwt_issuer: "dknet-test"
+        jwt_secret: dknet-test-jwt-secret-key-2024
+        jwt_issuer: dknet-test
     access_control:
         enabled: false
         allowed_peers: []

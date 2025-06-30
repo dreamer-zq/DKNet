@@ -63,18 +63,18 @@ func (c *jwtCreds) RequireTransportSecurity() bool {
 var TestConfig = map[string]*Node{
 	"node1": {
 		Name:    "node1",
-		PeerID:  "12D3KooWGZCnvk6cX2UUhc1SHhkGvdfJNZicx4uXEb3niyHHN7ch",
-		Address: "localhost:9095",
+		PeerID:  "16Uiu2HAmUx7q8FPDyEs5pFMm3CPa86oUi1u7539pFBUaZavwMwZ8",
+		Address: "localhost:19095",
 	},
 	"node2": {
 		Name:    "node2",
-		PeerID:  "12D3KooWEMke2yrVjg4nadKBBCZrWeZtxD4KucM4QzgH24JMo6JU",
-		Address: "localhost:9096",
+		PeerID:  "16Uiu2HAmQDjiQMDSJWYrZ8e6ZKvYb4BT2cGSzU1wSkUzgiDeytEs",
+		Address: "localhost:19096",
 	},
 	"node3": {
 		Name:    "node3",
-		PeerID:  "12D3KooWT3TACsUvszChWcQwT7YpPa1udfwpb5k5qQ8zrBw4VqZ7",
-		Address: "localhost:9098",
+		PeerID:  "16Uiu2HAmM4qA4SBRDL3mtUwfqZJEXeS1xuVjrKedBrCS7r1phcQ6",
+		Address: "localhost:19097",
 	},
 }
 
