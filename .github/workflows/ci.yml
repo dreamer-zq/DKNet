@@ -170,13 +170,13 @@ jobs:
 
     - name: Start test environment
       run: |
-        docker-compose -f tests/docker/docker-compose.yaml up -d --build --wait
+        docker compose -f tests/docker/docker-compose.yaml up -d --build --wait
         echo "Waiting for a few extra seconds for services to stabilize..."
         sleep 15
 
     - name: Check environment status
       run: |
-        docker-compose -f tests/docker/docker-compose.yaml ps
+        docker compose -f tests/docker/docker-compose.yaml ps
 
     - name: Run E2E Go tests
       run: |
@@ -186,7 +186,7 @@ jobs:
       if: always()
       run: |
         mkdir -p test-artifacts
-        docker-compose -f tests/docker/docker-compose.yaml logs > test-artifacts/docker-logs.txt 2>/dev/null || true
+        docker compose -f tests/docker/docker-compose.yaml logs > test-artifacts/docker-logs.txt 2>/dev/null || true
         echo "Test completed at $(date)" > test-artifacts/test-summary.txt
 
     - name: Upload test artifacts
@@ -200,7 +200,7 @@ jobs:
     - name: Stop test environment
       if: always()
       run: |
-        docker-compose -f tests/docker/docker-compose.yaml down --volumes
+        docker compose -f tests/docker/docker-compose.yaml down --volumes
 
     - name: Cleanup Docker resources
       if: always()
