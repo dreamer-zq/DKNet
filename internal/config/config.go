@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -92,7 +91,6 @@ type SecurityConfig struct {
 	KeyFile           string                  `yaml:"key_file" mapstructure:"key_file"`
 	APIAuth           AuthConfig              `yaml:"auth" mapstructure:"auth"`
 	AccessControl     AccessControlConfig     `yaml:"access_control" mapstructure:"access_control"`
-	SessionEncryption SessionEncryptionConfig `yaml:"session_encryption" mapstructure:"session_encryption"`
 }
 
 // AuthConfig holds API authentication configuration
@@ -109,12 +107,6 @@ type AuthConfig struct {
 type AccessControlConfig struct {
 	Enabled      bool     `yaml:"enabled" mapstructure:"enabled"`
 	AllowedPeers []string `yaml:"allowed_peers" mapstructure:"allowed_peers"`
-}
-
-// SessionEncryptionConfig holds session encryption configuration
-type SessionEncryptionConfig struct {
-	Enabled bool   `yaml:"enabled" mapstructure:"enabled"`
-	SeedKey string `yaml:"seed_key" mapstructure:"seed_key"`
 }
 
 // LoggingConfig holds logging configuration
@@ -212,8 +204,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("security.auth.jwt_issuer", "")
 	v.SetDefault("security.access_control.enabled", false)
 	v.SetDefault("security.access_control.allowed_peers", []string{})
-	v.SetDefault("security.session_encryption.enabled", false)
-	v.SetDefault("security.session_encryption.seed_key", "")
 
 	// Logging defaults
 	v.SetDefault("logging.level", "info")
@@ -240,18 +230,6 @@ func validateConfig(config *NodeConfig) error {
 		}
 		if config.TSS.ValidationService.TimeoutSeconds <= 0 {
 			return fmt.Errorf("validation service timeout must be positive")
-		}
-	}
-
-	// Validate session encryption configuration if enabled
-	if config.Security.SessionEncryption.Enabled {
-		if config.Security.SessionEncryption.SeedKey == "" {
-			return fmt.Errorf("session encryption seed key cannot be empty when session encryption is enabled")
-		}
-
-		_, err := hex.DecodeString(config.Security.SessionEncryption.SeedKey)
-		if err != nil {
-			return fmt.Errorf("invalid session encryption seed key: %w", err)
 		}
 	}
 

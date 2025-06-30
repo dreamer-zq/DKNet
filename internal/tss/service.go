@@ -75,6 +75,12 @@ func NewService(
 	return service, nil
 }
 
+// Stop is part of the MessageHandler interface.
+// Currently a no-op as operation lifecycles are tied to contexts.
+func (s *Service) Stop() {
+	s.logger.Info("TSS Service stopping.")
+}
+
 // HandleMessage handles incoming TSS messages from the P2P network
 func (s *Service) HandleMessage(ctx context.Context, msg *p2p.Message) error {
 	s.logger.Info("Received incoming P2P message",
@@ -337,7 +343,7 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 			}
 
 			p2pMsg.To = to
-			s.logger.Info("Sending point-to-point message with gossip routing",
+			s.logger.Info("Sending point-to-point message",
 				zap.String("operation_id", operation.ID),
 				zap.String("session_id", operation.SessionID),
 				zap.Strings("targets", p2pMsg.To),
@@ -346,14 +352,11 @@ func (s *Service) handleOutgoingMessages(ctx context.Context, operation *Operati
 			)
 
 			if err := s.network.SendMessage(ctx, p2pMsg); err != nil {
-				s.logger.Error("Failed to send message with gossip routing",
+				s.logger.Error("Failed to send message",
 					zap.Error(err),
 					zap.String("operation_id", operation.ID),
 					zap.Strings("targets", p2pMsg.To))
-			} else {
-				s.logger.Info("Point-to-point message sent successfully with gossip routing",
-					zap.String("operation_id", operation.ID),
-					zap.Strings("targets", p2pMsg.To))
+				return err
 			}
 		case <-ctx.Done():
 			s.logger.Info("Outgoing message handler stopped",
@@ -717,6 +720,7 @@ func (s *Service) watchOperation(ctx context.Context, op *Operation) {
 		case error:
 			op.Error = r
 			op.Status = StatusFailed
+			s.logger.Error("Operation failed", zap.String("operation_id", op.ID), zap.Error(r))
 		case *keygen.LocalPartySaveData:
 			op.Status = StatusCompleted
 			if err := s.saveKeygenResult(ctx, op, r); err != nil {

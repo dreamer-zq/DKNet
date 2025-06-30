@@ -76,7 +76,7 @@ docker-build:
 
 docker-start:
 	@echo "Starting e2e test environment and waiting for it to be healthy..."
-	docker compose -f tests/docker/docker-compose.yaml up -d --wait
+	docker compose -f tests/docker/docker-compose.yaml up -d --wait --build
 	@echo "E2E test environment is up and healthy."
 
 docker-stop:

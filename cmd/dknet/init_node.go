@@ -51,12 +51,6 @@ func runInitNode(cmd *cobra.Command, args []string) error {
 		zap.String("output", outputDir),
 		zap.Bool("docker", dockerMode))
 
-	// Generate session seed key for this node
-	sessionSeedKey, err := generateSessionSeedKey()
-	if err != nil {
-		return fmt.Errorf("failed to generate session seed key: %w", err)
-	}
-
 	// Create node directory
 	nodeDir := filepath.Join(outputDir, "node1")
 	if dirErr := ensureNodeDirectory(nodeDir); dirErr != nil {
@@ -74,7 +68,7 @@ func runInitNode(cmd *cobra.Command, args []string) error {
 	// Generate and save configuration
 	configFile := filepath.Join(nodeDir, "config.yaml")
 	if err := generateAndSaveNodeConfig(moniker, bootstrapPeers,
-		listenAddr, p2pPort, httpPort, grpcPort, configFile, sessionSeedKey, dockerMode); err != nil {
+		listenAddr, p2pPort, httpPort, grpcPort, configFile, dockerMode); err != nil {
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
 

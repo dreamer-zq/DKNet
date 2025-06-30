@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -179,13 +178,4 @@ func generateDockerCompose(outputDir string, nodes int) error {
 	}
 
 	return nil
-}
-
-// generateSessionSeedKey generates a random 32-byte seed key for session encryption
-func generateSessionSeedKey() (string, error) {
-	key := make([]byte, 32)
-	if _, err := rand.Read(key); err != nil {
-		return "", fmt.Errorf("failed to generate random seed key: %w", err)
-	}
-	return hex.EncodeToString(key), nil
 }

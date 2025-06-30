@@ -13,8 +13,6 @@ import (
 const (
 	// TssPartyProtocolID is the protocol ID for TSS party
 	TssPartyProtocolID = "/tss/party/0.0.1"
-	// TssGossipProtocol is the protocol ID for TSS gossip
-	TssGossipProtocol = "/tss/gossip/1.0.0"
 )
 
 // Message represents a generic message sent over the network
@@ -54,35 +52,20 @@ func (m *Message) Decompresses(data []byte) error {
 	return json.Unmarshal(decompressed, m)
 }
 
-// MessageHandler defines the interface for handling received messages
+// Clone creates a deep copy of the message
+func (m *Message) Clone() *Message {
+	clone := *m
+	clone.Data = make([]byte, len(m.Data))
+	copy(clone.Data, m.Data)
+	return &clone
+}
+
+// MessageHandler defines the interface for handling incoming P2P messages and events.
+// This interface is implemented by the application layer (e.g., TSS service) to process
+// messages and enforce security policies.
 type MessageHandler interface {
+	// HandleMessage processes an incoming message from a peer.
 	HandleMessage(ctx context.Context, msg *Message) error
-}
-
-// RoutedMessage wraps a message with routing information
-type RoutedMessage struct {
-	*Message
-	OriginalSender string   `json:"original_sender"`
-	FinalTarget    string   `json:"final_target"`
-	Path           []string `json:"path"`
-	TTL            int      `json:"ttl"`
-	MessageID      string   `json:"message_id"`
-}
-
-// Compresses serializes and compresses the routed message
-func (rm *RoutedMessage) Compresses() ([]byte, error) {
-	raw, err := json.Marshal(rm)
-	if err != nil {
-		return nil, err
-	}
-	return common.Gzip(raw)
-}
-
-// Decompresses decompresses and deserializes the routed message
-func (rm *RoutedMessage) Decompresses(data []byte) error {
-	decompressed, err := common.UnGzip(data)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(decompressed, rm)
+	// Stop gracefully stops the message handler.
+	Stop()
 }

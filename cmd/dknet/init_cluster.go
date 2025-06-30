@@ -43,14 +43,6 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("Initializing TSS cluster with %d nodes...\n", nodes)
-
-	// Generate unified session seed key for all nodes
-	sessionSeedKey, err := generateSessionSeedKey()
-	if err != nil {
-		return fmt.Errorf("failed to generate session seed key: %w", err)
-	}
-	fmt.Printf("Generated unified session encryption key\n")
-
 	// Create output directory
 	if err := os.MkdirAll(clusterOutputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
@@ -127,7 +119,7 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 		p2pPort := getNodeP2PPort(nodeInfo.Index, generateDocker)
 
 		configErr := generateAndSaveNodeConfig(nodeName, bootstrapPeers, listenAddr, p2pPort,
-			httpPort, grpcPort, configFile, sessionSeedKey, generateDocker)
+			httpPort, grpcPort, configFile, generateDocker)
 		if configErr != nil {
 			return fmt.Errorf("failed to generate config for node %d: %w", nodeInfo.Index, configErr)
 		}

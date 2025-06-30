@@ -19,7 +19,6 @@ func generateAndSaveNodeConfig(
 	httpPort int,
 	grpcPort int,
 	configPath string,
-	sessionSeedKey string,
 	dockerMode bool,
 ) error {
 	// Set the correct private key file path based on mode
@@ -62,7 +61,7 @@ func generateAndSaveNodeConfig(
 				InsecureSkipVerify: false,
 			},
 		},
-		Security: generateDefaultSecurityConfigWithSessionKey(sessionSeedKey),
+		Security: generateDefaultSecurityConfig(),
 		Logging: config.LoggingConfig{
 			Level:       "debug",
 			Environment: "dev",
@@ -156,8 +155,8 @@ type ValidationServiceOptions struct {
 	InsecureSkipVerify bool
 }
 
-// generateDefaultSecurityConfigWithSessionKey creates a default security configuration with a session key
-func generateDefaultSecurityConfigWithSessionKey(sessionSeedKey string) config.SecurityConfig {
+// generateDefaultSecurityConfig creates a default security configuration
+func generateDefaultSecurityConfig() config.SecurityConfig {
 	return config.SecurityConfig{
 		TLSEnabled: false,
 		CertFile:   "",
@@ -170,10 +169,6 @@ func generateDefaultSecurityConfigWithSessionKey(sessionSeedKey string) config.S
 		AccessControl: config.AccessControlConfig{
 			Enabled:      false,
 			AllowedPeers: []string{},
-		},
-		SessionEncryption: config.SessionEncryptionConfig{
-			Enabled: true,
-			SeedKey: sessionSeedKey,
 		},
 	}
 }
