@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -27,7 +26,6 @@ import (
 // Network handles P2P networking for TSS operations
 type Network struct {
 	host   host.Host
-	pubsub *pubsub.PubSub
 	logger *zap.Logger
 
 	// Message handling
@@ -73,7 +71,10 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		highWater = lowWater + 20 // Default if not set
 	}
 	if highWater < lowWater {
-		logger.Warn("MaxPeers configuration is less than the number of bootstrap peers, setting highWater to lowWater", zap.Int("max_peers", highWater), zap.Int("bootstrap_peers", lowWater))
+		logger.Warn("MaxPeers configuration is less than the number of bootstrap peers, setting highWater to lowWater",
+			zap.Int("max_peers", highWater),
+			zap.Int("bootstrap_peers", lowWater),
+		)
 		highWater = lowWater
 	}
 
@@ -89,15 +90,6 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create libp2p host: %w", err)
-	}
-
-	// Create PubSub
-	ps, err := pubsub.NewGossipSub(context.Background(), h)
-	if err != nil {
-		if closeErr := h.Close(); closeErr != nil {
-			logger.Error("Failed to close host during cleanup", zap.Error(closeErr))
-		}
-		return nil, fmt.Errorf("failed to create pubsub: %w", err)
 	}
 
 	// Initialize unified message encryption
@@ -120,7 +112,6 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 
 	n := &Network{
 		host:              h,
-		pubsub:            ps,
 		logger:            logger,
 		streamCache:       common.New[peer.ID, network.Stream](),
 		accessController:  security.NewController(cfg.AccessControl, logger.Named("access_control")),

@@ -5,9 +5,10 @@ import (
 	"sync"
 	"testing"
 
-	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
 )
 
 func runKeygenTests(t *testing.T, keyIDs *sync.Map) {
@@ -111,4 +112,4 @@ Request:
 Status: SUCCESS
 ---------------------------`, keyID, pubKey)
 	})
-} 
+}

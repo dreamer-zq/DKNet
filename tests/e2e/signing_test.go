@@ -5,9 +5,10 @@ import (
 	"sync"
 	"testing"
 
-	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
 )
 
 func runSigningTests(t *testing.T, keyIDs *sync.Map) {
@@ -86,4 +87,4 @@ Status: SUCCESS
 		jsonMessage := `{"type":"transfer","amount":"100","to":"0x123","nonce":42}`
 		testSigning(t, "2-of-3", participants, jsonMessage, "JSON message signing test")
 	})
-} 
+}

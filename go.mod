@@ -8,7 +8,6 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/libp2p/go-libp2p v0.33.0
-	github.com/libp2p/go-libp2p-pubsub v0.10.0
 	github.com/libp2p/go-msgio v0.3.0
 	github.com/mark3labs/mcp-go v0.32.0
 	github.com/spf13/cobra v1.8.0
@@ -62,7 +61,6 @@ require (
 	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/hashicorp/golang-lru/v2 v2.0.5 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
