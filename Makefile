@@ -1,29 +1,6 @@
 # DKNet Makefile
 
-.PHONY: help build test clean proto-gen proto-clean docker-build ci-test lint security-scan
-
-# Default target
-help:
-	@echo "DKNet Build Commands:"
-	@echo "  build            - Build server and client binaries"
-	@echo "  build-all        - Build all binaries including MCP server"
-	@echo "  build-server     - Build DKNet binary"
-	@echo "  build-client     - Build TSS client binary"
-	@echo "  build-mcp        - Build MCP server binary"
-	@echo "  test             - Run tests"
-	@echo "  clean            - Clean build artifacts"
-	@echo ""
-	@echo "Protocol Buffers:"
-	@echo "  proto-gen        - Generate Go code from protobuf definitions"
-	@echo "  proto-clean      - Clean generated protobuf code"
-	@echo ""
-	@echo "Docker Commands:"
-	@echo "  docker-build     - Build development Docker image with latest tag"
-	@echo ""
-	@echo "CI/CD Commands:"
-	@echo "  ci-test          - Run CI test suite locally"
-	@echo "  lint             - Run code linting"
-	@echo "  security-scan    - Run security scanning"
+.PHONY: build test clean proto-gen proto-clean docker-build lint security-scan docker-start docker-stop
 
 # Docker configuration
 DOCKER_IMAGE_NAME ?= dknet/dknet
@@ -66,6 +43,14 @@ test:
 	@echo "Running tests..."
 	go test ./...
 
+test-e2e: docker-start
+	@echo "Running e2e tests..."
+	@go test -v ./tests/e2e/... ; \
+	EXIT_CODE=$$? ; \
+	echo "Stopping e2e environment after tests..." ; \
+	$(MAKE) docker-stop ; \
+	exit $$EXIT_CODE
+
 clean:
 	@echo "Cleaning build artifacts..."
 	rm -rf bin/
@@ -89,13 +74,15 @@ docker-build:
 	docker build -t $(DOCKER_IMAGE_NAME):latest .
 	@echo "Development Docker image built successfully: $(DOCKER_IMAGE_NAME):latest"
 
-# CI/CD commands
-ci-test: lint test
-	@echo "Running validation service tests..."
-	@cd tests/scripts && ./start-test-env.sh start
-	@cd tests/scripts && ./test-validation-simple.sh
-	@cd tests/scripts && ./start-test-env.sh stop
-	@echo "All CI tests passed!"
+docker-start:
+	@echo "Starting e2e test environment and waiting for it to be healthy..."
+	docker compose -f tests/docker/docker-compose.yaml up -d --wait
+	@echo "E2E test environment is up and healthy."
+
+docker-stop:
+	@echo "Stopping e2e test environment..."
+	docker compose -f tests/docker/docker-compose.yaml down
+	@echo "E2E test environment stopped successfully"
 
 lint:
 	@echo "Running code linting..."

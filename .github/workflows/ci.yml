@@ -154,74 +154,38 @@ jobs:
   #       cache-from: type=gha
   #       cache-to: type=gha,mode=max
 
-  # TSS Integration Tests
-  tss-integration-test:
-    name: TSS Integration Test Suite
+  # E2E Go Tests (formerly TSS Integration Tests)
+  e2e-test:
+    name: E2E Go Test Suite
     runs-on: ubuntu-latest
     needs: test
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Set up Docker Compose
-      run: |
-        sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        sudo chmod +x /usr/local/bin/docker-compose
-        docker-compose --version
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y jq wget curl
-
-    - name: Set up Go for building
+    - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: ${{ env.GO_VERSION }}
 
-    - name: Build DKNet binaries
-      run: |
-        make build
-
-    - name: Make scripts executable
-      run: |
-        chmod +x tests/scripts/*.sh
-
     - name: Start test environment
       run: |
-        cd tests/scripts
-        ./test-all.sh start
-        sleep 90  # Wait longer for services to build and start
+        docker-compose -f tests/docker/docker-compose.yaml up -d --build --wait
+        echo "Waiting for a few extra seconds for services to stabilize..."
+        sleep 15
 
     - name: Check environment status
       run: |
-        cd tests/scripts
-        ./test-all.sh status
+        docker-compose -f tests/docker/docker-compose.yaml ps
 
-    - name: Run keygen tests
+    - name: Run E2E Go tests
       run: |
-        cd tests/scripts
-        ./test-keygen.sh test
-
-    - name: Run signing tests
-      run: |
-        cd tests/scripts
-        ./test-signing.sh test
-
-    - name: Run complete test suite
-      run: |
-        cd tests/scripts
-        ./test-all.sh test
+        go test -v -race ./tests/e2e/...
 
     - name: Collect test artifacts
       if: always()
       run: |
-        # Collect test logs and results
         mkdir -p test-artifacts
-        cp -r /tmp/dknet-key-*.txt test-artifacts/ 2>/dev/null || true
         docker-compose -f tests/docker/docker-compose.yaml logs > test-artifacts/docker-logs.txt 2>/dev/null || true
         echo "Test completed at $(date)" > test-artifacts/test-summary.txt
 
@@ -229,78 +193,14 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: tss-test-artifacts
+        name: e2e-test-artifacts
         path: test-artifacts/
         retention-days: 7
 
     - name: Stop test environment
       if: always()
       run: |
-        cd tests/scripts
-        ./test-all.sh stop
-
-    - name: Cleanup Docker resources
-      if: always()
-      run: |
-        docker system prune -af --volumes || true
-
-  # Resharing Tests (Currently Disabled)
-  resharing-test:
-    name: Resharing Test Suite (Disabled)
-    runs-on: ubuntu-latest
-    needs: test
-    if: false  # Disabled until TSS library v2.0.2 resharing issues are resolved
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Set up Docker Compose
-      run: |
-        sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        sudo chmod +x /usr/local/bin/docker-compose
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y jq wget curl
-
-    - name: Set up Go for building
-      uses: actions/setup-go@v5
-      with:
-        go-version: ${{ env.GO_VERSION }}
-
-    - name: Build DKNet binaries
-      run: |
-        make build
-
-    - name: Make scripts executable
-      run: |
-        chmod +x tests/scripts/*.sh
-
-    - name: Enable resharing tests
-      run: |
-        # Modify test-all.sh to enable resharing tests
-        sed -i 's/ENABLE_RESHARING_TESTS="false"/ENABLE_RESHARING_TESTS="true"/' tests/scripts/test-all.sh
-
-    - name: Start test environment
-      run: |
-        cd tests/scripts
-        ./test-all.sh start
-        sleep 90
-
-    - name: Run resharing tests
-      run: |
-        cd tests/scripts
-        ./test-resharing.sh test
-
-    - name: Stop test environment
-      if: always()
-      run: |
-        cd tests/scripts
-        ./test-all.sh stop
+        docker-compose -f tests/docker/docker-compose.yaml down --volumes
 
     - name: Cleanup Docker resources
       if: always()
@@ -309,10 +209,10 @@ jobs:
 
   # Performance Benchmark Tests
   performance-test:
-    name: Performance Benchmark
+    name: Performance Benchmark (Disabled)
     runs-on: ubuntu-latest
-    needs: tss-integration-test
-    if: github.ref == 'refs/heads/main'  # Only run on main branch
+    needs: e2e-test # Depends on the new E2E test job
+    if: false # Disabled as it relies on shell scripts that have been removed. Needs migration to Go benchmarks.
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
