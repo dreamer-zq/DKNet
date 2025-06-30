@@ -46,7 +46,6 @@ type P2PConfig struct {
 	ListenAddrs    []string `yaml:"listen_addrs" mapstructure:"listen_addrs"`
 	BootstrapPeers []string `yaml:"bootstrap_peers" mapstructure:"bootstrap_peers"`
 	PrivateKeyFile string   `yaml:"private_key_file" mapstructure:"private_key_file"`
-	MaxPeers       int      `yaml:"max_peers" mapstructure:"max_peers"`
 }
 
 // StorageConfig holds storage configuration
@@ -180,7 +179,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("p2p.listen_addrs", []string{"/ip4/0.0.0.0/tcp/4001"})
 	v.SetDefault("p2p.bootstrap_peers", []string{})
 	v.SetDefault("p2p.private_key_file", "./data/p2p_key")
-	v.SetDefault("p2p.max_peers", 50)
 
 	// Storage defaults
 	v.SetDefault("storage.type", "leveldb")
@@ -199,9 +197,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("security.tls_enabled", false)
 	v.SetDefault("security.cert_file", "")
 	v.SetDefault("security.key_file", "")
-	v.SetDefault("security.auth.enabled", false)
-	v.SetDefault("security.auth.jwt_secret", "")
-	v.SetDefault("security.auth.jwt_issuer", "")
+	v.SetDefault("security.api_auth.enabled", false)
+	v.SetDefault("security.api_auth.jwt_secret", "")
+	v.SetDefault("security.api_auth.jwt_issuer", "")
 	v.SetDefault("security.access_control.enabled", false)
 	v.SetDefault("security.access_control.allowed_peers", []string{})
 
@@ -209,8 +207,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("logging.level", "info")
 	v.SetDefault("logging.environment", "dev")
 	v.SetDefault("logging.output", "stdout")
-	v.SetDefault("logging.enable_caller", false)
-	v.SetDefault("logging.enable_stacktrace", false)
 }
 
 // validateConfig validates the configuration

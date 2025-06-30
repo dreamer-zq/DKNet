@@ -44,7 +44,6 @@ func generateAndSaveNodeConfig(
 			ListenAddrs:    []string{fmt.Sprintf("/ip4/%s/tcp/%d", listenAddr, p2pPort)},
 			BootstrapPeers: bootstrapPeers,
 			PrivateKeyFile: privateKeyFile,
-			MaxPeers:       50,
 		},
 		Storage: config.StorageConfig{
 			Type:    "leveldb",
