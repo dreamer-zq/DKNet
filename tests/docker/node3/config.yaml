@@ -30,16 +30,13 @@ security:
     tls_enabled: false
     cert_file: ""
     key_file: ""
-    auth:
+    api_auth:
         enabled: true
         jwt_secret: "dknet-test-jwt-secret-key-2024"
         jwt_issuer: "dknet-test"
     access_control:
         enabled: false
         allowed_peers: []
-    session_encryption:
-        enabled: true
-        seed_key: 6d7f736ab70d167ce0978beb92e3685c2525943e567eb47f2f18405b65479828
 logging:
     level: debug
     environment: dev
