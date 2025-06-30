@@ -85,8 +85,8 @@ func (pe *secp256k1PeerEncryption) EncryptForPeer(targetPeerID string, data []by
 
 	// 6. Create and serialize the envelope
 	envelope := EncryptedEnvelope{
-		Nonce:           nonce,
-		Ciphertext:      ciphertext,
+		Nonce:      nonce,
+		Ciphertext: ciphertext,
 	}
 
 	return json.Marshal(envelope)
@@ -114,7 +114,7 @@ func (pe *secp256k1PeerEncryption) DecryptFromPeer(senderPeerID string, encrypte
 	if senderPubKey.Type() != crypto.Secp256k1 {
 		return nil, fmt.Errorf("unsupported sender key type for decryption: %s", senderPubKey.Type())
 	}
-	
+
 	rawSenderPubKey, err := senderPubKey.Raw()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get raw sender public key: %w", err)

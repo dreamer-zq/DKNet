@@ -20,7 +20,7 @@ func NewMessageEncryption(config *EncryptionConfig, logger *zap.Logger) (Message
 	}
 
 	me := &messageEncryption{
-		logger: logger,
+		logger:         logger,
 		peerEncryption: NewSecp256k1PeerEncryption(config.PrivateKey, config.Peerstore),
 	}
 

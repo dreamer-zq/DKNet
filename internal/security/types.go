@@ -21,8 +21,8 @@ type PeerEncryption interface {
 
 // EncryptedEnvelope contains the encrypted symmetric key and data
 type EncryptedEnvelope struct {
-	Nonce           []byte `json:"nonce"`             // AES-GCM nonce
-	Ciphertext      []byte `json:"ciphertext"`        // AES-GCM encrypted data
+	Nonce      []byte `json:"nonce"`      // AES-GCM nonce
+	Ciphertext []byte `json:"ciphertext"` // AES-GCM encrypted data
 }
 
 // MessageEncryption provides unified encryption interface for all message types
