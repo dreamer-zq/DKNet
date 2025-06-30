@@ -86,11 +86,11 @@ type NodeKeyInfo struct {
 
 // SecurityConfig holds security configuration
 type SecurityConfig struct {
-	TLSEnabled        bool                    `yaml:"tls_enabled" mapstructure:"tls_enabled"`
-	CertFile          string                  `yaml:"cert_file" mapstructure:"cert_file"`
-	KeyFile           string                  `yaml:"key_file" mapstructure:"key_file"`
-	APIAuth           AuthConfig              `yaml:"auth" mapstructure:"auth"`
-	AccessControl     AccessControlConfig     `yaml:"access_control" mapstructure:"access_control"`
+	TLSEnabled    bool                `yaml:"tls_enabled" mapstructure:"tls_enabled"`
+	CertFile      string              `yaml:"cert_file" mapstructure:"cert_file"`
+	KeyFile       string              `yaml:"key_file" mapstructure:"key_file"`
+	APIAuth       AuthConfig          `yaml:"auth" mapstructure:"auth"`
+	AccessControl AccessControlConfig `yaml:"access_control" mapstructure:"access_control"`
 }
 
 // AuthConfig holds API authentication configuration
