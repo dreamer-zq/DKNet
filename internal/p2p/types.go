@@ -69,3 +69,11 @@ type MessageHandler interface {
 	// Stop gracefully stops the message handler.
 	Stop()
 }
+
+// PeerDiscovery is the interface for the network layer
+type PeerDiscovery interface {
+	// Start starts the peer discovery
+	Start() error
+	// Stop stops the peer discovery
+	Stop()
+}

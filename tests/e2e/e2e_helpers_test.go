@@ -46,6 +46,8 @@ func newJWTCreds() (credentials.PerRPCCredentials, error) {
 		return nil, fmt.Errorf("failed to sign JWT: %w", err)
 	}
 
+	
+
 	return &jwtCreds{token: tokenString}, nil
 }
 
