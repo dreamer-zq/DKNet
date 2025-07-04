@@ -24,23 +24,6 @@ func addCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP(flagDocker, "d", false, "Generate Docker-specific configurations")
 }
 
-// parseCommonFlags parses common flags from the command
-func parseCommonFlags(cmd *cobra.Command) error {
-	var err error
-
-	outputDir, err = cmd.Flags().GetString(flagOutput)
-	if err != nil {
-		return fmt.Errorf("failed to parse output flag: %w", err)
-	}
-
-	dockerMode, err = cmd.Flags().GetBool(flagDocker)
-	if err != nil {
-		return fmt.Errorf("failed to parse docker flag: %w", err)
-	}
-
-	return nil
-}
-
 // ensureNodeDirectory creates node directory if it doesn't exist
 func ensureNodeDirectory(nodeDir string) error {
 	if err := os.MkdirAll(nodeDir, 0755); err != nil {

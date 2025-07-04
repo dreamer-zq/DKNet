@@ -81,7 +81,7 @@ func (n *dhtNet) startPeerDiscovery() {
 	// First, do an initial discovery
 	go n.discoverPeers()
 
-	// // Then start periodic discovery
+	// Then start periodic discovery
 	// n.ticker = time.NewTicker(1 * time.Minute)
 	// go func() {
 	// 	for {
@@ -117,34 +117,34 @@ func (n *dhtNet) discoverPeers() {
 	// Process discovered peers
 	for {
 		select {
-		case peer, ok := <-peerChan:
+		case p, ok := <-peerChan:
 			if !ok {
 				n.logger.Debug("No more peers discovered in this round")
 				return
 			}
 
-			n.logger.Debug("Discovered peer", zap.String("peer", peer.ID.String()))
+			n.logger.Debug("Discovered peer", zap.String("peer", p.ID.String()))
 
 			// Skip if it's ourselves
-			if peer.ID == n.h.ID() {
-				n.logger.Debug("Skipping self peer", zap.String("peer", peer.ID.String()))
+			if p.ID == n.h.ID() {
+				n.logger.Debug("Skipping self peer", zap.String("peer", p.ID.String()))
 				continue
 			}
 
 			// Skip if no addresses
-			if len(peer.Addrs) == 0 {
-				n.logger.Debug("Peer has no addresses", zap.String("peer", peer.ID.String()))
+			if len(p.Addrs) == 0 {
+				n.logger.Debug("Peer has no addresses", zap.String("peer", p.ID.String()))
 				continue
 			}
 
 			// Check if already connected
-			if n.h.Network().Connectedness(peer.ID) == network.Connected {
-				n.logger.Debug("Already connected to peer", zap.String("peer", peer.ID.String()))
+			if n.h.Network().Connectedness(p.ID) == network.Connected {
+				n.logger.Debug("Already connected to peer", zap.String("peer", p.ID.String()))
 				continue
 			}
 
 			// Attempt to connect
-			n.connectToPeer(peer)
+			n.connectToPeer(p)
 
 		case <-ctx.Done():
 			n.logger.Debug("Discovery round timed out")

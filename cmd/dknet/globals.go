@@ -7,7 +7,6 @@ var (
 	logger  *zap.Logger
 
 	// Common flags used by multiple commands
-	outputDir  string
 	dockerMode bool
 )
 
