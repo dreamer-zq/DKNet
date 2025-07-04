@@ -45,6 +45,10 @@ func (n *dhtNet) Start() error {
 		bootstrapPeers = append(bootstrapPeers, *peerinfo)
 	}
 
+	if len(bootstrapPeers) == 0 {
+		bootstrapPeers = dht.GetDefaultBootstrapPeerAddrInfos()
+	}
+
 	// Create DHT instance
 	var err error
 	n.dhtInstance, err = dht.New(
@@ -77,18 +81,18 @@ func (n *dhtNet) startPeerDiscovery() {
 	// First, do an initial discovery
 	go n.discoverPeers()
 
-	// Then start periodic discovery
-	n.ticker = time.NewTicker(10 * time.Second)
-	go func() {
-		for {
-			select {
-			case <-n.ticker.C:
-				n.discoverPeers()
-			case <-n.ctx.Done():
-				return
-			}
-		}
-	}()
+	// // Then start periodic discovery
+	// n.ticker = time.NewTicker(1 * time.Minute)
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case <-n.ticker.C:
+	// 			n.discoverPeers()
+	// 		case <-n.ctx.Done():
+	// 			return
+	// 		}
+	// 	}
+	// }()
 }
 
 func (n *dhtNet) discoverPeers() {
@@ -111,19 +115,14 @@ func (n *dhtNet) discoverPeers() {
 	}
 
 	// Process discovered peers
-	peersFound := 0
 	for {
 		select {
 		case peer, ok := <-peerChan:
 			if !ok {
-				// Channel closed
-				if peersFound == 0 {
-					n.logger.Debug("No peers discovered in this round")
-				}
+				n.logger.Debug("No more peers discovered in this round")
 				return
 			}
 
-			peersFound++
 			n.logger.Debug("Discovered peer", zap.String("peer", peer.ID.String()))
 
 			// Skip if it's ourselves
@@ -148,7 +147,7 @@ func (n *dhtNet) discoverPeers() {
 			n.connectToPeer(peer)
 
 		case <-ctx.Done():
-			n.logger.Debug("Discovery round timed out", zap.Int("peers_found", peersFound))
+			n.logger.Debug("Discovery round timed out")
 			return
 		}
 	}

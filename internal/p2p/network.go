@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -44,6 +43,7 @@ type Config struct {
 	ListenAddrs    []string
 	BootstrapPeers []string
 	PrivateKeyFile string
+	NetMod         string
 
 	// Access control configuration
 	AccessControl *config.AccessControlConfig
@@ -67,6 +67,7 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		libp2p.EnableRelay(),
 		libp2p.EnableHolePunching(),
 		libp2p.EnableNATService(),
+		libp2p.ForceReachabilityPublic(),
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create libp2p host")
@@ -92,13 +93,10 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 	}
 	h.SetStreamHandler(TssPartyProtocolID, n.handleStream)
 
-	peerDiscovery := NewDHT(h, cfg.BootstrapPeers, logger)
+	peerDiscovery := NewPeerDiscovery(h, logger, cfg)
 	if err := peerDiscovery.Start(); err != nil {
 		return nil, errors.Wrap(err, "failed to start peer discovery")
 	}
-	
-	go n.watchNetInfo()
-
 	return n, nil
 }
 
@@ -289,15 +287,4 @@ func convertAddrs(addrs []string) ([]multiaddr.Multiaddr, error) {
 		multiaddrs = append(multiaddrs, maddr)
 	}
 	return multiaddrs, nil
-}
-
-func (n *Network) watchNetInfo() {
-	for {
-		peers := n.host.Network().Peers()
-		n.logger.Info("Peers", zap.Int("count", len(peers)))
-		for _, p := range peers {
-			n.logger.Info("Peer", zap.String("peer", p.String()), zap.String("connectedness", n.host.Network().Connectedness(p).String()))
-		}
-		time.Sleep(10 * time.Second)
-	}
 }

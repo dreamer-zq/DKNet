@@ -11,7 +11,6 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/libp2p/go-libp2p v0.41.1
-	github.com/libp2p/go-libp2p-core v0.20.1
 	github.com/libp2p/go-libp2p-kad-dht v0.33.1
 	github.com/libp2p/go-msgio v0.3.0
 	github.com/mark3labs/mcp-go v0.32.0

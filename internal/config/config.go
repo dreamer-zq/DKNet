@@ -46,6 +46,7 @@ type P2PConfig struct {
 	ListenAddrs    []string `yaml:"listen_addrs" mapstructure:"listen_addrs"`
 	BootstrapPeers []string `yaml:"bootstrap_peers" mapstructure:"bootstrap_peers"`
 	PrivateKeyFile string   `yaml:"private_key_file" mapstructure:"private_key_file"`
+	NetMod         string   `yaml:"net_mod" mapstructure:"net_mod"`
 }
 
 // StorageConfig holds storage configuration
@@ -179,6 +180,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("p2p.listen_addrs", []string{"/ip4/0.0.0.0/tcp/4001"})
 	v.SetDefault("p2p.bootstrap_peers", []string{})
 	v.SetDefault("p2p.private_key_file", "./data/p2p_key")
+	v.SetDefault("p2p.net_mod", "mdns")
 
 	// Storage defaults
 	v.SetDefault("storage.type", "leveldb")

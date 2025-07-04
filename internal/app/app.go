@@ -38,6 +38,7 @@ func New(cfg *config.NodeConfig, logger *zap.Logger, password string) (*App, err
 		BootstrapPeers: cfg.P2P.BootstrapPeers,
 		PrivateKeyFile: cfg.P2P.PrivateKeyFile,
 		AccessControl:  &cfg.Security.AccessControl,
+		NetMod:         cfg.P2P.NetMod,
 	}, logger.Named("p2p"))
 	if err != nil {
 		common.LogMsgDo("failed to create P2P network", func() error {
