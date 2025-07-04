@@ -3,9 +3,12 @@ package p2p
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"time"
 
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"go.uber.org/zap"
 
 	"github.com/dreamer-zq/DKNet/internal/common"
 )
@@ -68,4 +71,21 @@ type MessageHandler interface {
 	HandleMessage(ctx context.Context, msg *Message) error
 	// Stop gracefully stops the message handler.
 	Stop()
+}
+
+// PeerDiscovery is the interface for the network layer
+type PeerDiscovery interface {
+	// Start starts the peer discovery
+	Start() error
+	// Stop stops the peer discovery
+	Stop()
+}
+
+// NewPeerDiscovery creates a new peer discovery instance based on the configuration
+func NewPeerDiscovery(h host.Host, logger *zap.Logger, conf *Config) PeerDiscovery {
+	mod := strings.ToLower(conf.NetMod)
+	if mod == "dht" {
+		return NewDHT(h, conf.BootstrapPeers, logger)
+	}
+	return NewMDNS(h, logger)
 }

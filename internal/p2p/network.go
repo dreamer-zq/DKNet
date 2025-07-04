@@ -7,12 +7,10 @@ import (
 	"sync"
 
 	"github.com/libp2p/go-libp2p"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/routing"
 	"github.com/libp2p/go-msgio"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
@@ -20,6 +18,11 @@ import (
 
 	"github.com/dreamer-zq/DKNet/internal/config"
 	"github.com/dreamer-zq/DKNet/internal/security"
+)
+
+const (
+	// DiscoveryRendezvous is a unique string that identifies our application's peer discovery namespace.
+	DiscoveryRendezvous = "/dknet-tss-discovery/1.0"
 )
 
 // Network handles P2P networking for TSS operations
@@ -32,6 +35,7 @@ type Network struct {
 	accessControl  security.AccessController
 	// Unified message encryption
 	messageEncryption security.MessageEncryption
+	cancelDiscovery   context.CancelFunc
 }
 
 // Config holds P2P network configuration
@@ -39,6 +43,7 @@ type Config struct {
 	ListenAddrs    []string
 	BootstrapPeers []string
 	PrivateKeyFile string
+	NetMod         string
 
 	// Access control configuration
 	AccessControl *config.AccessControlConfig
@@ -56,18 +61,13 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		return nil, errors.Wrap(err, "invalid listen addresses")
 	}
 
-	var dhtInstance *dht.IpfsDHT
 	h, err := libp2p.New(
 		libp2p.ListenAddrs(listenAddrs...),
 		libp2p.Identity(privKey),
-		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-			var err error
-			dhtInstance, err = dht.New(context.Background(), h, dht.Mode(dht.ModeAuto))
-			return dhtInstance, err
-		}),
 		libp2p.EnableRelay(),
 		libp2p.EnableHolePunching(),
 		libp2p.EnableNATService(),
+		libp2p.ForceReachabilityPublic(),
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create libp2p host")
@@ -93,10 +93,10 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 	}
 	h.SetStreamHandler(TssPartyProtocolID, n.handleStream)
 
-	logger.Info("P2P node created", zap.String("peerID", h.ID().String()), zap.Any("addresses", h.Addrs()))
-
-	go n.bootstrapConnect(dhtInstance)
-
+	peerDiscovery := NewPeerDiscovery(h, logger, cfg)
+	if err := peerDiscovery.Start(); err != nil {
+		return nil, errors.Wrap(err, "failed to start peer discovery")
+	}
 	return n, nil
 }
 
@@ -108,6 +108,9 @@ func (n *Network) Start(ctx context.Context) error {
 
 // Stop stops the P2P network
 func (n *Network) Stop() error {
+	if n.cancelDiscovery != nil {
+		n.cancelDiscovery()
+	}
 	n.messageHandler.Stop()
 	if err := n.host.Close(); err != nil {
 		return errors.Wrap(err, "failed to close host")
@@ -272,38 +275,6 @@ func loadPrivateKey(keyFile string, logger *zap.Logger) (crypto.PrivKey, error) 
 // GetHostID returns the peer ID of the host.
 func (n *Network) GetHostID() string {
 	return n.host.ID().String()
-}
-
-// bootstrapConnect connects to bootstrap peers to join the network.
-func (n *Network) bootstrapConnect(dhtInstance *dht.IpfsDHT) {
-	ctx := context.Background()
-	if err := dhtInstance.Bootstrap(ctx); err != nil {
-		n.logger.Error("Failed to bootstrap DHT", zap.Error(err))
-		return
-	}
-
-	var wg sync.WaitGroup
-	for _, addr := range n.cfg.BootstrapPeers {
-		if addr == "" {
-			continue
-		}
-		pi, err := peer.AddrInfoFromP2pAddr(multiaddr.StringCast(addr))
-		if err != nil {
-			n.logger.Warn("Invalid bootstrap peer address", zap.String("addr", addr), zap.Error(err))
-			continue
-		}
-
-		wg.Add(1)
-		go func(pi peer.AddrInfo) {
-			defer wg.Done()
-			if err := n.host.Connect(ctx, pi); err != nil {
-				n.logger.Warn("Failed to connect to bootstrap peer", zap.String("peer", pi.ID.String()), zap.Error(err))
-				return
-			}
-			n.logger.Info("Successfully connected to bootstrap peer", zap.String("peer", pi.ID.String()))
-		}(*pi)
-	}
-	wg.Wait()
 }
 
 func convertAddrs(addrs []string) ([]multiaddr.Multiaddr, error) {

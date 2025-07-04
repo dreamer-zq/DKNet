@@ -39,7 +39,10 @@ func (sm *StreamManager) getStream(ctx context.Context, peerID peer.ID) (network
 		sm.logger.Debug("Reusing cached stream", zap.String("peer", peerID.String()))
 		return stream, nil
 	}
+	return sm.createStream(ctx, peerID)
+}
 
+func (sm *StreamManager) createStream(ctx context.Context, peerID peer.ID) (network.Stream, error) {
 	sm.logger.Debug("Creating new stream", zap.String("peer", peerID.String()))
 	newStream, err := sm.host.NewStream(ctx, peerID, sm.protocol)
 	if err != nil {

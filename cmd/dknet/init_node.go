@@ -29,11 +29,6 @@ func runInitNodeCmd() *cobra.Command {
 }
 
 func runInitNode(cmd *cobra.Command, args []string) error {
-	// Parse common flags
-	if err := parseCommonFlags(cmd); err != nil {
-		return err
-	}
-
 	// Get node-specific flags
 	moniker, _ := cmd.Flags().GetString("moniker")
 	bootstrapPeers, _ := cmd.Flags().GetStringSlice("bootstrap-peers")
@@ -41,6 +36,7 @@ func runInitNode(cmd *cobra.Command, args []string) error {
 	grpcPort, _ := cmd.Flags().GetInt("grpc-port")
 	p2pPort, _ := cmd.Flags().GetInt("p2p-port")
 	listenAddr, _ := cmd.Flags().GetString("listen-addr")
+	outputDir, _ := cmd.Flags().GetString("output-dir")
 
 	if moniker == "" {
 		moniker = "node1"

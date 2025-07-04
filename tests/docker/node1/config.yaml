@@ -8,9 +8,7 @@ server:
 p2p:
     listen_addrs:
         - /ip4/0.0.0.0/tcp/4001
-    bootstrap_peers:
-        - /ip4/172.20.0.3/tcp/4001/p2p/16Uiu2HAmQDjiQMDSJWYrZ8e6ZKvYb4BT2cGSzU1wSkUzgiDeytEs
-        - /ip4/172.20.0.4/tcp/4001/p2p/16Uiu2HAmM4qA4SBRDL3mtUwfqZJEXeS1xuVjrKedBrCS7r1phcQ6
+    bootstrap_peers: 
     private_key_file: /app/node/node_key
 storage:
     type: leveldb
