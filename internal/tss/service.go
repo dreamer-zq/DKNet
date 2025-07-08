@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
-	"sort"
 	"sync"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
-	dknetCommon "github.com/dreamer-zq/DKNet/internal/common"
+	dkcommon "github.com/dreamer-zq/DKNet/internal/common"
 	"github.com/dreamer-zq/DKNet/internal/p2p"
 	"github.com/dreamer-zq/DKNet/internal/plugin"
 	"github.com/dreamer-zq/DKNet/internal/storage"
@@ -145,7 +144,7 @@ func (s *Service) HandleMessage(ctx context.Context, msg *p2p.Message) error {
 		zap.String("from_party_id", fromParty.Id))
 
 	// Send to party's UpdateFromBytes channel
-	dknetCommon.SafeGo(operation.EndCh, func() any {
+	dkcommon.SafeGo(operation.EndCh, func() any {
 		s.logger.Info("Sending message to TSS party",
 			zap.String("session_id", msg.SessionID),
 			zap.String("operation_id", operation.ID),
@@ -415,14 +414,7 @@ func (s *Service) LoadKeyMetadata(ctx context.Context, keyID string) (*keyData, 
 
 // createParticipantList creates a list of party IDs from peer IDs
 func (s *Service) createParticipantList(peerIDs []string) ([]*tss.PartyID, error) {
-	var participants []*tss.PartyID
-
-	// Sort peer IDs first for consistent ordering
-	sortedPeerIDs := make([]string, len(peerIDs))
-	copy(sortedPeerIDs, peerIDs)
-	sort.Strings(sortedPeerIDs)
-
-	for _, peerID := range sortedPeerIDs {
+	participants := dkcommon.Map(peerIDs, func(peerID string) *tss.PartyID {
 		// Generate a deterministic key based on the peer ID itself
 		// This ensures the same node always gets the same key across different operations
 		key := s.generateDeterministicKey(peerID)
@@ -433,9 +425,8 @@ func (s *Service) createParticipantList(peerIDs []string) ([]*tss.PartyID, error
 			moniker = s.moniker
 		}
 
-		party := tss.NewPartyID(peerID, moniker, key)
-		participants = append(participants, party)
-	}
+		return tss.NewPartyID(peerID, moniker, key)
+	})
 	return tss.SortPartyIDs(participants), nil
 }
 
@@ -457,12 +448,22 @@ func (s *Service) generateDeterministicKey(peerID string) *big.Int {
 	return key
 }
 
-// broadcastOperationSync broadcasts operation synchronization message to all peers
-func (s *Service) broadcastOperationSync(ctx context.Context, syncData Message) error {
+// syncOperation broadcasts operation synchronization message to all peers
+func (s *Service) syncOperation(ctx context.Context, syncData Message) error {
 	// Serialize sync data
 	data, err := json.Marshal(syncData)
 	if err != nil {
 		return fmt.Errorf("failed to marshal sync data: %w", err)
+	}
+
+	// Remove self from the list of participants
+	to := slices.DeleteFunc(syncData.To(), func(to string) bool {
+		return to == s.nodeID
+	})
+
+	if len(to) == 0 {
+		s.logger.Warn("No participants to sync with", zap.String("SessionID", syncData.ID()))
+		return nil
 	}
 
 	msg := &p2p.Message{
@@ -470,7 +471,7 @@ func (s *Service) broadcastOperationSync(ctx context.Context, syncData Message) 
 		SessionID:   syncData.ID(),
 		Type:        string(OperationSync),
 		From:        s.nodeID,
-		To:          syncData.To(),
+		To:          to,
 		IsBroadcast: true,
 		Data:        data, // Serialized operation sync data
 		Timestamp:   time.Now(),
@@ -497,10 +498,9 @@ func (s *Service) saveOperation(ctx context.Context, operation *Operation) error
 		return fmt.Errorf("operation %s is not completed (status: %s)", opData.ID, opData.Status)
 	}
 
-	// Extract participant IDs
-	for i, p := range operation.Participants {
-		opData.Participants[i] = p.Id
-	}
+	opData.Participants = dkcommon.Map(operation.Participants, func(p *tss.PartyID) string {
+		return p.Id
+	})
 
 	// Set error if present
 	if operation.Error != nil {
@@ -676,7 +676,7 @@ func (s *Service) toParticipants(operation *Operation, msg tss.Message, routing 
 		}
 		participants = append(participants, req.OldParticipants...)
 		participants = append(participants, req.NewParticipants...)
-		participants = dknetCommon.UniqueSlice(participants)
+		participants = dkcommon.Distinct(participants)
 		return participants, nil
 	case len(routing.To) > 0:
 		to = routing.To
@@ -686,9 +686,9 @@ func (s *Service) toParticipants(operation *Operation, msg tss.Message, routing 
 		return nil, fmt.Errorf("invalid routing")
 	}
 
-	for _, to := range to {
-		participants = append(participants, to.Id)
-	}
+	participants = dkcommon.Map(to, func(to *tss.PartyID) string {
+		return to.Id
+	})
 	return participants, nil
 }
 
@@ -715,9 +715,9 @@ func (s *Service) watchOperation(ctx context.Context, op *Operation) {
 	case <-ctx.Done():
 		s.logger.Info("Operation canceled or timed out", zap.String("operation_id", op.ID), zap.Error(ctx.Err()))
 		op.Status = StatusCancelled
-		op.CompletedAt = dknetCommon.Now()
+		op.CompletedAt = dkcommon.Now()
 	case result := <-op.EndCh:
-		op.CompletedAt = dknetCommon.Now()
+		op.CompletedAt = dkcommon.Now()
 		switch r := result.(type) {
 		case error:
 			op.Error = r
@@ -754,7 +754,7 @@ func (s *Service) runOperation(ctx context.Context, operation *Operation) {
 	operation.Unlock()
 
 	// Start the party
-	dknetCommon.SafeGo(operation.EndCh, func() any {
+	dkcommon.SafeGo(operation.EndCh, func() any {
 		s.logger.Info("Starting TSS party", zap.String("operation_id", operation.ID))
 		if err := operation.Party.Start(); err != nil {
 			return err
@@ -764,7 +764,7 @@ func (s *Service) runOperation(ctx context.Context, operation *Operation) {
 	})
 
 	// Handle outgoing messages
-	dknetCommon.SafeGo(operation.EndCh, func() any {
+	dkcommon.SafeGo(operation.EndCh, func() any {
 		return s.handleOutgoingMessages(ctx, operation)
 	})
 }
@@ -782,5 +782,5 @@ func (s *Service) getOperation(sessionID string) *Operation {
 		return nil
 	}
 
-	return dknetCommon.Retry(find, 1, 10)
+	return dkcommon.Retry(find, 1, 10)
 }

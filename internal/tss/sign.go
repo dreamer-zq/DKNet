@@ -80,7 +80,7 @@ func (s *Service) StartSigning(
 
 	// Broadcast signing operation sync message to other participants
 	dknetCommon.SafeGo(operation.EndCh, func() any {
-		return s.broadcastSigningOperation(
+		return s.syncSigningOperation(
 			operationID, sessionID,
 			threshold, len(operation.Participants),
 			participants, keyID, message,
@@ -167,7 +167,7 @@ func (s *Service) createSigningOperation(ctx context.Context, params *signingOpe
 	return operation, threshold, nil
 }
 
-func (s *Service) broadcastSigningOperation(
+func (s *Service) syncSigningOperation(
 	operationID, sessionID string,
 	threshold, parties int,
 	participants []string,
@@ -190,7 +190,7 @@ func (s *Service) broadcastSigningOperation(
 		Message: message,
 	}
 
-	if err := s.broadcastOperationSync(syncCtx, syncData); err != nil {
+	if err := s.syncOperation(syncCtx, syncData); err != nil {
 		s.logger.Error("Failed to broadcast signing operation sync",
 			zap.Error(err),
 			zap.String("operation_id", operationID))

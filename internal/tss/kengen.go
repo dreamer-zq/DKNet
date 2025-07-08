@@ -50,7 +50,7 @@ func (s *Service) StartKeygen(
 	sessionID := uuid.New().String()
 
 	// Create the keygen operation using common logic
-	operation, err := s.createKeygenOperation(&keygenOperationParams{
+	operation, err := s.createAndStartKeygenOperation(&keygenOperationParams{
 		OperationID:  operationID,
 		SessionID:    sessionID,
 		Threshold:    threshold,
@@ -63,14 +63,14 @@ func (s *Service) StartKeygen(
 
 	// Broadcast keygen operation sync message to other participants
 	common.SafeGo(operation.EndCh, func() any {
-		return s.broadcastKeygenOperation(operationID, sessionID, threshold, participants)
+		return s.syncKeygenOperation(operationID, sessionID, threshold, participants)
 	})
 
 	return operation, nil
 }
 
-// createKeygenOperation creates a keygen operation with shared logic
-func (s *Service) createKeygenOperation(params *keygenOperationParams) (*Operation, error) {
+// createAndStartKeygenOperation creates a keygen operation with shared logic
+func (s *Service) createAndStartKeygenOperation(params *keygenOperationParams) (*Operation, error) {
 	// Create participant list
 	participantList, err := s.createParticipantList(params.Participants)
 	if err != nil {
@@ -160,7 +160,7 @@ func (s *Service) createKeygenOperation(params *keygenOperationParams) (*Operati
 	return operation, nil
 }
 
-func (s *Service) broadcastKeygenOperation(
+func (s *Service) syncKeygenOperation(
 	operationID, sessionID string,
 	threshold int,
 	participants []string,
@@ -185,7 +185,7 @@ func (s *Service) broadcastKeygenOperation(
 		},
 	}
 
-	if err := s.broadcastOperationSync(syncCtx, syncData); err != nil {
+	if err := s.syncOperation(syncCtx, syncData); err != nil {
 		s.logger.Error("Failed to broadcast keygen operation sync",
 			zap.Error(err),
 			zap.String("operation_id", operationID))
@@ -282,7 +282,7 @@ func (s *Service) createSyncedKeygenOperation(ctx context.Context, msg *p2p.Mess
 		zap.Strings("participants", syncData.Participants))
 
 	// Create the keygen operation using common logic with pre-computed parameters
-	_, err := s.createKeygenOperation(&keygenOperationParams{
+	_, err := s.createAndStartKeygenOperation(&keygenOperationParams{
 		OperationID:  syncData.OperationID,
 		SessionID:    syncData.SessionID,
 		Threshold:    syncData.Threshold,

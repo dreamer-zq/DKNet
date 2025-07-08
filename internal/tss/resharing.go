@@ -68,7 +68,7 @@ func (s *Service) StartResharing(
 
 	// Broadcast resharing operation sync message to other participants
 	common.SafeGo(operation.EndCh, func() any {
-		return s.broadcastResharingOperation(
+		return s.syncResharingOperation(
 			operationID,
 			sessionID,
 			keyID,
@@ -87,7 +87,7 @@ func (s *Service) StartResharing(
 	return operation, nil
 }
 
-func (s *Service) broadcastResharingOperation(
+func (s *Service) syncResharingOperation(
 	operationID, sessionID string,
 	keyID string,
 	oldThreshold int,
@@ -123,7 +123,7 @@ func (s *Service) broadcastResharingOperation(
 		KeyID:           keyID,
 	}
 
-	if err := s.broadcastOperationSync(syncCtx, syncData); err != nil {
+	if err := s.syncOperation(syncCtx, syncData); err != nil {
 		s.logger.Error("Failed to broadcast resharing operation sync",
 			zap.Error(err),
 			zap.String("operation_id", operationID))

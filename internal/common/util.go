@@ -7,8 +7,17 @@ import (
 	"time"
 )
 
-// UniqueSlice returns a unique slice of the input slice
-func UniqueSlice[T comparable](input []T) []T {
+// Map applies a function to each element in the input slice and returns a new slice.
+func Map[T any, R any](in []T, f func(T) R) []R {
+	out := make([]R, len(in))
+	for i, v := range in {
+		out[i] = f(v)
+	}
+	return out
+}
+
+// Distinct returns a distinct slice of the input slice
+func Distinct[T comparable](input []T) []T {
 	seen := make(map[T]struct{})
 	var result []T
 	for _, v := range input {
