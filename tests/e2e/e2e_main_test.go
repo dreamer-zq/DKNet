@@ -25,6 +25,7 @@ func TestE2ESuite(t *testing.T) {
 
 	// === Phase 3: Resharing Tests ===
 	t.Run("Resharing", func(t *testing.T) {
-		//runSharingTests(t, &keyIDs)
+		// TODO: Implement resharing tests
+		// runSharingTests(t, &keyIDs)
 	})
 }

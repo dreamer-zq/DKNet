@@ -389,7 +389,7 @@ func (s *Service) loadKeyData(ctx context.Context, keyID string) (*keyData, *key
 	if err := json.Unmarshal(decryptedKeyData, &saveData); err != nil {
 		return nil, nil, fmt.Errorf("failed to unmarshal save data: %w", err)
 	}
-	
+
 	s.logger.Debug("Successfully loaded and decrypted key data",
 		zap.String("key_id", keyID),
 		zap.Int("encrypted_size", len(keyDataStruct.KeyData)),

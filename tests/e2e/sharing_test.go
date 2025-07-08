@@ -11,6 +11,7 @@ import (
 	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
 )
 
+// nolint:unused
 func runSharingTests(t *testing.T, keyIDs *sync.Map) {
 	t.Run("reshare-2-of-3-to-2-of-2", func(t *testing.T) {
 		keyID, ok := keyIDs.Load("2-of-3")
