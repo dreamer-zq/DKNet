@@ -1,6 +1,11 @@
 package common
 
-import "time"
+import (
+	"fmt"
+	"os"
+	"runtime/debug"
+	"time"
+)
 
 // UniqueSlice returns a unique slice of the input slice
 func UniqueSlice[T comparable](input []T) []T {
@@ -42,6 +47,7 @@ func SafeGo(ch chan<- any, f func() any) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
+				_, _ = fmt.Fprintf(os.Stderr, "Recovered from panic,Stack trace:\n %s", string(debug.Stack()))
 				ch <- r
 			}
 		}()

@@ -25,6 +25,6 @@ func TestE2ESuite(t *testing.T) {
 
 	// === Phase 3: Resharing Tests ===
 	t.Run("Resharing", func(t *testing.T) {
-		t.Skip("Resharing tests are currently disabled due to TSS library compatibility issues.")
+		//runSharingTests(t, &keyIDs)
 	})
 }

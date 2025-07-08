@@ -389,7 +389,7 @@ func (s *Service) loadKeyData(ctx context.Context, keyID string) (*keyData, *key
 	if err := json.Unmarshal(decryptedKeyData, &saveData); err != nil {
 		return nil, nil, fmt.Errorf("failed to unmarshal save data: %w", err)
 	}
-
+	
 	s.logger.Debug("Successfully loaded and decrypted key data",
 		zap.String("key_id", keyID),
 		zap.Int("encrypted_size", len(keyDataStruct.KeyData)),
@@ -678,10 +678,12 @@ func (s *Service) toParticipants(operation *Operation, msg tss.Message, routing 
 		participants = append(participants, req.NewParticipants...)
 		participants = dknetCommon.UniqueSlice(participants)
 		return participants, nil
+	case len(routing.To) > 0:
+		to = routing.To
 	case routing.IsBroadcast:
 		to = operation.Participants
 	default:
-		to = routing.To
+		return nil, fmt.Errorf("invalid routing")
 	}
 
 	for _, to := range to {
