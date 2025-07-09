@@ -32,7 +32,6 @@ type Network struct {
 	streamManager  *StreamManager
 	logger         *zap.Logger
 	cfg            *Config
-	accessControl  security.AccessController
 	// Unified message encryption
 	messageEncryption security.MessageEncryption
 	cancelDiscovery   context.CancelFunc
@@ -68,6 +67,11 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		libp2p.EnableHolePunching(),
 		libp2p.EnableNATService(),
 		libp2p.ForceReachabilityPublic(),
+		libp2p.ConnectionGater(NewConnectionGater(
+			cfg.AccessControl.AllowedPeers,
+			cfg.AccessControl.Enabled,
+			logger.Named("connection-gater"),
+		)),
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create libp2p host")
@@ -88,7 +92,6 @@ func NewNetwork(cfg *Config, logger *zap.Logger) (*Network, error) {
 		logger:            logger,
 		cfg:               cfg,
 		streamManager:     NewStreamManager(h, TssPartyProtocolID),
-		accessControl:     security.NewController(cfg.AccessControl, logger.Named("access-control")),
 		messageEncryption: messageEncryption,
 	}
 	h.SetStreamHandler(TssPartyProtocolID, n.handleStream)
@@ -210,13 +213,6 @@ func (n *Network) handleStream(stream network.Stream) {
 	}()
 
 	remotePeerID := stream.Conn().RemotePeer()
-
-	if !n.accessControl.IsAuthorized(remotePeerID.String()) {
-		n.logger.Warn("Rejected stream from unauthorized peer", zap.String("peer", remotePeerID.String()))
-		_ = stream.Reset()
-		return
-	}
-
 	reader := msgio.NewReader(stream)
 
 	for {
