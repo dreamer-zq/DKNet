@@ -68,9 +68,6 @@ func (n *dhtNet) Start() error {
 		return err
 	}
 
-	// Wait for bootstrap to complete
-	time.Sleep(2 * time.Second)
-
 	// Start peer discovery
 	n.startPeerDiscovery()
 	n.logger.Info("DHT service started successfully")
@@ -78,24 +75,6 @@ func (n *dhtNet) Start() error {
 }
 
 func (n *dhtNet) startPeerDiscovery() {
-	// First, do an initial discovery
-	go n.discoverPeers()
-
-	// Then start periodic discovery
-	// n.ticker = time.NewTicker(1 * time.Minute)
-	// go func() {
-	// 	for {
-	// 		select {
-	// 		case <-n.ticker.C:
-	// 			n.discoverPeers()
-	// 		case <-n.ctx.Done():
-	// 			return
-	// 		}
-	// 	}
-	// }()
-}
-
-func (n *dhtNet) discoverPeers() {
 	routingDiscovery := drouting.NewRoutingDiscovery(n.dhtInstance)
 
 	// Create context with timeout for this discovery round
@@ -106,8 +85,25 @@ func (n *dhtNet) discoverPeers() {
 	n.logger.Debug("Advertising ourselves under rendezvous point", zap.String("rendezvous", DiscoveryRendezvous))
 	util.Advertise(ctx, routingDiscovery, DiscoveryRendezvous)
 
-	// Find peers
-	n.logger.Debug("Searching for other peers...", zap.String("rendezvous", DiscoveryRendezvous))
+	// Then start periodic discovery
+	n.ticker = time.NewTicker(1 * time.Minute)
+	go func() {
+		for {
+			select {
+			case <-n.ticker.C:
+				n.discoverPeers(routingDiscovery)
+			case <-n.ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+func (n *dhtNet) discoverPeers(routingDiscovery *drouting.RoutingDiscovery) {
+	// Create context with timeout for this discovery round
+	ctx, cancel := context.WithTimeout(n.ctx, 10*time.Second)
+	defer cancel()
+
 	peerChan, err := routingDiscovery.FindPeers(ctx, DiscoveryRendezvous)
 	if err != nil {
 		n.logger.Error("Failed to find peers", zap.Error(err))
