@@ -7,13 +7,11 @@ DOCKER_IMAGE_NAME ?= dknet/dknet
 DOCKER_TAG ?= latest
 DOCKER_REGISTRY ?= 
 VERSION ?= $(shell git describe --tags --always --dirty)
-BUILD_TIME ?= $(shell date -u '+%Y-%m-%d_%H:%M:%S')
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
 # Go build flags
-LDFLAGS = -X main.version=$(VERSION) \
-          -X main.buildTime=$(BUILD_TIME) \
-          -X main.gitCommit=$(GIT_COMMIT)
+LDFLAGS = -X github.com/dreamer-zq/DKNet/version.Version=$(VERSION) \
+          -X github.com/dreamer-zq/DKNet/version.GitCommit=$(GIT_COMMIT)
 
 # Build commands
 build: build-server build-client
@@ -34,6 +32,12 @@ build-mcp:
 	@echo "Building DKNet MCP Server..."
 	@mkdir -p bin
 	go build -ldflags "$(LDFLAGS)" -o bin/dknet-mcp ./cmd/dknet-mcp
+
+install:
+	@echo "Installing DKNet..."
+	go install -ldflags "$(LDFLAGS)" ./cmd/dknet
+	go install -ldflags "$(LDFLAGS)" ./cmd/dknet-cli
+	go install -ldflags "$(LDFLAGS)" ./cmd/dknet-mcp
 
 run: build-server
 	@echo "Starting DKNet..."

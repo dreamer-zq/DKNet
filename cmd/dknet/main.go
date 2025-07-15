@@ -13,6 +13,7 @@ import (
 	"github.com/dreamer-zq/DKNet/internal/app"
 	"github.com/dreamer-zq/DKNet/internal/common"
 	"github.com/dreamer-zq/DKNet/internal/config"
+	"github.com/dreamer-zq/DKNet/version"
 )
 
 func main() {
@@ -46,7 +47,7 @@ using threshold cryptography to ensure no single point of failure.`,
 	}
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config.yaml)")
-	rootCmd.AddCommand(startCmd, runInitClusterCmd(), runInitNodeCmd(), runShowNodeCmd(), generateTokenCmd())
+	rootCmd.AddCommand(startCmd, runInitClusterCmd(), runInitNodeCmd(), runShowNodeCmd(), generateTokenCmd(), version.NewCommand())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)

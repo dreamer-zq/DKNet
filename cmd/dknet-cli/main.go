@@ -14,6 +14,7 @@ import (
 
 	"github.com/dreamer-zq/DKNet/internal/api"
 	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
+	"github.com/dreamer-zq/DKNet/version"
 )
 
 // Global configuration
@@ -80,6 +81,7 @@ func main() {
 		createReshareCommand(),
 		createGetOperationCommand(),
 		createGetKeyMetadataCommand(),
+		version.NewCommand(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
