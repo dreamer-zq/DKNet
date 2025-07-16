@@ -25,7 +25,7 @@ make build-client
 ./bin/dknet
 
 # 使用指定配置文件启动
-./bin/dknet --config ./config.yaml
+./bin/dknet --node-dir ./node1
 
 # 查看帮助信息
 ./bin/dknet --help
@@ -88,7 +88,7 @@ tss:
 ./bin/dknet
 
 # 使用自定义配置文件
-./bin/dknet --config ./config.yaml
+./bin/dknet --node-dir ./node1
 ```
 
 ### 开发模式
@@ -268,7 +268,7 @@ openssl req -new -newkey rsa:2048 -days 365 -nodes -x509 \
   -keyout server.key -out server.crt
 
 # 启动 TLS 服务器
-./bin/dknet --config ./config.yaml
+./bin/dknet --node-dir ./node1
 ```
 
 ### 访问控制
@@ -333,7 +333,7 @@ Type=simple
 User=dknet
 Group=dknet
 WorkingDirectory=/opt/dknet
-ExecStart=/opt/dknet/bin/dknet --config /opt/dknet/config.yaml
+ExecStart=/opt/dknet/bin/dknet --node-dir /opt/dknet/node1
 Restart=always
 RestartSec=10
 

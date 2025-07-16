@@ -48,13 +48,13 @@ func runInitNode(cmd *cobra.Command, args []string) error {
 		zap.Bool("docker", dockerMode))
 
 	// Create node directory
-	nodeDir := filepath.Join(outputDir, "node1")
+	nodeDir := filepath.Join(outputDir, "config")
 	if dirErr := ensureNodeDirectory(nodeDir); dirErr != nil {
 		return dirErr
 	}
 
 	// Generate and save node key
-	_, peerID, err := generateAndSaveNodeKey(nodeDir, "node1")
+	_, peerID, err := generateAndSaveNodeKey(nodeDir)
 	if err != nil {
 		return err
 	}

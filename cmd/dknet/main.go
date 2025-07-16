@@ -39,15 +39,7 @@ using threshold cryptography to ensure no single point of failure.`,
 		RunE: runServer,
 	}
 
-	startCmd := &cobra.Command{
-		Use:   "start",
-		Short: "Start the DKNet",
-		Long:  "Start the DKNet with the specified configuration",
-		RunE:  runServer,
-	}
-
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config.yaml)")
-	rootCmd.AddCommand(startCmd, runInitClusterCmd(), runInitNodeCmd(), runShowNodeCmd(), generateTokenCmd(), version.NewCommand())
+	rootCmd.AddCommand(runStartCmd(), runInitClusterCmd(), runInitNodeCmd(), runShowNodeCmd(), generateTokenCmd(), version.NewCommand())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -57,9 +49,28 @@ using threshold cryptography to ensure no single point of failure.`,
 	}
 }
 
+func runStartCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "start",
+		Short: "Start the DKNet",
+		Long:  "Start the DKNet with the specified configuration",
+		RunE:  runServer,
+	}
+
+	cmd.Flags().StringP(flagNodeDir, "", "", "node directory containing config.yaml, node_key, and data/")
+	_ = cmd.MarkFlagRequired(flagNodeDir)
+
+	return cmd
+}
+
 func runServer(cmd *cobra.Command, args []string) error {
+	nodeDir, err := cmd.Flags().GetString(flagNodeDir)
+	if err != nil {
+		return fmt.Errorf("failed to get node directory: %w", err)
+	}
+
 	// Load configuration
-	cfg, err := config.Load(cfgFile)
+	cfg, err := config.Load(nodeDir)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}

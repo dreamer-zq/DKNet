@@ -24,11 +24,24 @@
 make build
 ```
 
+### 节点目录结构
+
+DKNet 使用标准化的节点目录结构，每个节点需要一个包含以下文件的目录：
+
+- `config.yaml` - 节点配置文件
+- `node_key` - P2P 私钥文件  
+- `data/` - 存储目录（自动创建）
+
+详细说明请参考 [节点目录示例](examples/node-directory-example/)。
+
 ### 运行
 
 ```bash
-# 启动服务器
-./bin/dknet start --config config.yaml
+# 启动服务器 (使用节点目录)
+./bin/dknet start --config /path/to/node-directory
+
+# 或使用当前目录 (如果包含 config.yaml)
+./bin/dknet start --config .
 
 # 使用客户端进行密钥生成
 ./bin/dknet-cli keygen \
@@ -131,8 +144,8 @@ make docker-start
 # 设置加密密码
 export TSS_ENCRYPTION_PASSWORD="YourSecurePassword123!"
 
-# 启动服务
-./bin/dknet start --config config.yaml
+# 启动服务 (指定节点目录)
+./bin/dknet start --config /path/to/node-directory
 ```
 
 详细的部署指南请参考 [安全部署文档](docs/SECURITY.md)。

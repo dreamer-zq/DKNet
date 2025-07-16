@@ -20,6 +20,7 @@ func generateTokenCmd() *cobra.Command {
 	var outputFormat string
 	var userID string
 	var roles []string
+	var nodeDir string
 	var expiryHours int
 
 	cmd := &cobra.Command{
@@ -31,7 +32,7 @@ This command reads the JWT secret and issuer from the server configuration
 and generates a token that can be used by clients to authenticate with the API.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Load configuration to get JWT settings
-			cfg, err := config.Load(cfgFile)
+			cfg, err := config.Load(nodeDir)
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
 			}
@@ -68,7 +69,6 @@ and generates a token that can be used by clients to authenticate with the API.`
 			}
 
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
 			tokenString, err := token.SignedString([]byte(jwtConfig.JWTSecret))
 			if err != nil {
 				return fmt.Errorf("failed to generate token: %w", err)
@@ -119,10 +119,13 @@ and generates a token that can be used by clients to authenticate with the API.`
 		},
 	}
 
+	cmd.Flags().StringVarP(&nodeDir, flagNodeDir, "", "", "Node directory containing config.yaml, node_key, and data/")
 	cmd.Flags().StringVarP(&outputFormat, "output", "o", "text", "Output format (text|json)")
 	cmd.Flags().StringVarP(&userID, "user", "u", "", "User ID for the token (default: admin-user)")
 	cmd.Flags().StringSliceVarP(&roles, "roles", "r", nil, "Roles for the token (default: admin,operator)")
 	cmd.Flags().IntVarP(&expiryHours, "expires", "e", 24, "Token expiry in hours (default: 24, use 0 for no expiration)")
+
+	_ = cmd.MarkFlagRequired(flagNodeDir)
 
 	return cmd
 }

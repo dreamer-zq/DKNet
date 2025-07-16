@@ -64,10 +64,9 @@ func runInitCluster(cmd *cobra.Command, args []string) error {
 		}
 
 		// Generate node key
-		nodeID := fmt.Sprintf("node%d", i)
-		_, peerID, keyErr := generateAndSaveNodeKey(nodeDir, nodeID)
+		_, peerID, keyErr := generateAndSaveNodeKey(nodeDir)
 		if keyErr != nil {
-			return fmt.Errorf("failed to generate node key for %s: %w", nodeID, keyErr)
+			return fmt.Errorf("failed to generate node key: %w", keyErr)
 		}
 
 		// Generate multiaddr for this node

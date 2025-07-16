@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -119,27 +120,32 @@ type LoggingConfig struct {
 	Output string `yaml:"output" mapstructure:"output"`
 }
 
-// Load loads configuration from file or environment variables
-func Load(configFile string) (*NodeConfig, error) {
+// Load loads configuration from the specified node directory
+// nodeDir should contain: config.yaml, node_key, and data/ directory
+func Load(nodeDir string) (*NodeConfig, error) {
 	v := viper.New()
 
 	// Set default values
 	setDefaults(v)
 
-	var configDir string
-	// Read config file if provided
-	if configFile != "" {
-		v.SetConfigFile(configFile)
-		// Extract directory from config file path
-		configDir = filepath.Dir(configFile)
-	} else {
-		v.SetConfigName("config")
-		v.SetConfigType("yaml")
-		v.AddConfigPath(".")
-		v.AddConfigPath("./configs")
-		// Default to current directory
-		configDir = "."
+	if nodeDir == "" {
+		return nil, errors.New("node directory is required")
 	}
+
+	// Convert nodeDir to absolute path to avoid relative path issues
+	configDir, err := filepath.Abs(nodeDir)
+	if err != nil {
+		return nil, fmt.Errorf("error converting node directory to absolute path: %w", err)
+	}
+
+	// Check if the directory exists
+	if _, err := os.Stat(configDir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("node directory does not exist: %s", configDir)
+	}
+
+	// Set config file path (fixed name: config.yaml)
+	configFile := filepath.Join(configDir, "config.yaml")
+	v.SetConfigFile(configFile)
 
 	// Read environment variables
 	v.AutomaticEnv()
@@ -160,6 +166,9 @@ func Load(configFile string) (*NodeConfig, error) {
 	// Set the config directory
 	config.ConfigDir = configDir
 
+	// Update paths to be relative to the node directory
+	updatePathsForNodeDir(config, configDir)
+
 	// Validate configuration
 	if err := validateConfig(config); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
@@ -179,12 +188,14 @@ func setDefaults(v *viper.Viper) {
 	// P2P defaults
 	v.SetDefault("p2p.listen_addrs", []string{"/ip4/0.0.0.0/tcp/4001"})
 	v.SetDefault("p2p.bootstrap_peers", []string{})
-	v.SetDefault("p2p.private_key_file", "./data/p2p_key")
+	// Fixed filename in node directory
+	v.SetDefault("p2p.private_key_file", "node_key")
 	v.SetDefault("p2p.net_mod", "mdns")
 
 	// Storage defaults
 	v.SetDefault("storage.type", "leveldb")
-	v.SetDefault("storage.path", "./data/storage")
+	// Fixed directory name in node directory
+	v.SetDefault("storage.path", "data")
 
 	// TSS defaults
 	hostname, _ := os.Hostname()
@@ -209,6 +220,28 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("logging.level", "info")
 	v.SetDefault("logging.environment", "dev")
 	v.SetDefault("logging.output", "stdout")
+}
+
+// updatePathsForNodeDir updates relative paths in the config to be absolute paths
+// relative to the specified nodeDir.
+func updatePathsForNodeDir(config *NodeConfig, nodeDir string) {
+	// Update TLS certificate and key files if they are specified
+	if config.Security.CertFile != "" && !filepath.IsAbs(config.Security.CertFile) {
+		config.Security.CertFile = filepath.Join(nodeDir, config.Security.CertFile)
+	}
+	if config.Security.KeyFile != "" && !filepath.IsAbs(config.Security.KeyFile) {
+		config.Security.KeyFile = filepath.Join(nodeDir, config.Security.KeyFile)
+	}
+
+	// Update p2p private key file path
+	if config.P2P.PrivateKeyFile != "" && !filepath.IsAbs(config.P2P.PrivateKeyFile) {
+		config.P2P.PrivateKeyFile = filepath.Join(nodeDir, config.P2P.PrivateKeyFile)
+	}
+
+	// Update storage path
+	if config.Storage.Path != "" && !filepath.IsAbs(config.Storage.Path) {
+		config.Storage.Path = filepath.Join(nodeDir, config.Storage.Path)
+	}
 }
 
 // validateConfig validates the configuration

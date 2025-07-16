@@ -5,7 +5,7 @@ services:
     build: ../..
     container_name: {{.ServiceName}}
     hostname: {{.ServiceName}}
-    command: ["start", "--config", "/app/node/config.yaml"]
+    command: ["start", "--node-dir", "/app/node"]
     ports:
       - "{{.HTTPPort}}:8080"  # HTTP API
       - "{{.GRPCPort}}:9090"  # gRPC API
@@ -14,7 +14,6 @@ services:
       - ./{{.NodeDir}}:/app/node
       - {{.ServiceName}}-data:/app/data
     environment:
-      - TSS_CONFIG_FILE=/app/node/config.yaml
       - TSS_ENCRYPTION_PASSWORD=$${TSS_ENCRYPTION_PASSWORD:-TestPassword123!}
     networks:
 {{if .UseCustomIP}}

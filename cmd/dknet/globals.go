@@ -3,7 +3,6 @@ package main
 import "go.uber.org/zap"
 
 var (
-	cfgFile string
 	logger  *zap.Logger
 
 	// Common flags used by multiple commands
@@ -14,4 +13,5 @@ var (
 const (
 	flagOutput = "output"
 	flagDocker = "docker"
+	flagNodeDir = "node-dir"
 )

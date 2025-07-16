@@ -30,38 +30,33 @@ This is useful for deployment and sharing node information with other nodes.`,
 		RunE: runShowNode,
 	}
 
-	cmd.Flags().StringP("node-dir", "d", "./", "Node directory containing config.yaml and node_key")
-	cmd.Flags().StringP("config", "c", "", "Path to config.yaml file (overrides node-dir)")
-	cmd.Flags().StringP("key", "k", "", "Path to node_key file (overrides node-dir)")
+	cmd.Flags().StringP(flagNodeDir, "", "", "Node directory containing config.yaml and node_key")
 	cmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 	cmd.Flags().BoolP("multiaddr-only", "m", false, "Only output the multiaddr")
+
+	_ = cmd.MarkFlagRequired(flagNodeDir)
 
 	return cmd
 }
 
 func runShowNode(cmd *cobra.Command, args []string) error {
 	// Get flags
-	nodeDir, _ := cmd.Flags().GetString("node-dir")
-	configFile, _ := cmd.Flags().GetString("config")
-	keyFile, _ := cmd.Flags().GetString("key")
+	nodeDir, err := cmd.Flags().GetString(flagNodeDir)
+	if err != nil {
+		return fmt.Errorf("failed to get node directory: %w", err)
+	}
+
 	jsonOutput, _ := cmd.Flags().GetBool("json")
 	multiaddrOnly, _ := cmd.Flags().GetBool("multiaddr-only")
 
-	// Determine file paths
-	if configFile == "" {
-		configFile = filepath.Join(nodeDir, "config.yaml")
-	}
-	if keyFile == "" {
-		keyFile = filepath.Join(nodeDir, "node_key")
-	}
-
 	// Load configuration
-	cfg, err := loadNodeConfig(configFile)
+	cfg, err := loadNodeConfig(nodeDir)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	// Load peer ID from key file
+	keyFile := filepath.Join(nodeDir, "node_key")
 	peerID, err := loadPeerIDFromKeyFile(keyFile)
 	if err != nil {
 		return fmt.Errorf("failed to load peer ID: %w", err)
@@ -108,11 +103,11 @@ func runShowNode(cmd *cobra.Command, args []string) error {
 	// Output in requested format
 	if jsonOutput {
 		return outputJSON(&nodeInfo)
-	} else {
-		return outputText(&nodeInfo)
 	}
+	return outputText(&nodeInfo)
 }
 
+// NodeDisplayInfo is the information displayed by the show-node command
 type NodeDisplayInfo struct {
 	PeerID         string   `json:"peer_id"`
 	Moniker        string   `json:"moniker"`
@@ -124,7 +119,9 @@ type NodeDisplayInfo struct {
 	GRPCPort       int      `json:"grpc_port"`
 }
 
-func loadNodeConfig(configFile string) (*config.NodeConfig, error) {
+// loadNodeConfig loads the node configuration from the node directory
+func loadNodeConfig(nodeDir string) (*config.NodeConfig, error) {
+	configFile := filepath.Join(nodeDir, "config.yaml")
 	data, err := os.ReadFile(configFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file %s: %w", configFile, err)
@@ -138,6 +135,7 @@ func loadNodeConfig(configFile string) (*config.NodeConfig, error) {
 	return &cfg, nil
 }
 
+// loadPeerIDFromKeyFile loads the peer ID from the key file
 func loadPeerIDFromKeyFile(keyFile string) (peer.ID, error) {
 	data, err := os.ReadFile(keyFile)
 	if err != nil {
@@ -157,6 +155,7 @@ func loadPeerIDFromKeyFile(keyFile string) (peer.ID, error) {
 	return peerID, nil
 }
 
+// buildDisplayMultiaddr builds the display multiaddr for the node
 func buildDisplayMultiaddr(cfg *config.NodeConfig, listenAddr string, port int, peerID string) string {
 	// If listen address is 0.0.0.0 (Docker mode), try to infer the correct IP
 	if listenAddr == defaultBindIP {
