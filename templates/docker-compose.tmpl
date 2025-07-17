@@ -2,7 +2,7 @@ services:
 {{range .Nodes}}
   # {{.Name}}
   {{.ServiceName}}:
-    build: ../..
+    image: dknet/dknet:latest
     container_name: {{.ServiceName}}
     hostname: {{.ServiceName}}
     command: ["start", "--node-dir", "/app/node"]
