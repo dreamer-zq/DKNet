@@ -51,7 +51,7 @@ func NewMDNS(peerhost host.Host, logger *zap.Logger) PeerDiscovery {
 // Start starts the MDNS service
 func (n *mdnsNet) Start() error {
 	n.ctx, n.cancel = context.WithCancel(context.Background())
-	
+
 	// Create MDNS service
 	n.service = mdns.NewMdnsService(n.h, DiscoveryRendezvous, n)
 	if err := n.service.Start(); err != nil {
@@ -73,17 +73,17 @@ func (n *mdnsNet) Start() error {
 func (n *mdnsNet) startPeriodicRediscovery() {
 	// Set up periodic rediscovery every 30 seconds
 	n.ticker = time.NewTicker(30 * time.Second)
-	
+
 	go func() {
 		defer n.ticker.Stop()
-		
+
 		for {
 			select {
 			case <-n.ticker.C:
 				n.logger.Debug("Performing periodic MDNS rediscovery")
 				// Trigger a new round of discovery
 				n.triggerRediscovery()
-				
+
 			case <-n.ctx.Done():
 				return
 			}
@@ -106,7 +106,7 @@ func (n *mdnsNet) triggerRediscovery() {
 
 	// Create a channel to receive discovered services
 	entries := make(chan *zeroconf.ServiceEntry)
-	
+
 	// Start browsing for services in a separate goroutine
 	go func() {
 		err := resolver.Browse(ctx, DiscoveryRendezvous, "local.", entries)
@@ -132,7 +132,7 @@ func (n *mdnsNet) triggerRediscovery() {
 			}
 
 			discoveredCount++
-			n.logger.Debug("Actively discovered MDNS service", 
+			n.logger.Debug("Actively discovered MDNS service",
 				zap.String("instance", entry.Instance),
 				zap.String("hostname", entry.HostName),
 				zap.Int("port", entry.Port),
@@ -154,72 +154,73 @@ func (n *mdnsNet) processDiscoveredService(entry *zeroconf.ServiceEntry) {
 	// libp2p MDNS stores the peer ID in TXT records as "dnsaddr=<multiaddr>"
 	var peerID peer.ID
 	var found bool
-	
+
 	for _, txt := range entry.Text {
 		// Look for dnsaddr TXT record that contains the peer ID
-		if strings.HasPrefix(txt, "dnsaddr=") {
-			addrStr := strings.TrimPrefix(txt, "dnsaddr=")
-			
-			// Parse the multiaddr to extract peer ID
-			maddr, err := multiaddr.NewMultiaddr(addrStr)
-			if err != nil {
-				n.logger.Debug("Failed to parse dnsaddr from TXT record", 
-					zap.String("txt", txt), 
-					zap.Error(err))
-				continue
-			}
-			
-			// Extract peer ID from the multiaddr
-			extractedPeerID, err := peer.IDFromP2PAddr(maddr)
-			if err != nil {
-				n.logger.Debug("Failed to extract peer ID from multiaddr", 
-					zap.String("multiaddr", addrStr), 
-					zap.Error(err))
-				continue
-			}
-			
-			peerID = extractedPeerID
-			found = true
-			break
+		addrStr, ok := strings.CutPrefix(txt, "dnsaddr=")
+		if !ok {
+			continue
 		}
+		
+		// Parse the multiaddr to extract peer ID
+		maddr, err := multiaddr.NewMultiaddr(addrStr)
+		if err != nil {
+			n.logger.Debug("Failed to parse dnsaddr from TXT record",
+				zap.String("txt", txt),
+				zap.Error(err))
+			continue
+		}
+
+		// Extract peer ID from the multiaddr
+		extractedPeerID, err := peer.IDFromP2PAddr(maddr)
+		if err != nil {
+			n.logger.Debug("Failed to extract peer ID from multiaddr",
+				zap.String("multiaddr", addrStr),
+				zap.Error(err))
+			continue
+		}
+
+		peerID = extractedPeerID
+		found = true
+		break
 	}
-	
+
 	if !found {
-		n.logger.Debug("No peer ID found in TXT records", 
+		n.logger.Debug("No peer ID found in TXT records",
 			zap.Strings("txt", entry.Text))
 		return
 	}
 
 	// Skip if it's ourselves
 	if peerID == n.h.ID() {
-		n.logger.Debug("Skipping self peer discovered via active MDNS", 
+		n.logger.Debug("Skipping self peer discovered via active MDNS",
 			zap.String("peer", peerID.String()))
 		return
 	}
 
 	// Build multiaddresses from the service entry
 	var addrs []multiaddr.Multiaddr
-	
+
 	// Add IPv4 addresses
 	for _, ip := range entry.AddrIPv4 {
 		addrStr := fmt.Sprintf("/ip4/%s/tcp/%d/p2p/%s", ip.String(), entry.Port, peerID.String())
 		maddr, err := multiaddr.NewMultiaddr(addrStr)
 		if err != nil {
-			n.logger.Debug("Failed to parse IPv4 multiaddr", 
-				zap.String("addr", addrStr), 
+			n.logger.Debug("Failed to parse IPv4 multiaddr",
+				zap.String("addr", addrStr),
 				zap.Error(err))
 			continue
 		}
 		addrs = append(addrs, maddr)
 	}
-	
+
 	// Add IPv6 addresses
 	for _, ip := range entry.AddrIPv6 {
 		addrStr := fmt.Sprintf("/ip6/%s/tcp/%d/p2p/%s", ip.String(), entry.Port, peerID.String())
 		maddr, err := multiaddr.NewMultiaddr(addrStr)
 		if err != nil {
-			n.logger.Debug("Failed to parse IPv6 multiaddr", 
-				zap.String("addr", addrStr), 
+			n.logger.Debug("Failed to parse IPv6 multiaddr",
+				zap.String("addr", addrStr),
 				zap.Error(err))
 			continue
 		}
@@ -238,7 +239,7 @@ func (n *mdnsNet) processDiscoveredService(entry *zeroconf.ServiceEntry) {
 	}
 
 	// Send the discovered peer to our handler
-	n.logger.Debug("Converted zeroconf service to peer info", 
+	n.logger.Debug("Converted zeroconf service to peer info",
 		zap.String("peer", peerID.String()),
 		zap.Int("addrs", len(peerInfo.Addrs)))
 
@@ -247,7 +248,7 @@ func (n *mdnsNet) processDiscoveredService(entry *zeroconf.ServiceEntry) {
 	case <-n.ctx.Done():
 		return
 	default:
-		n.logger.Debug("Peer channel full, dropping actively discovered peer", 
+		n.logger.Debug("Peer channel full, dropping actively discovered peer",
 			zap.String("peer", peerID.String()))
 	}
 }
@@ -258,7 +259,7 @@ func (n *mdnsNet) handlePeers() {
 		select {
 		case p := <-n.peerChan:
 			n.logger.Info("Found new peer via MDNS", zap.String("peer", p.ID.String()))
-			
+
 			// Skip ourselves
 			if p.ID == n.h.ID() {
 				n.logger.Debug("Skipping self peer", zap.String("peer", p.ID.String()))
@@ -275,15 +276,15 @@ func (n *mdnsNet) handlePeers() {
 			n.logger.Info("Attempting to connect to discovered peer", zap.String("peer", p.ID.String()))
 			ctx, cancel := context.WithTimeout(n.ctx, 10*time.Second)
 			if err := n.h.Connect(ctx, p); err != nil {
-				n.logger.Warn("Failed to connect to discovered peer", 
-					zap.String("peer", p.ID.String()), 
+				n.logger.Warn("Failed to connect to discovered peer",
+					zap.String("peer", p.ID.String()),
 					zap.Error(err))
 			} else {
-				n.logger.Info("Successfully connected to discovered peer", 
+				n.logger.Info("Successfully connected to discovered peer",
 					zap.String("peer", p.ID.String()))
 			}
 			cancel()
-			
+
 		case <-n.ctx.Done():
 			return
 		}
@@ -295,17 +296,17 @@ func (n *mdnsNet) Stop() {
 	if n.cancel != nil {
 		n.cancel()
 	}
-	
+
 	if n.ticker != nil {
 		n.ticker.Stop()
 	}
-	
+
 	if n.service != nil {
 		if err := n.service.Close(); err != nil {
 			n.logger.Warn("Error closing MDNS service", zap.Error(err))
 		}
 	}
-	
+
 	close(n.peerChan)
 	n.logger.Info("MDNS service stopped")
 }

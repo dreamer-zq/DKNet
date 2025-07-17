@@ -105,3 +105,7 @@ security-scan:
 	else \
 		echo "gosec not found. Install it with: go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest"; \
 	fi
+
+format:
+	find . -name '*.go' -type f -not -path "./vendor*" -not -path "*.git*"  -not -path "*.pb.go" | xargs gofmt -w -s
+	find . -name '*.go' -type f -not -path "./vendor*" -not -path "*.git*"  -not -path "*.pb.go" | xargs goimports -w -local github.com/dreamer-zq/DKNet
