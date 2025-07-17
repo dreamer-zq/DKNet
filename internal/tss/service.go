@@ -456,9 +456,14 @@ func (s *Service) syncOperation(ctx context.Context, syncData Message) error {
 		return fmt.Errorf("failed to marshal sync data: %w", err)
 	}
 
-	// Remove self from the list of participants
-	to := slices.DeleteFunc(syncData.To(), func(to string) bool {
-		return to == s.nodeID
+	// Create a copy of participants to avoid modifying the original syncData
+	participants := syncData.To()
+	to := make([]string, len(participants))
+	copy(to, participants)
+
+	// Remove self from the copied list of participants
+	to = slices.DeleteFunc(to, func(toNode string) bool {
+		return toNode == s.nodeID
 	})
 
 	if len(to) == 0 {
