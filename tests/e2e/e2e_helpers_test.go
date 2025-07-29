@@ -24,6 +24,12 @@ type Node struct {
 	Conn    *grpc.ClientConn
 }
 
+// KeyInfo contains key information including public key for verification
+type KeyInfo struct {
+	KeyID     string
+	PublicKey string
+}
+
 // jwtCreds provides JWT-based credentials for gRPC calls.
 type jwtCreds struct {
 	token string

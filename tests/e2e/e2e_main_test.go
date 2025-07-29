@@ -12,15 +12,17 @@ func TestE2ESuite(t *testing.T) {
 
 	// Use a map to store generated key IDs to pass between test phases.
 	var keyIDs sync.Map
+	// Use a map to store key information (ID + public key) for signature verification
+	var keyInfos sync.Map
 
 	// === Phase 1: Keygen Tests ===
 	t.Run("Keygen", func(t *testing.T) {
-		runKeygenTests(t, &keyIDs)
+		runKeygenTests(t, &keyIDs, &keyInfos)
 	})
 
 	// === Phase 2: Signing Tests ===
 	t.Run("Signing", func(t *testing.T) {
-		runSigningTests(t, &keyIDs)
+		runSigningTests(t, &keyIDs, &keyInfos)
 	})
 
 	// === Phase 3: Resharing Tests ===
