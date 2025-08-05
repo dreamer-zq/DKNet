@@ -11,7 +11,7 @@ import (
 	tssv1 "github.com/dreamer-zq/DKNet/proto/tss/v1"
 )
 
-func runKeygenTests(t *testing.T, keyIDs *sync.Map, keyInfos *sync.Map) {
+func runKeygenTests(t *testing.T, keyIDs, keyInfos *sync.Map) {
 	t.Run("2-of-3", func(t *testing.T) {
 		participants := []string{TestConfig["node1"].PeerID, TestConfig["node2"].PeerID, TestConfig["node3"].PeerID}
 		threshold := int32(1)
@@ -41,16 +41,16 @@ Request:
 
 		keyID := opResp.GetKeygenResult().GetKeyId()
 		require.NotEmpty(t, keyID)
-		
+
 		// Store keyID in the original map for backward compatibility
 		keyIDs.Store("2-of-3", keyID)
-		
+
 		// Store KeyInfo with both keyID and publicKey for signature verification
 		keyInfos.Store("2-of-3", &KeyInfo{
 			KeyID:     keyID,
 			PublicKey: pubKey,
 		})
-		
+
 		t.Logf(`Result:
   - Key ID:     %s
   - Public Key: %s
@@ -82,16 +82,16 @@ Request:
 
 		keyID := opResp.GetKeygenResult().GetKeyId()
 		require.NotEmpty(t, keyID)
-		
+
 		// Store keyID in the original map for backward compatibility
 		keyIDs.Store("3-of-3", keyID)
-		
+
 		// Store KeyInfo with both keyID and publicKey for signature verification
 		keyInfos.Store("3-of-3", &KeyInfo{
 			KeyID:     keyID,
 			PublicKey: pubKey,
 		})
-		
+
 		t.Logf(`Result:
   - Key ID:     %s
   - Public Key: %s
@@ -123,16 +123,16 @@ Request:
 
 		keyID := opResp.GetKeygenResult().GetKeyId()
 		require.NotEmpty(t, keyID)
-		
+
 		// Store keyID in the original map for backward compatibility
 		keyIDs.Store("2-of-2", keyID)
-		
+
 		// Store KeyInfo with both keyID and publicKey for signature verification
 		keyInfos.Store("2-of-2", &KeyInfo{
 			KeyID:     keyID,
 			PublicKey: pubKey,
 		})
-		
+
 		t.Logf(`Result:
   - Key ID:     %s
   - Public Key: %s

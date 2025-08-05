@@ -161,7 +161,7 @@ func (n *mdnsNet) processDiscoveredService(entry *zeroconf.ServiceEntry) {
 		if !ok {
 			continue
 		}
-		
+
 		// Parse the multiaddr to extract peer ID
 		maddr, err := multiaddr.NewMultiaddr(addrStr)
 		if err != nil {

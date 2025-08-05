@@ -103,7 +103,7 @@ func verifySignature(publicKeyHex, messageHex, signatureHex string) error {
 	return nil
 }
 
-func runSigningTests(t *testing.T, keyIDs *sync.Map, keyInfos *sync.Map) {
+func runSigningTests(t *testing.T, keyIDs, keyInfos *sync.Map) {
 	// Helper function for signing tests
 	testSigning := func(t *testing.T, keyName string, participants []*Node, message string, testDesc string) {
 		t.Helper()
@@ -157,7 +157,7 @@ Request:
 			messageHex := hex.EncodeToString(msgBytes)
 			err = verifySignature(keyInfo.PublicKey, messageHex, signature)
 		}
-		
+
 		require.NoError(t, err, "Signature verification failed")
 
 		t.Logf(`Verification:
