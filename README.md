@@ -45,7 +45,7 @@ DKNet 使用标准化的节点目录结构，每个节点需要一个包含以�
 
 # 使用客户端进行密钥生成
 ./bin/dknet-cli keygen \
-  --threshold 2 \
+  --threshold 1 \
   --parties 3 \
   --participants node1,node2,node3
 
@@ -124,7 +124,7 @@ make build-mcp
 2. 重启 Claude Desktop
 
 3. 使用自然语言进行 TSS 操作：
-   - "请生成一个 2-of-3 的门限签名密钥"
+   - "请生成一个 1-of-3 的门限签名密钥"
    - "使用密钥 xyz 对消息 'Hello World' 进行签名"
 
 详细的 MCP 使用指南请参考 [MCP 文档](docs/mcp-usage.md)。

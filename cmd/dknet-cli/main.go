@@ -51,14 +51,14 @@ Authentication (optional):
 
 Examples:
   # Without authentication
-  dknet-cli keygen --threshold=2 --parties=3 --participants=node1,node2,node3
+  dknet-cli keygen --threshold=1 --parties=3 --participants=node1,node2,node3
   
   # With token via flag
-  dknet-cli --token="your-jwt-token" keygen --threshold=2 --parties=3 --participants=node1,node2,node3
+  dknet-cli --token="your-jwt-token" keygen --threshold=1 --parties=3 --participants=node1,node2,node3
   
   # With token via environment variable
   export DKNET_JWT_TOKEN="your-jwt-token"
-  dknet-cli keygen --threshold=2 --parties=3 --participants=node1,node2,node3
+  dknet-cli keygen --threshold=1 --parties=3 --participants=node1,node2,node3
   
   # Generate token on server (if auth is enabled)
   dknet generate-token --config=/path/to/config.yaml`,
@@ -129,7 +129,7 @@ func createKeygenCommand() *cobra.Command {
 	}
 
 	cmd.Flags().IntVarP(&threshold, "threshold", "r", 0,
-		"Fault tolerance threshold (t in (t+1)-of-n scheme). Max number of parties that can fail. Minimum signers required = t+1 (required)")
+		"Number of participants. Minimum signers required = t+1 (required)")
 	cmd.Flags().StringSliceVarP(&participants, "participants", "P", nil, "List of participant IDs (required)")
 
 	if err := cmd.MarkFlagRequired("threshold"); err != nil {
@@ -237,7 +237,7 @@ func createReshareCommand() *cobra.Command {
 
 	cmd.Flags().StringVarP(&keyID, "key-id", "k", "", "Key ID to reshare (required)")
 	cmd.Flags().IntVar(&newThreshold, "new-threshold", 0,
-		"New fault tolerance threshold (t in (t+1)-of-n scheme). Max number of parties that can fail. Minimum signers required = t+1 (required)")
+		"New number of participants. Minimum signers required = t+1 (required)")
 	cmd.Flags().StringSliceVar(&newParticipants, "new-participants", nil, "List of new participant IDs (required)")
 
 	if err := cmd.MarkFlagRequired("key-id"); err != nil {

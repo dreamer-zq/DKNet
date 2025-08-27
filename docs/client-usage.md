@@ -2,6 +2,8 @@
 
 DKNet CLI 是 DKNet TSS 系统的命令行客户端工具，提供了与 TSS 服务器交互的完整功能。
 
+它提供密钥生成、签名、重新分享和其他阈值签名方案操作的命令，通过 HTTP 或 gRPC API 与服务器通信。
+
 ## 安装
 
 ```bash
@@ -23,7 +25,7 @@ mv dknet-cli-linux-amd64 /usr/local/bin/dknet-cli
 ./bin/dknet-cli --server localhost:8080 <command>
 
 # 使用 gRPC 连接
-./bin/dknet-cli --grpc --server localhost:9001 <command>
+./bin/dknet-cli --grpc --server localhost:9090 <command>
 ```
 
 ### 全局参数
@@ -49,8 +51,24 @@ export DKNET_JWT_TOKEN="your-jwt-token"
 ./bin/dknet-cli <command>
 
 # 3. 生成 token（在服务器节点上执行）
-dknet generate-token --config=/path/to/config.yaml
+dknet generate-token --node-dir=/path/to/node-dir
 ```
+
+**示例**：
+
+```bash
+# 不使用认证
+dknet-cli keygen --threshold=2 --participants=node1,node2,node3
+
+# 使用命令行 token
+dknet-cli --token="your-jwt-token" keygen --threshold=2 --participants=node1,node2,node3
+
+# 使用环境变量 token
+export DKNET_JWT_TOKEN="your-jwt-token"
+dknet-cli keygen --threshold=2 --participants=node1,node2,node3
+```
+
+如果认证未在服务器上启用，则完全省略 token。
 
 ## 子命令
 
@@ -60,7 +78,13 @@ dknet generate-token --config=/path/to/config.yaml
 
 #### 命令说明
 
-密钥生成操作会在指定的参与方之间创建一个共享密钥，使用 (t+1)-of-n 阈值方案，其中 t 是故障容忍阈值，n 是参与方总数。
+密钥生成操作会在指定的参与方之间创建一个共享密钥，使用 t-of-n 阈值方案，其中 t 是参与方数量（t+1 个参与方可以完成签名），n 是参与方总数。
+
+**验证规则**：
+
+- threshold 必须为非负数
+- participants 列表不能为空
+- threshold 必须小于 participants 总数（要求 t+1 <= n）
 
 #### 使用示例
 
@@ -71,7 +95,7 @@ dknet generate-token --config=/path/to/config.yaml
   --participants nodeID1,nodeID2,nodeID3
 
 # 使用 gRPC 连接
-./bin/dknet-cli --grpc --server localhost:9001 keygen \
+./bin/dknet-cli --grpc --server localhost:9090 keygen \
   --threshold 2 \
   --participants nodeID1,nodeID2,nodeID3
 
@@ -88,10 +112,10 @@ dknet generate-token --config=/path/to/config.yaml
 
 #### 参数说明
 
-| 参数             | 简写 | 类型     | 必需 | 说明                                                                                                                    |
-| ---------------- | ---- | -------- | ---- | ----------------------------------------------------------------------------------------------------------------------- |
-| `--threshold`    | `-r` | int      | ✓    | Fault tolerance threshold (t in (t+1)-of-n scheme). Max number of parties that can fail. Minimum signers required = t+1 |
-| `--participants` | `-P` | []string | ✓    | List of participant IDs                                                                                                 |
+| 参数             | 简写 | 类型     | 必需 | 说明                             |
+| ---------------- | ---- | -------- | ---- | -------------------------------- |
+| `--threshold`    | `-r` | int      | ✓    | 参与方数量, 最小签名节点数 = t+1 |
+| `--participants` | `-P` | []string | ✓    | 参与方 ID 列表                   |
 
 #### 返回结果
 
@@ -105,7 +129,14 @@ dknet generate-token --config=/path/to/config.yaml
 
 #### 命令说明
 
-签名操作需要至少 (t+1) 个参与方协作完成，其中 t 是密钥的阈值。可以对文本消息或十六进制编码的消息进行签名。
+签名操作需要至少 (t+1) 个参与方协作完成，其中 t 是参与方数量。可以对文本消息或十六进制编码的消息进行签名。
+
+**验证规则**：
+
+- message 是必需的
+- key-id 是必需的
+- participants 列表不能为空
+- 如果使用 --hex 标志，message 必须是有效的十六进制字符串
 
 #### 使用示例
 
@@ -132,12 +163,12 @@ dknet generate-token --config=/path/to/config.yaml
 
 #### 参数说明
 
-| 参数             | 简写 | 类型     | 必需 | 说明                        |
-| ---------------- | ---- | -------- | ---- | --------------------------- |
-| `--message`      | `-m` | string   | ✓    | Message to sign             |
-| `--key-id`       | `-k` | string   | ✓    | Key ID to use for signing   |
-| `--hex`          |      | bool     |      | Treat message as hex string |
-| `--participants` | `-P` | []string | ✓    | List of participant IDs     |
+| 参数             | 简写 | 类型     | 必需 | 说明                     |
+| ---------------- | ---- | -------- | ---- | ------------------------ |
+| `--message`      | `-m` | string   | ✓    | 消息内容                 |
+| `--key-id`       | `-k` | string   | ✓    | 密钥 ID 用于签名         |
+| `--hex`          |      | bool     |      | 消息是否为十六进制字符串 |
+| `--participants` | `-P` | []string | ✓    | 参与方 ID 列表           |
 
 #### 返回结果
 
@@ -145,13 +176,20 @@ dknet generate-token --config=/path/to/config.yaml
 - **Status**: 操作状态
 - **Created At**: 操作创建时间
 
-### reshare - 密钥重新分享
+### reshare - 密钥重新分享（未实现）
 
 重新分享现有密钥以更改阈值或参与方。
 
 #### 命令说明
 
 密钥重新分享操作允许修改现有密钥的阈值设置或参与方列表，生成新的密钥份额但保持相同的公钥。
+
+**验证规则**：
+
+- key-id 是必需的
+- new-threshold 必须为非负整数
+- new-participants 列表不能为空
+- new-threshold 必须小于 new-participants 的数量
 
 #### 使用示例
 
@@ -177,11 +215,11 @@ dknet generate-token --config=/path/to/config.yaml
 
 #### 参数说明
 
-| 参数                 | 简写 | 类型     | 必需 | 说明                                                                                                                        |
-| -------------------- | ---- | -------- | ---- | --------------------------------------------------------------------------------------------------------------------------- |
-| `--key-id`           | `-k` | string   | ✓    | Key ID to reshare                                                                                                           |
-| `--new-threshold`    |      | int      | ✓    | New fault tolerance threshold (t in (t+1)-of-n scheme). Max number of parties that can fail. Minimum signers required = t+1 |
-| `--new-participants` |      | []string | ✓    | List of new participant IDs                                                                                                 |
+| 参数                 | 简写 | 类型     | 必需 | 说明                                                                            |
+| -------------------- | ---- | -------- | ---- | ------------------------------------------------------------------------------- |
+| `--key-id`           | `-k` | string   | ✓    | 密钥 ID 重新分享                                                                |
+| `--new-threshold`    |      | int      | ✓    | 新的故障容忍阈值 (t in (t+1)-of-n 方案). 最大可故障节点数. 最小签名节点数 = t+1 |
+| `--new-participants` |      | []string | ✓    | 新的参与方 ID 列表                                                              |
 
 #### 返回结果
 
@@ -360,13 +398,15 @@ export DKNET_JWT_TOKEN="your-jwt-token"
   --participants nodeID1,nodeID2,nodeID3
 
 # 使用 gRPC 连接
-./bin/dknet-cli --grpc --server localhost:9001 sign \
+./bin/dknet-cli --grpc --server localhost:9090 sign \
   --key-id key-xyz789 \
   --message "Hello, World!" \
   --participants nodeID1,nodeID2
 ```
 
-### 错误处理
+### 错误处理和验证
+
+#### 常见错误信息
 
 ```bash
 # 当操作失败时，查看详细错误信息
@@ -377,4 +417,40 @@ export DKNET_JWT_TOKEN="your-jwt-token"
 # Operation ID: failed-operation-id
 # Status: FAILED
 # ❌ Error: insufficient participants for threshold requirement
+```
+
+#### 参数验证错误
+
+```bash
+# threshold 不能为负数
+./bin/dknet-cli keygen --threshold -1 --participants node1,node2,node3
+# Error: threshold must be non-negative
+
+# threshold 必须小于参与方数量
+./bin/dknet-cli keygen --threshold 3 --participants node1,node2,node3
+# Error: threshold must be less than total participants (t+1 <= n required)
+
+# 参与方列表不能为空
+./bin/dknet-cli keygen --threshold 2
+# Error: participants list cannot be empty
+
+# 无效的十六进制消息
+./bin/dknet-cli sign --key-id key123 --message "invalid-hex" --hex --participants node1,node2
+# Error: invalid hex message: encoding/hex: invalid byte: U+0069 'i'
+
+# 缺少必需参数
+./bin/dknet-cli sign --message "test"
+# Error: key-id is required
+```
+
+#### 连接错误
+
+```bash
+# 服务器连接失败
+./bin/dknet-cli --server localhost:8888 keygen --threshold 2 --participants node1,node2,node3
+# Error: failed to make request: dial tcp 127.0.0.1:8888: connect: connection refused
+
+# 认证失败
+./bin/dknet-cli --token="invalid-token" keygen --threshold 2 --participants node1,node2,node3
+# Error: HTTP 401: invalid or expired token
 ```

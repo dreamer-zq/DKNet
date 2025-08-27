@@ -1,342 +1,341 @@
-# DKNet 服务器使用指南
+# DKNet 服务器命令行使用指南
 
-本文档详细说明了 DKNet TSS 服务器的配置、部署和使用方法。
+本文档详细说明了 DKNet TSS 服务器的命令行工具使用方法。
 
-## 快速开始
-
-### 构建和安装
+## 安装
 
 ```bash
-# 克隆项目
-git clone <repository-url>
-cd dknet
-
 # 构建服务器
 make build
 
-# 构建客户端工具
-make build-client
-```
-
-### 基本使用
-
-```bash
-# 启动服务器（使用默认配置）
+# 构建后的二进制文件位于
 ./bin/dknet
-
-# 使用指定配置文件启动
-./bin/dknet --node-dir ./node1
-
-# 查看帮助信息
-./bin/dknet --help
 ```
 
-### 后台运行
+## 全局配置
+
+### 全局参数
+
+| 参数        | 简写 | 默认值 | 说明         |
+| ----------- | ---- | ------ | ------------ |
+| `--help`    | `-h` |        | 显示命令帮助 |
+| `--version` |      |        | 显示版本信息 |
+
+## 子命令
+
+### start - 启动服务器
+
+启动 DKNet TSS 服务器。
+
+#### 命令说明
+
+启动 DKNet TSS 服务器，提供 HTTP 和 gRPC API 服务。服务器需要指定节点目录，该目录包含配置文件、节点密钥和数据存储。
+
+#### 使用示例
 
 ```bash
-# 后台运行服务器
-nohup ./bin/dknet > dknet.log 2>&1 &
+# 启动服务器
+./bin/dknet start --node-dir ./node1
 
-# 查看进程
-ps aux | grep dknet
+# 使用不同的节点目录
+./bin/dknet start --node-dir /opt/dknet/config
 
-# 查看日志
-tail -f dknet.log
+# 查看帮助
+./bin/dknet start --help
 ```
 
-## 服务器配置
+#### 参数说明
 
-### 默认配置
+| 参数         | 简写 | 类型   | 必需 | 说明                                           |
+| ------------ | ---- | ------ | ---- | ---------------------------------------------- |
+| `--node-dir` |      | string | ✓    | 节点目录，包含 config.yaml, node_key, and data |
 
-DKNet 使用默认配置启动，监听以下端口：
+#### 环境变量
 
-- **HTTP API**: `http://localhost:8080`
-- **gRPC API**: `localhost:9001`
+| 环境变量                  | 说明                        | 默认值 |
+| ------------------------- | --------------------------- | ------ |
+| `TSS_ENCRYPTION_PASSWORD` | TSS 私钥加密密码 (required) |        |
 
-### 自定义配置
+#### 返回结果
 
-创建配置文件 `config.yaml`：
+服务器启动后会显示：
 
-```yaml
-# HTTP 服务配置
-http:
-  host: "0.0.0.0"
-  port: 8080
+- 服务器启动状态
+- HTTP API 地址（默认：<http://localhost:8080>）
+- gRPC API 地址（默认：<localhost:9090>）
+- 日志输出
 
-# gRPC 服务配置
-grpc:
-  host: "0.0.0.0"
-  port: 9001
+### init-cluster - 初始化集群
 
-# 安全配置
-security:
-  tls_enabled: false
-  cert_file: ""
-  key_file: ""
+为 TSS 集群生成配置文件和 P2P 密钥。
 
-# TSS 配置
-tss:
-  # TSS 相关配置项
-```
+#### 命令说明
 
-## 启动服务器
+生成多节点 TSS 集群的完整配置，包括每个节点的 P2P 私钥、配置文件和引导节点配置。主要用于测试环境，生产环境中每个组织应独立生成密钥。
 
-### 基本启动
+#### 使用示例
 
 ```bash
-# 使用默认配置启动
-./bin/dknet
+# 初始化 3 节点集群
+./bin/dknet init-cluster --nodes 3 --output ./tss-cluster
 
-# 使用自定义配置文件
-./bin/dknet --node-dir ./node1
+# 生成 Docker 集群配置
+./bin/dknet init-cluster --nodes 5 --docker --output ./docker-cluster
+
+# 使用默认设置（3 节点）
+./bin/dknet init-cluster
 ```
 
-### 开发模式
+#### 参数说明
 
-```bash
-# 开发模式启动（包含详细日志）
-make dev-server
+| 参数       | 简写 | 类型   | 必需 | 默认值        | 说明             |
+| ---------- | ---- | ------ | ---- | ------------- | ---------------- |
+| `--nodes`  | `-n` | int    |      | `3`           | 集群节点数       |
+| `--output` | `-o` | string |      | `tss-cluster` | 输出目录         |
+| `--docker` | `-d` | bool   |      | `false`       | 生成 Docker 配置 |
+
+#### 返回结果
+
+生成的文件结构：
+
+```text
+tss-cluster/
+├── node1/
+│   ├── config.yaml
+│   ├── node_key
+│   └── node-info.txt
+├── node2/
+│   ├── config.yaml
+│   ├── node_key
+│   └── node-info.txt
+├── node3/
+│   ├── config.yaml
+│   ├── node_key
+│   └── node-info.txt
+└── docker-compose.yaml  # 仅在 --docker 模式下生成
 ```
 
-### 后台服务
+### init-node - 初始化单个节点
+
+初始化单个节点的配置和密钥文件。
+
+#### 命令说明
+
+为单个节点生成配置文件和 P2P 密钥。适用于独立部署或手动配置集群的场景。
+
+#### 使用示例
 
 ```bash
-# 作为后台服务运行
-nohup ./bin/dknet > dknet.log 2>&1 &
+# 基本节点初始化
+./bin/dknet init-node --moniker "my-node" --output-dir ./my-node
 
-# 检查服务状态
-ps aux | grep dknet
-
-# 查看日志
-tail -f dknet.log
-```
-
-## API 服务
-
-### HTTP RESTful API
-
-服务器启动后，HTTP API 在 `http://localhost:8080` 提供服务：
-
-| 端点 | 方法 | 描述 |
-|------|------|------|
-| `/health` | GET | 健康检查 |
-| `/api/v1/keygen` | POST | 启动密钥生成 |
-| `/api/v1/sign` | POST | 启动签名操作 |
-| `/api/v1/reshare` | POST | 启动密钥重新分享 |
-| `/operations/:id` | GET | 获取操作状态 |
-| `/operations/:id` | DELETE | 取消操作 |
-
-### gRPC API
-
-gRPC 服务在 `localhost:9001` 提供服务，包含以下服务：
-
-- **TSSService**: 所有 TSS 操作
-- **HealthService**: 健康检查和监控
-
-## 集群部署
-
-### Docker 容器部署
-
-```bash
-# 构建 Docker 镜像
-make docker-build
-
-# 启动开发集群（3节点）
-make docker-dev
-
-# 启动生产集群
-make docker-prod
-
-# 查看集群状态
-make docker-status
-
-# 查看集群日志
-make docker-logs
-
-# 停止集群
-make docker-stop
-```
-
-### 本地集群部署
-
-```bash
-# 生成本地集群配置
-make init-local-cluster
-
-# 这将在 ./local-cluster 目录生成：
-# - node1/ node2/ node3/ 各节点配置
-# - 每个节点的私钥和配置文件
-```
-
-## 节点管理
-
-### 初始化单个节点
-
-```bash
-# 生成节点配置
+# 指定网络参数
 ./bin/dknet init-node \
-  --node-id node1 \
-  --listen-addr /ip4/0.0.0.0/tcp/4001 \
-  --api-addr localhost:8080 \
-  --grpc-addr localhost:9090 \
-  --output ./node1
+  --moniker "node1" \
+  --output-dir ./node1 \
+  --http-port 8080 \
+  --grpc-port 9090 \
+  --p2p-port 4001 \
+  --listen-addr 0.0.0.0
 
-# 快速示例
-make init-node-example
+# 配置引导节点
+./bin/dknet init-node \
+  --moniker "node2" \
+  --output-dir ./node2 \
+  --bootstrap-peers "/ip4/192.168.1.100/tcp/4001/p2p/12D3KooW..."
 ```
 
-### 查看节点信息
+#### 参数说明
+
+| 参数                | 简写 | 类型     | 必需 | 默认值    | 说明                    |
+| ------------------- | ---- | -------- | ---- | --------- | ----------------------- |
+| `--moniker`         |      | string   |      | `node1`   | 人类可读的节点名称      |
+| `--output-dir`      | `-o` | string   |      | `./`      | 输出目录 for node files |
+| `--bootstrap-peers` | `-b` | []string |      | `[]`      | 引导节点地址            |
+| `--http-port`       |      | int      |      | `8080`    | HTTP API 端口           |
+| `--grpc-port`       |      | int      |      | `9090`    | gRPC API 端口           |
+| `--p2p-port`        |      | int      |      | `4001`    | P2P 监听端口            |
+| `--listen-addr`     |      | string   |      | `0.0.0.0` | 监听地址                |
+
+#### 返回结果
+
+生成的文件：
+
+- `config/config.yaml` - 节点配置文件
+- `config/node_key` - P2P 私钥文件
+- `config/node-info.txt` - 节点信息文件，包含节点 ID、Peer ID、Multiaddr、网络配置和引导节点。
+
+### show-node - 显示节点信息
+
+显示节点信息，包括 Multiaddr 和网络配置。
+
+#### 命令说明
+
+从生成的配置文件中读取并显示节点信息，包括节点 ID、Peer ID、Multiaddr、网络配置和引导节点。用于部署和与其他节点共享节点信息。
+
+#### 使用示例
 
 ```bash
-# 显示节点详细信息
-make show-node NODE_DIR=./nodes/my-org
+# 显示节点信息
+./bin/dknet show-node --node-dir ./node1
 
 # JSON 格式输出
-make show-node-json NODE_DIR=./nodes/my-org
+./bin/dknet show-node --node-dir ./node1 --json
 
-# 仅显示多地址
-make show-multiaddr NODE_DIR=./nodes/my-org
+# 仅显示 multiaddr
+./bin/dknet show-node --node-dir ./node1 --multiaddr-only
 ```
 
-## 监控和健康检查
+#### 参数说明
 
-### 健康检查端点
+| 参数               | 简写 | 类型   | 必需 | 说明                                   |
+| ------------------ | ---- | ------ | ---- | -------------------------------------- |
+| `--node-dir`       |      | string | ✓    | 节点目录，包含 config.yaml 和 node_key |
+| `--json`           | `-j` | bool   |      | 以 JSON 格式输出                       |
+| `--multiaddr-only` | `-m` | bool   |      | 仅输出 Multiaddr                       |
 
-```bash
-# HTTP 健康检查
-curl http://localhost:8080/health
+#### 返回结果
 
-# 响应示例：
+**文本格式输出**：
+
+```text
+TSS Node Information
+====================
+
+Node Details:
+  Peer ID:    12D3KooWABC123...
+  Moniker:    my-node
+  Multiaddr:  /ip4/192.168.1.100/tcp/4001/p2p/12D3KooWABC123...
+
+Network Configuration:
+  Listen Address: 0.0.0.0:4001
+  HTTP Port:      8080
+  gRPC Port:      9090
+
+Bootstrap Peers:
+  1. /ip4/192.168.1.101/tcp/4001/p2p/12D3KooWDEF456...
+```
+
+**JSON 格式输出**：
+
+```json
 {
-  "status": "HEALTH_STATUS_SERVING",
-  "timestamp": "2024-06-11T13:45:30Z",
-  "details": "DKNet is healthy",
-  "metadata": {
-    "service": "dknet",
-    "version": "1.0.0"
-  }
+  "peer_id": "12D3KooWABC123...",
+  "moniker": "my-node",
+  "multiaddr": "/ip4/192.168.1.100/tcp/4001/p2p/12D3KooWABC123...",
+  "listen_addr": "0.0.0.0",
+  "port": 4001,
+  "bootstrap_peers": [
+    "/ip4/192.168.1.101/tcp/4001/p2p/12D3KooWDEF456..."
+  ],
+  "http_port": 8080,
+  "grpc_port": 9090
 }
 ```
 
-### 服务监控
+### generate-token - 生成认证令牌
+
+生成用于 API 认证的 JWT 令牌。
+
+#### 命令说明
+
+使用服务器的 JWT 配置生成认证令牌，客户端可以使用该令牌进行 API 认证。需要服务器配置中启用 JWT 认证。
+
+#### 使用示例
 
 ```bash
-# 检查 HTTP 服务
-curl -f http://localhost:8080/health || echo "HTTP service down"
+# 生成默认令牌
+./bin/dknet generate-token --node-dir ./node1
 
-# 检查 gRPC 服务（需要 grpcurl 工具）
-grpcurl -plaintext localhost:9001 health.v1.HealthService/Check
+# 指定用户和角色
+./bin/dknet generate-token \
+  --node-dir ./node1 \
+  --user "admin" \
+  --roles "admin,operator"
+
+# 设置过期时间
+./bin/dknet generate-token \
+  --node-dir ./node1 \
+  --expires 48
+
+# 生成永久令牌
+./bin/dknet generate-token \
+  --node-dir ./node1 \
+  --expires 0
+
+# JSON 格式输出
+./bin/dknet generate-token \
+  --node-dir ./node1 \
+  --output json
 ```
 
-## 操作管理
+#### 参数说明
 
-### 查询操作状态
+| 参数         | 简写 | 类型     | 必需 | 默认值             | 说明                                           |
+| ------------ | ---- | -------- | ---- | ------------------ | ---------------------------------------------- |
+| `--node-dir` |      | string   | ✓    |                    | 节点目录，包含 config.yaml, node_key, and data |
+| `--output`   | `-o` | string   |      | `text`             | 输出格式 (text\|json)                          |
+| `--user`     | `-u` | string   |      | `admin-user`       | 用户 ID 用于令牌                               |
+| `--roles`    | `-r` | []string |      | `[admin,operator]` | 角色用于令牌                                   |
+| `--expires`  | `-e` | int      |      | `24`               | 令牌过期时间 (使用 0 表示不设置过期)           |
+
+#### 返回结果
+
+**文本格式输出**：
+
+```text
+🔑 JWT Token Generated Successfully
+Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+User ID: admin-user
+Issuer: dknet-test
+Roles: [admin operator]
+Expires: 2024-01-02T12:00:00Z (24h)
+
+Usage with dknet-cli:
+  dknet-cli --token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." <command>
+
+Usage with curl:
+  curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." <api-endpoint>
+```
+
+**JSON 格式输出**：
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user_id": "admin-user",
+  "issuer": "dknet-test",
+  "roles": ["admin", "operator"],
+  "expires_in": "24h",
+  "expires_at": "2024-01-02T12:00:00Z"
+}
+```
+
+### version - 版本信息
+
+显示 DKNet 服务器的版本信息。
+
+#### 命令说明
+
+显示当前 DKNet 服务器二进制文件的版本信息，包括版本号、构建时间等详细信息。
+
+#### 使用示例
 
 ```bash
-# HTTP API
-curl http://localhost:8080/operations/{operation-id}
-
-# 使用客户端工具
-./bin/dknet-cli operation {operation-id}
+# 显示版本信息
+./bin/dknet version
 ```
 
-### 取消操作
+#### 参数说明
 
-```bash
-# HTTP API
-curl -X DELETE http://localhost:8080/operations/{operation-id}
+此命令无需额外参数。
 
-# 使用客户端工具
-./bin/dknet-cli cancel-operation {operation-id}
-```
+#### 返回结果
 
-## 安全配置
-
-### TLS 配置
-
-```yaml
-# config.yaml
-security:
-  tls_enabled: true
-  cert_file: "/path/to/server.crt"
-  key_file: "/path/to/server.key"
-```
-
-```bash
-# 生成自签名证书（仅用于测试）
-openssl req -new -newkey rsa:2048 -days 365 -nodes -x509 \
-  -keyout server.key -out server.crt
-
-# 启动 TLS 服务器
-./bin/dknet --node-dir ./node1
-```
-
-### 访问控制
-
-在生产环境中建议：
-
-1. 使用防火墙限制端口访问
-2. 配置反向代理（如 Nginx）
-3. 实施 API 认证和授权
-4. 启用访问日志记录
-
-### 日志配置
-
-```yaml
-# config.yaml
-logging:
-  level: "info"  # debug, info, warn, error
-  format: "json" # json, text
-  output: "stdout" # stdout, stderr, 文件路径
-```
-
-## 性能调优
-
-### 连接池配置
-
-```yaml
-# config.yaml
-server:
-  max_connections: 1000
-  read_timeout: "30s"
-  write_timeout: "30s"
-  idle_timeout: "60s"
-```
-
-## 生产部署建议
-
-### 高可用配置
-
-1. **负载均衡**: 使用 Nginx 或 HAProxy
-2. **服务发现**: 集成 Consul 或 etcd
-3. **监控告警**: 配置 Prometheus + Grafana
-4. **日志收集**: 使用 ELK Stack 或 Loki
-
-### 自动化部署
-
-```bash
-# 使用 systemd 管理服务
-sudo cp dknet.service /etc/systemd/system/
-sudo systemctl enable dknet
-sudo systemctl start dknet
-```
-
-示例 systemd 服务文件：
-
-```ini
-[Unit]
-Description=DKNet TSS Server
-After=network.target
-
-[Service]
-Type=simple
-User=dknet
-Group=dknet
-WorkingDirectory=/opt/dknet
-ExecStart=/opt/dknet/bin/dknet --node-dir /opt/dknet/node1
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
+```text
+DKNet TSS Server
+Version: v1.0.0
+Build Date: 2024-01-01T12:00:00Z
+Git Commit: abc123def456
+Go Version: go1.21.0
 ```
