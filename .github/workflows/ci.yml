@@ -191,7 +191,7 @@ jobs:
 
     - name: Upload test artifacts
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: e2e-test-artifacts
         path: test-artifacts/
@@ -260,7 +260,7 @@ jobs:
         time ./test-signing.sh test 2>&1 | tee -a ../performance-results.txt
 
     - name: Upload performance results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: performance-benchmark-results
         path: tests/performance-results.txt
